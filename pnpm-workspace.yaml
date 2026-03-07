@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - workers/*
+  - packages/*
+ignoredBuiltDependencies:
+  - esbuild
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
+  - workerd

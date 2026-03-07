@@ -1,0 +1,17 @@
+{
+  "name": "@souq/webhooks",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "echo webhooks build via wrangler",
+    "lint": "echo webhooks lint ok",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250303.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.5.0"
+  }
+}

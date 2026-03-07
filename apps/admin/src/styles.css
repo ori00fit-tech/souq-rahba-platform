@@ -1,0 +1,8 @@
+body { margin: 0; font-family: Arial, sans-serif; background: #f7f5f1; }
+.shell { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sidebar { background: #171411; color: white; padding: 24px; }
+.sidebar nav { display: grid; gap: 10px; margin-top: 20px; }
+.sidebar a { color: #d8cab5; text-decoration: none; }
+.content { padding: 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 16px; }
+.card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
