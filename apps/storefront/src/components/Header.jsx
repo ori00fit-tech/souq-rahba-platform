@@ -9,26 +9,31 @@ export default function Header() {
       <div className="top-strip" />
       <div className="container header-grid">
         <Link to="/" className="brand-mark">{t.brand}</Link>
+
         <input
           className="search-box"
           placeholder={t.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+
         <div className="header-actions">
-          <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-            <option value="ar">AR</option>
-            <option value="fr">FR</option>
-            <option value="en">EN</option>
-          </select>
+          <Link to="/cart" className="cart-pill">{t.cart} ({cart.length})</Link>
+
           <select value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option value="MAD">MAD</option>
             <option value="EUR">EUR</option>
             <option value="USD">USD</option>
           </select>
-          <Link to="/cart" className="cart-pill">{t.cart} ({cart.length})</Link>
+
+          <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+            <option value="ar">AR</option>
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+          </select>
         </div>
       </div>
+
       <nav className="main-nav container">
         <NavLink to="/">{t.navHome}</NavLink>
         <NavLink to="/products">{t.navProducts}</NavLink>
@@ -36,7 +41,7 @@ export default function Header() {
         <NavLink to="/seller/dashboard">{t.navDashboard}</NavLink>
         <NavLink to="/about">{t.navAbout}</NavLink>
         <NavLink to="/help">{t.navHelp}</NavLink>
-        <NavLink to="/auth">Login</NavLink>
+        <NavLink to="/auth">{t.navAccount}</NavLink>
       </nav>
     </header>
   )
