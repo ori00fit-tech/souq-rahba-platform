@@ -65,7 +65,7 @@ export default function ProductsPage() {
             }}
           >
             <Link
-              to={`/products/${p.id}`}
+              to={`/products/${p.slug}`}
               style={{ textDecoration: "none", color: "inherit" }}
             >
               <div
@@ -99,7 +99,7 @@ export default function ProductsPage() {
 
             <div style={{ padding: "14px" }}>
               <Link
-                to={`/products/${p.id}`}
+                to={`/products/${p.slug}`}
                 style={{
                   textDecoration: "none",
                   color: "#1f3b73",
@@ -145,7 +145,7 @@ export default function ProductsPage() {
               </div>
 
               <Link
-                to={`/products/${p.id}`}
+                to={`/products/${p.slug}`}
                 style={{
                   display: "inline-block",
                   padding: "10px 14px",
