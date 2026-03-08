@@ -20,7 +20,7 @@ export default function ProductsPage() {
       {products.map((p) => (
         <div key={p.id} style={{ marginBottom: "24px" }}>
           <Link
-            to={`/products/${p.slug}`}
+            to={`/products/${p.id}
             style={{
               display: "inline-block",
               fontSize: "24px",
