@@ -3,6 +3,7 @@ import { useState } from "react";
 export default function AddProductPage() {
 
   const [form, setForm] = useState({
+  const [image, setImage] = useState(null);
     name: "",
     sku: "",
     price: "",
@@ -19,37 +20,57 @@ export default function AddProductPage() {
   }
 
   async function handleSubmit(e) {
-  e.preventDefault();
 
-  try {
+e.preventDefault();
 
-    const res = await fetch("http://127.0.0.1:8787/catalog/products", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        title: form.name,
-        sku: form.sku,
-        price: Number(form.price),
-        stock_quantity: Number(form.stock),
-        description: form.description
-        vendor_id: "demo-vendor"
-      })
-    });
+try {
 
-    const data = await res.json();
+let image_url = null;
 
-    console.log("Created product:", data);
+if (image) {
 
-    alert("Product created successfully");
+const formData = new FormData();
+formData.append("file", image);
 
-  } catch (err) {
+const upload = await fetch("http://127.0.0.1:8787/upload", {
+method: "POST",
+body: formData
+});
 
-    console.error(err);
-    alert("Error creating product");
+const result = await upload.json();
+image_url = result.url;
 
-  }
+}
+
+const res = await fetch("http://127.0.0.1:8787/catalog/products", {
+method: "POST",
+headers: {
+"Content-Type": "application/json"
+},
+body: JSON.stringify({
+title: form.name,
+sku: form.sku,
+price: Number(form.price),
+stock_quantity: Number(form.stock),
+description: form.description,
+vendor_id: "demo-vendor",
+image: image_url
+})
+});
+
+const data = await res.json();
+
+console.log("Created product:", data);
+
+alert("Product created successfully");
+
+} catch (err) {
+
+console.error(err);
+alert("Error creating product");
+
+}
+
 }
 
   return (
@@ -145,6 +166,11 @@ export default function AddProductPage() {
             cursor:"pointer"
           }}
         >
+        <input
+type="file"
+accept="image/*"
+onChange={(e)=>setImage(e.target.files[0])}
+/>
           Create Product
         </button>
 

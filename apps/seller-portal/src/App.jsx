@@ -5,6 +5,7 @@ import ProductsPage from "./pages/ProductsPage";
 import OrdersPage from "./pages/OrdersPage";
 import EarningsPage from "./pages/EarningsPage";
 import SettingsPage from "./pages/SettingsPage";
+import AddProductPage from "./pages/AddProductPage";
 
 function useIsMobile() {
   const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -240,6 +241,7 @@ function Layout() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/add-product" element={<AddProductPage />} />
           </Routes>
         </main>
       </div>
