@@ -92,7 +92,7 @@ export default function ProductsPage() {
         setLoading(true);
         setErrorText("");
 
-        const res = await fetch("http://127.0.0.1:8787/catalog/products");
+        const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products");
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }

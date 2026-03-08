@@ -32,7 +32,7 @@ if (image) {
 const formData = new FormData();
 formData.append("file", image);
 
-const upload = await fetch("http://127.0.0.1:8787/upload", {
+const upload = await fetch("https://souq-rahba-api.ori00fit.workers.dev/upload", {
 method: "POST",
 body: formData
 });
@@ -42,7 +42,7 @@ image_url = result.url;
 
 }
 
-const res = await fetch("http://127.0.0.1:8787/catalog/products", {
+const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products", {
 method: "POST",
 headers: {
 "Content-Type": "application/json"
