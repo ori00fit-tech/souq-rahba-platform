@@ -32,8 +32,9 @@ export default function AddProductPage() {
         title: form.name,
         sku: form.sku,
         price: Number(form.price),
-        stock: Number(form.stock),
+        stock_quantity: Number(form.stock),
         description: form.description
+        vendor_id: "demo-vendor"
       })
     });
 
