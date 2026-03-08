@@ -5,7 +5,7 @@ compatibility_date = "2026-03-06"
 [[d1_databases]]
 binding = "DB"
 database_name = "souq-db"
-database_id = "REPLACE_ME"
+database_id = "6a959628-6c0c-4cc2-a1fb-e33d4df6792c"
 
 [[r2_buckets]]
 binding = "MEDIA"
@@ -13,7 +13,7 @@ bucket_name = "souq-media"
 
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_ME"
+id = "cda03bad354447538732e42f90d8bf4e"
 
 [vars]
 APP_ENV = "production"
