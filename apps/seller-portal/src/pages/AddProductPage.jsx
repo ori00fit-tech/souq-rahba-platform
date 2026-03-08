@@ -1,9 +1,7 @@
 import { useState } from "react";
 
 export default function AddProductPage() {
-
   const [form, setForm] = useState({
-  const [image, setImage] = useState(null);
     name: "",
     sku: "",
     price: "",
@@ -11,6 +9,8 @@ export default function AddProductPage() {
     category: "",
     description: ""
   });
+
+  const [image, setImage] = useState(null);
 
   function handleChange(e) {
     setForm({
@@ -20,72 +20,61 @@ export default function AddProductPage() {
   }
 
   async function handleSubmit(e) {
+    e.preventDefault();
 
-e.preventDefault();
+    try {
+      let image_url = null;
 
-try {
+      if (image) {
+        const formData = new FormData();
+        formData.append("file", image);
 
-let image_url = null;
+        const upload = await fetch("https://souq-rahba-api.ori00fit.workers.dev/upload", {
+          method: "POST",
+          body: formData
+        });
 
-if (image) {
+        const result = await upload.json();
+        image_url = result.url || null;
+      }
 
-const formData = new FormData();
-formData.append("file", image);
+      const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: form.name,
+          sku: form.sku,
+          price: Number(form.price),
+          stock_quantity: Number(form.stock),
+          description: form.description,
+          vendor_id: "demo-vendor",
+          image: image_url
+        })
+      });
 
-const upload = await fetch("https://souq-rahba-api.ori00fit.workers.dev/upload", {
-method: "POST",
-body: formData
-});
-
-const result = await upload.json();
-image_url = result.url;
-
-}
-
-const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products", {
-method: "POST",
-headers: {
-"Content-Type": "application/json"
-},
-body: JSON.stringify({
-title: form.name,
-sku: form.sku,
-price: Number(form.price),
-stock_quantity: Number(form.stock),
-description: form.description,
-vendor_id: "demo-vendor",
-image: image_url
-})
-});
-
-const data = await res.json();
-
-console.log("Created product:", data);
-
-alert("Product created successfully");
-
-} catch (err) {
-
-console.error(err);
-alert("Error creating product");
-
-}
-
-}
+      const data = await res.json();
+      console.log("Created product:", data);
+      alert("Product created successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Error creating product");
+    }
+  }
 
   return (
-    <div style={{display:"grid",gap:"20px"}}>
-
+    <div style={{ display: "grid", gap: "20px" }}>
       <div
         style={{
-          background:"#fff",
-          border:"1px solid #e2e8f0",
-          borderRadius:"20px",
-          padding:"20px"
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "20px",
+          padding: "20px"
         }}
       >
         <h2>Add Product</h2>
-        <p style={{color:"#64748b"}}>
+        <p style={{ color: "#64748b" }}>
           Create a new product listing for your marketplace store
         </p>
       </div>
@@ -93,15 +82,14 @@ alert("Error creating product");
       <form
         onSubmit={handleSubmit}
         style={{
-          display:"grid",
-          gap:"16px",
-          background:"#fff",
-          border:"1px solid #e2e8f0",
-          borderRadius:"20px",
-          padding:"20px"
+          display: "grid",
+          gap: "16px",
+          background: "#fff",
+          border: "1px solid #e2e8f0",
+          borderRadius: "20px",
+          padding: "20px"
         }}
       >
-
         <input
           name="name"
           placeholder="Product name"
@@ -154,35 +142,35 @@ alert("Error creating product");
           style={input}
         />
 
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setImage(e.target.files?.[0] || null)}
+          style={input}
+        />
+
         <button
           type="submit"
           style={{
-            padding:"14px",
-            borderRadius:"12px",
-            border:"none",
-            background:"#ea580c",
-            color:"#fff",
-            fontWeight:"700",
-            cursor:"pointer"
+            padding: "14px",
+            borderRadius: "12px",
+            border: "none",
+            background: "#ea580c",
+            color: "#fff",
+            fontWeight: "700",
+            cursor: "pointer"
           }}
         >
-        <input
-type="file"
-accept="image/*"
-onChange={(e)=>setImage(e.target.files[0])}
-/>
           Create Product
         </button>
-
       </form>
-
     </div>
   );
 }
 
 const input = {
-  padding:"12px",
-  borderRadius:"10px",
-  border:"1px solid #e2e8f0",
-  fontSize:"14px"
+  padding: "12px",
+  borderRadius: "10px",
+  border: "1px solid #e2e8f0",
+  fontSize: "14px"
 };
