@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function useIsMobile() {
   const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -75,6 +76,7 @@ function getStatusStyle(status) {
 }
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   return (
@@ -96,17 +98,18 @@ export default function ProductsPage() {
           </div>
 
           <button
-            style={{
-              padding: "10px 16px",
-              borderRadius: "12px",
-              border: "none",
-              background: "#ea580c",
-              color: "#fff",
-              fontWeight: 700
-            }}
-          >
-            + Add Product
-          </button>
+onClick={() => navigate("/add-product")}
+style={{
+padding: "10px 16px",
+borderRadius: "12px",
+border: "none",
+background: "#ea580c",
+color: "#fff",
+fontWeight: 700
+}}
+>
++ Add Product
+</button>
         </div>
       </section>
 
