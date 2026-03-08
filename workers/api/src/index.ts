@@ -9,7 +9,7 @@ import type { Bindings } from "./types";
 import { getProductsHandler } from "./routes/catalog/getProducts";
 import { getProductBySlugHandler } from "./routes/catalog/getProductBySlug";
 import { createProductHandler } from "./routes/catalog/createProduct";
-
+import { uploadRouter } from "./routes/upload";
 import { createVendorHandler } from "./routes/vendors/createVendor";
 import { getVendorProfileHandler } from "./routes/vendors/getVendorProfile";
 import { updateVendorHandler } from "./routes/vendors/updateVendor";
@@ -38,6 +38,7 @@ app.route("/", healthRouter);
 app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/commerce", orderRouter);
+app.route("/", uploadRouter);
 
 app.notFound((c) => c.json({ ok: false, code: "NOT_FOUND", message: "Route not found" }, 404));
 
