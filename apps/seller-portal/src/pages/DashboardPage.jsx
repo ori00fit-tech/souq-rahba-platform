@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 const stats = [
   {
@@ -43,12 +44,25 @@ const quickActions = [
   { label: "Store Settings", to: "/settings" }
 ];
 
-function cardStyle() {
+function useIsMobile() {
+  const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
+  const [isMobile, setIsMobile] = useState(getValue());
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(getValue());
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  return isMobile;
+}
+
+function cardStyle(isMobile) {
   return {
     background: "#ffffff",
     border: "1px solid #e2e8f0",
-    borderRadius: "22px",
-    padding: "20px",
+    borderRadius: isMobile ? "18px" : "22px",
+    padding: isMobile ? "16px" : "20px",
     boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)"
   };
 }
@@ -78,11 +92,13 @@ function getStatusStyle(status) {
 }
 
 export default function DashboardPage() {
+  const isMobile = useIsMobile();
+
   return (
-    <div style={{ display: "grid", gap: "18px" }}>
+    <div style={{ display: "grid", gap: isMobile ? "14px" : "18px" }}>
       <section
         style={{
-          ...cardStyle(),
+          ...cardStyle(isMobile),
           background:
             "linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(255,255,255,1) 45%, rgba(249,250,251,1) 100%)"
         }}
@@ -90,10 +106,25 @@ export default function DashboardPage() {
         <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400e" }}>
           Seller Overview
         </div>
-        <h2 style={{ margin: "8px 0 10px", fontSize: "30px", color: "#0f172a" }}>
+        <h2
+          style={{
+            margin: "8px 0 10px",
+            fontSize: isMobile ? "24px" : "30px",
+            lineHeight: 1.15,
+            color: "#0f172a"
+          }}
+        >
           Welcome back, Talidi Store
         </h2>
-        <p style={{ margin: 0, color: "#475569", lineHeight: 1.7, maxWidth: "720px" }}>
+        <p
+          style={{
+            margin: 0,
+            color: "#475569",
+            lineHeight: 1.7,
+            maxWidth: "720px",
+            fontSize: isMobile ? "14px" : "16px"
+          }}
+        >
           Monitor store performance, manage orders, follow stock levels and keep your
           marketplace operations under control from one dashboard.
         </p>
@@ -102,21 +133,22 @@ export default function DashboardPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(200px, 1fr))",
           gap: "14px"
         }}
       >
         {stats.map((item) => (
-          <div key={item.title} style={cardStyle()}>
+          <div key={item.title} style={cardStyle(isMobile)}>
             <div style={{ fontSize: "13px", color: "#64748b", fontWeight: 700 }}>
               {item.title}
             </div>
             <div
               style={{
-                fontSize: "28px",
+                fontSize: isMobile ? "22px" : "28px",
                 fontWeight: 800,
                 color: "#0f172a",
-                marginTop: "8px"
+                marginTop: "8px",
+                lineHeight: 1.15
               }}
             >
               {item.value}
@@ -131,7 +163,7 @@ export default function DashboardPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "14px"
         }}
       >
@@ -140,14 +172,14 @@ export default function DashboardPage() {
             key={action.label}
             to={action.to}
             style={{
-              ...cardStyle(),
+              ...cardStyle(isMobile),
               textDecoration: "none",
               color: "#0f172a",
               fontWeight: 800,
               display: "block"
             }}
           >
-            <div style={{ fontSize: "15px" }}>{action.label}</div>
+            <div style={{ fontSize: isMobile ? "14px" : "15px" }}>{action.label}</div>
             <div style={{ marginTop: "8px", fontSize: "13px", color: "#64748b" }}>
               Open section
             </div>
@@ -158,11 +190,11 @@ export default function DashboardPage() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)",
-          gap: "18px"
+          gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.6fr) minmax(0, 1fr)",
+          gap: isMobile ? "14px" : "18px"
         }}
       >
-        <div style={cardStyle()}>
+        <div style={cardStyle(isMobile)}>
           <div
             style={{
               display: "flex",
@@ -173,7 +205,15 @@ export default function DashboardPage() {
               flexWrap: "wrap"
             }}
           >
-            <h3 style={{ margin: 0, fontSize: "20px", color: "#0f172a" }}>Recent Orders</h3>
+            <h3
+              style={{
+                margin: 0,
+                fontSize: isMobile ? "18px" : "20px",
+                color: "#0f172a"
+              }}
+            >
+              Recent Orders
+            </h3>
             <Link
               to="/orders"
               style={{
@@ -194,7 +234,7 @@ export default function DashboardPage() {
                 style={{
                   border: "1px solid #e2e8f0",
                   borderRadius: "16px",
-                  padding: "14px",
+                  padding: isMobile ? "12px" : "14px",
                   display: "flex",
                   justifyContent: "space-between",
                   gap: "12px",
@@ -202,14 +242,22 @@ export default function DashboardPage() {
                   background: "#fcfcfd"
                 }}
               >
-                <div>
-                  <div style={{ fontWeight: 800, color: "#0f172a" }}>{order.id}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      fontSize: isMobile ? "14px" : "16px"
+                    }}
+                  >
+                    {order.id}
+                  </div>
                   <div style={{ color: "#64748b", marginTop: "4px", fontSize: "14px" }}>
                     Customer: {order.customer}
                   </div>
                 </div>
 
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: isMobile ? "left" : "right" }}>
                   <div style={{ fontWeight: 800, color: "#0f172a" }}>{order.total}</div>
                   <div
                     style={{
@@ -230,9 +278,16 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: "18px" }}>
-          <div style={cardStyle()}>
-            <h3 style={{ marginTop: 0, marginBottom: "14px", color: "#0f172a" }}>
+        <div style={{ display: "grid", gap: isMobile ? "14px" : "18px" }}>
+          <div style={cardStyle(isMobile)}>
+            <h3
+              style={{
+                marginTop: 0,
+                marginBottom: "14px",
+                color: "#0f172a",
+                fontSize: isMobile ? "18px" : "20px"
+              }}
+            >
               Low Stock Alerts
             </h3>
             <div style={{ display: "grid", gap: "10px" }}>
@@ -255,8 +310,15 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={cardStyle()}>
-            <h3 style={{ marginTop: 0, marginBottom: "14px", color: "#0f172a" }}>
+          <div style={cardStyle(isMobile)}>
+            <h3
+              style={{
+                marginTop: 0,
+                marginBottom: "14px",
+                color: "#0f172a",
+                fontSize: isMobile ? "18px" : "20px"
+              }}
+            >
               Performance Summary
             </h3>
             <div style={{ display: "grid", gap: "12px" }}>
@@ -266,7 +328,8 @@ export default function DashboardPage() {
                   borderRadius: "14px",
                   background: "#eff6ff",
                   color: "#1d4ed8",
-                  fontWeight: 700
+                  fontWeight: 700,
+                  fontSize: isMobile ? "14px" : "15px"
                 }}
               >
                 Conversion rate improved this week
@@ -277,7 +340,8 @@ export default function DashboardPage() {
                   borderRadius: "14px",
                   background: "#ecfdf5",
                   color: "#166534",
-                  fontWeight: 700
+                  fontWeight: 700,
+                  fontSize: isMobile ? "14px" : "15px"
                 }}
               >
                 Most orders came from featured products
@@ -288,7 +352,8 @@ export default function DashboardPage() {
                   borderRadius: "14px",
                   background: "#fff7ed",
                   color: "#9a3412",
-                  fontWeight: 700
+                  fontWeight: 700,
+                  fontSize: isMobile ? "14px" : "15px"
                 }}
               >
                 Restock 3 items before weekend demand
