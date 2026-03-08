@@ -1,45 +1,66 @@
+import { useState } from "react";
+
 export default function SellerDashboardPage() {
-  const cards = [
-    ['Revenue', '124,000 MAD'],
-    ['Orders', '382'],
-    ['Pending payout', '18,400 MAD'],
-    ['Return rate', '2.3%'],
-  ]
+  const [titleAr, setTitleAr] = useState("");
+  const [slug, setSlug] = useState("");
+  const [priceMad, setPriceMad] = useState("");
+  const [stock, setStock] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setMessage("جارٍ الإرسال...");
+
+    try {
+      const response = await fetch("https://souq-rahba-platform.ori00fit.workers.dev/catalog/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          seller_id: "s1",
+          title_ar: titleAr,
+          slug,
+          price_mad: Number(priceMad),
+          stock: Number(stock),
+          category_id: categoryId,
+          description_ar: "",
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.ok) {
+        setMessage("تمت إضافة المنتج بنجاح");
+        setTitleAr("");
+        setSlug("");
+        setPriceMad("");
+        setStock("");
+        setCategoryId("");
+      } else {
+        setMessage("فشل الإضافة");
+      }
+    } catch (err) {
+      setMessage("حدث خطأ أثناء الإرسال");
+    }
+  }
 
   return (
     <section className="container section-space">
-      <div className="section-head">
-        <h1>Seller dashboard</h1>
-        <p>واجهة جاهزة كبداية لمنتجات، طلبات، مدفوعات، وفوترة.</p>
-      </div>
-      <div className="stat-grid">
-        {cards.map(([label, value]) => (
-          <div key={label} className="stat-card">
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-      </div>
-      <div className="dual-grid">
-        <div className="panel-card">
-          <h3>Workflow</h3>
-          <ul className="feature-list">
-            <li>Product creation and moderation</li>
-            <li>Inventory sync</li>
-            <li>Order packing and shipping</li>
-            <li>Invoice and payout generation</li>
-          </ul>
-        </div>
-        <div className="panel-card">
-          <h3>Next integrations</h3>
-          <ul className="feature-list">
-            <li>CMI / local payment gateway</li>
-            <li>Shipping carrier adapter</li>
-            <li>KYC document verification</li>
-            <li>Fraud and COD risk scoring</li>
-          </ul>
-        </div>
-      </div>
+      <h1>لوحة البائع</h1>
+
+      <form onSubmit={handleSubmit} style={{ maxWidth: "560px", display: "grid", gap: "12px" }}>
+        <input value={titleAr} onChange={(e) => setTitleAr(e.target.value)} placeholder="اسم المنتج بالعربية" />
+        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug مثال: samsung-a55" />
+        <input value={priceMad} onChange={(e) => setPriceMad(e.target.value)} placeholder="السعر" type="number" />
+        <input value={stock} onChange={(e) => setStock(e.target.value)} placeholder="المخزون" type="number" />
+        <input value={categoryId} onChange={(e) => setCategoryId(e.target.value)} placeholder="category_id مثال: c1" />
+
+        <button type="submit">إضافة المنتج</button>
+      </form>
+
+      {message && <p style={{ marginTop: "16px" }}>{message}</p>}
     </section>
-  )
+  );
 }

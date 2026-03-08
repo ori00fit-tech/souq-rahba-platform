@@ -117,3 +117,9 @@ insert into products (
   'bulky',
   'active'
 );
+
+insert into product_media (id, product_id, media_type, url, alt_text, sort_order) values
+('pm1','p1','image','https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1200&auto=format&fit=crop','Samsung Galaxy A55',0),
+('pm2','p2','image','https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?q=80&w=1200&auto=format&fit=crop','Inverter Refrigerator',0),
+('pm3','p3','image','https://images.unsplash.com/photo-1504148455328-c376907d081c?q=80&w=1200&auto=format&fit=crop','Hammer Drill',0),
+('pm4','p4','image','https://images.unsplash.com/photo-1563299796-17596ed6b017?q=80&w=1200&auto=format&fit=crop','Fish Box',0);
