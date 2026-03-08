@@ -43,6 +43,43 @@ importers:
         specifier: ^6.2.0
         version: 6.4.1
 
+  apps/seller-portal:
+    dependencies:
+      '@souq/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@souq/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@souq/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
+      react-router-dom:
+        specifier: ^7.4.0
+        version: 7.13.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      '@types/react':
+        specifier: ^18.3.18
+        version: 18.3.28
+      '@types/react-dom':
+        specifier: ^18.3.5
+        version: 18.3.7(@types/react@18.3.28)
+      '@vitejs/plugin-react':
+        specifier: ^4.4.1
+        version: 4.7.0(vite@6.4.1)
+      typescript:
+        specifier: ^5.8.2
+        version: 5.9.3
+      vite:
+        specifier: ^6.2.0
+        version: 6.4.1
+
   apps/storefront:
     dependencies:
       '@souq/contracts':
