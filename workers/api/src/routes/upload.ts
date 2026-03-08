@@ -3,28 +3,31 @@ import { Hono } from "hono";
 const uploadRouter = new Hono();
 
 uploadRouter.post("/upload", async (c) => {
-
   const body = await c.req.parseBody();
-  const file = body.file as File;
+  const file = body.file as File | undefined;
 
   if (!file) {
-    return c.json({ error: "No file uploaded" }, 400);
+    return c.json({ ok: false, error: "No file uploaded" }, 400);
   }
 
-  const filename = `${Date.now()}-${file.name}`;
+  if (!file.type || !file.type.startsWith("image/")) {
+    return c.json({ ok: false, error: "Only image files are allowed" }, 400);
+  }
 
-  await c.env.MEDIA.put(filename, file.stream(), {
+  const safeName = file.name.replace(/\s+/g, "-");
+  const key = `products/${Date.now()}-${safeName}`;
+
+  await c.env.MEDIA.put(key, file.stream(), {
     httpMetadata: {
       contentType: file.type
     }
   });
 
-  const url = `https://your-r2-domain/${filename}`;
-
   return c.json({
-    url
+    ok: true,
+    key,
+    message: "Image uploaded successfully"
   });
-
 });
 
 export { uploadRouter };
