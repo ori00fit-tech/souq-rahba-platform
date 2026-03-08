@@ -17,11 +17,13 @@ export default function ProductsPage() {
       <h1>المنتجات</h1>
 
       {products.map((p) => (
-        <div key={p.id}>
-          <h3>{p.title_ar}</h3>
-          <p>{p.price_mad} MAD</p>
-        </div>
-      ))}
-    </div>
-  );
-}
+  <div key={p.id}>
+    <h3>{p.title_ar}</h3>
+
+    <p>{p.price_mad} MAD</p>
+
+    <a href={`/products/${p.slug}`}>
+      عرض المنتج
+    </a>
+  </div>
+))}
