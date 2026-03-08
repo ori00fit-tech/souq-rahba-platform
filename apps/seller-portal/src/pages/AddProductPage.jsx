@@ -23,7 +23,7 @@ export default function AddProductPage() {
     e.preventDefault();
 
     try {
-      let image_url = null;
+      let image_key = null;
 
       if (image) {
         const formData = new FormData();
@@ -35,7 +35,12 @@ export default function AddProductPage() {
         });
 
         const result = await upload.json();
-        image_url = result.url || null;
+
+        if (!upload.ok || !result.ok) {
+          throw new Error(result.error || "Image upload failed");
+        }
+
+        image_key = result.key || null;
       }
 
       const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products", {
@@ -49,14 +54,30 @@ export default function AddProductPage() {
           price: Number(form.price),
           stock_quantity: Number(form.stock),
           description: form.description,
+          category: form.category,
           vendor_id: "demo-vendor",
-          image: image_url
+          image: image_key
         })
       });
 
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Product creation failed");
+      }
+
       console.log("Created product:", data);
       alert("Product created successfully");
+
+      setForm({
+        name: "",
+        sku: "",
+        price: "",
+        stock: "",
+        category: "",
+        description: ""
+      });
+      setImage(null);
     } catch (err) {
       console.error(err);
       alert("Error creating product");
