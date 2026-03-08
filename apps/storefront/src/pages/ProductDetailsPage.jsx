@@ -1,33 +1,72 @@
 import { useParams } from 'react-router-dom'
+import { products } from '../data/site'
 import { useApp } from '../context/AppContext'
-import { formatMoney } from '../lib/utils'
 
 export default function ProductDetailsPage() {
   const { productId } = useParams()
-  const { products, addToCart, currency, language } = useApp()
-  const product = products.find((item) => item.id === productId)
-  const locale = language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-US'
+  const { addToCart, t } = useApp()
 
-  if (!product) return <section className="container section-space"><h1>Product not found</h1></section>
+  const product = products.find((p) => p.id === productId)
+
+  if (!product) {
+    return (
+      <section className="container section-space">
+        <h2>المنتج غير موجود</h2>
+      </section>
+    )
+  }
 
   return (
-    <section className="container section-space details-grid">
-      <div className="details-media">{product.name.charAt(0)}</div>
-      <div className="panel-card">
-        <span className="chip">{product.badge}</span>
-        <h1>{product.name}</h1>
-        <p>{product.description}</p>
-        <div className="price-row">
-          <strong>{formatMoney(product.price, currency, locale)}</strong>
-          <span>{formatMoney(product.oldPrice, currency, locale)}</span>
+    <section className="container section-space">
+      <div className="dual-grid">
+
+        <div className="panel-card">
+          <div style={{height:"260px",background:"#eee",borderRadius:"12px"}} />
         </div>
-        <ul className="feature-list">
-          <li>Seller: {product.seller}</li>
-          <li>City: {product.city}</li>
-          <li>Stock: {product.stock}</li>
-          <li>COD: {product.cod ? 'Available' : 'Unavailable'}</li>
-        </ul>
-        <button className="btn btn-primary" onClick={() => addToCart(product)}>Add to cart</button>
+
+        <div className="panel-card">
+
+          <h1>{product.name}</h1>
+
+          <p style={{opacity:0.7}}>
+            {product.seller} — {product.city}
+          </p>
+
+          <div style={{margin:"1rem 0"}}>
+            <strong style={{fontSize:"1.4rem"}}>
+              {product.price} MAD
+            </strong>
+
+            {product.oldPrice && (
+              <span style={{marginLeft:"10px",textDecoration:"line-through",opacity:0.6}}>
+                {product.oldPrice}
+              </span>
+            )}
+          </div>
+
+          <p>{product.description}</p>
+
+          <div style={{marginTop:"1.5rem",display:"flex",gap:"10px"}}>
+
+            <button
+              className="btn-primary"
+              onClick={() => addToCart(product)}
+            >
+              {t.addToCart}
+            </button>
+
+            <button className="btn-outline">
+              {t.buyNow}
+            </button>
+
+          </div>
+
+          <div style={{marginTop:"1.5rem",fontSize:"0.9rem",opacity:0.7}}>
+            ⭐ {product.rating} ({product.reviews} مراجعة)
+          </div>
+
+        </div>
+
       </div>
     </section>
   )
