@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const API = "https://souq-rahba-api.ori00fit.workers.dev";
 const SELLER_ID = "s1";
@@ -187,7 +188,19 @@ export default function OrdersPage() {
                 alignItems: "center"
               }}
             >
-              <span style={{ fontWeight: "700" }}>Change status:</span>
+              <Link
+                to={`/order-details/${order.id}`}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "10px",
+                  background: "#111827",
+                  color: "#fff",
+                  textDecoration: "none",
+                  fontWeight: "700"
+                }}
+              >
+                View Details
+              </Link>
 
               {STATUSES.map((status) => (
                 <button
@@ -197,7 +210,7 @@ export default function OrdersPage() {
                     padding: "8px 12px",
                     borderRadius: "10px",
                     border: "1px solid #e2e8f0",
-                    background: order.order_status === status ? "#111827" : "#fff",
+                    background: order.order_status === status ? "#ea580c" : "#fff",
                     color: order.order_status === status ? "#fff" : "#111827",
                     cursor: "pointer",
                     fontWeight: "700"

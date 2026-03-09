@@ -7,6 +7,7 @@ import EarningsPage from "./pages/EarningsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AddProductPage from "./pages/AddProductPage";
 import EditProductPage from "./pages/EditProductPage";
+import OrderDetailsPage from "./pages/OrderDetailsPage";
 
 function useIsMobile() {
   const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -242,6 +243,7 @@ function Layout() {
             <Route path="/add-product" element={<AddProductPage />} />
             <Route path="/edit-product/:id" element={<EditProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/order-details/:id" element={<OrderDetailsPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
