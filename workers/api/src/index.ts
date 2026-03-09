@@ -6,6 +6,7 @@ import { catalogRouter } from "./routes/catalog";
 import { sellerRouter } from "./routes/sellers";
 import { orderRouter } from "./routes/orders";
 import { uploadRouter } from "./routes/upload";
+import { mediaRouter } from "./routes/media";
 import type { Bindings } from "./types";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -18,6 +19,7 @@ app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/commerce", orderRouter);
 app.route("/", uploadRouter);
+app.route("/", mediaRouter);
 
 app.notFound((c) =>
   c.json(
