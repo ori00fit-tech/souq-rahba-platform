@@ -5,7 +5,7 @@ import { useApp } from "../context/AppContext";
 
 export default function ProductsPage() {
   const navigate = useNavigate();
-  const { addToCart } = useApp();
+  const { addToCart, currentUser, authLoading } = useApp();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,11 +53,27 @@ export default function ProductsPage() {
 
   async function handleBuyNow(product) {
     try {
+      if (authLoading) {
+        setMessage("جاري التحقق من الجلسة...");
+        return;
+      }
+
+      if (!currentUser) {
+        setMessage("يجب تسجيل الدخول أولاً قبل إنشاء الطلب");
+        navigate("/auth");
+        return;
+      }
+
+      if (currentUser.role !== "buyer") {
+        setMessage("فقط حسابات المشترين يمكنها إنشاء الطلبات");
+        return;
+      }
+
       setBuyingId(product.id);
       setMessage("");
 
       const result = await apiPost("/commerce/orders", {
-        buyer_user_id: "u3",
+        buyer_user_id: currentUser.id,
         seller_id: product.seller_id,
         payment_method: "cash_on_delivery",
         items: [
@@ -71,6 +87,9 @@ export default function ProductsPage() {
 
       if (result.ok) {
         setMessage(`تم إنشاء الطلب بنجاح. رقم الطلب: ${result.data.id}`);
+        setTimeout(() => {
+          navigate("/my-orders");
+        }, 1000);
       } else {
         setMessage("فشل إنشاء الطلب");
       }
