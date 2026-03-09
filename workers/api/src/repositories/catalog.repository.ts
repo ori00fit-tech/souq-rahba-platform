@@ -7,6 +7,7 @@ export async function listProducts(env: Bindings, sellerId?: string) {
       env,
       `select
         p.id,
+        p.seller_id,
         p.slug,
         p.title_ar,
         p.description_ar,
@@ -33,6 +34,7 @@ export async function listProducts(env: Bindings, sellerId?: string) {
     env,
     `select
       p.id,
+      p.seller_id,
       p.slug,
       p.title_ar,
       p.description_ar,

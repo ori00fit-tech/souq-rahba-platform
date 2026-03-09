@@ -1,166 +1,163 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { apiGet } from "../lib/api";
+import { useEffect, useState } from "react";
+import { apiGet, apiPost } from "../lib/api";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
-  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [buyingId, setBuyingId] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    apiGet("/catalog/products")
-      .then((res) => {
-        if (res.ok) setProducts(res.data);
-      })
-      .catch(console.error);
+    async function loadProducts() {
+      try {
+        const result = await apiGet("/catalog/products");
+        setProducts(result.data || []);
+      } catch (err) {
+        console.error(err);
+        setMessage("تعذر تحميل المنتجات");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
   }, []);
 
-  const filteredProducts = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return products;
+  async function handleBuyNow(product) {
+    try {
+      setBuyingId(product.id);
+      setMessage("");
 
-    return products.filter((p) => {
-      const text = `${p.title_ar || ""} ${p.slug || ""} ${p.category_id || ""}`.toLowerCase();
-      return text.includes(q);
-    });
-  }, [products, query]);
+      const result = await apiPost("/commerce/orders", {
+        buyer_user_id: "u3",
+        seller_id: product.seller_id,
+        payment_method: "cash_on_delivery",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 1,
+            unit_price_mad: product.price_mad
+          }
+        ]
+      });
+
+      if (result.ok) {
+        setMessage(`تم إنشاء الطلب بنجاح. رقم الطلب: ${result.data.id}`);
+      } else {
+        setMessage("فشل إنشاء الطلب");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("حدث خطأ أثناء إنشاء الطلب");
+    } finally {
+      setBuyingId("");
+    }
+  }
+
+  if (loading) {
+    return <section className="container section-space"><p>جاري تحميل المنتجات...</p></section>;
+  }
 
   return (
     <section className="container section-space">
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ marginBottom: "12px" }}>المنتجات</h1>
+      <div style={{ display: "grid", gap: "16px" }}>
+        <div>
+          <h1>المنتجات</h1>
+          <p style={{ color: "#64748b" }}>تصفح المنتجات واطلب مباشرة</p>
+        </div>
 
-        <input
-          type="text"
-          placeholder="ابحث عن منتج..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: "420px",
-            padding: "12px 14px",
-            borderRadius: "12px",
-            border: "1px solid #d6d1c4",
-            background: "#fff",
-            fontSize: "16px",
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "18px",
-        }}
-      >
-        {filteredProducts.map((p) => (
-          <article
-            key={p.id}
+        {message ? (
+          <div
             style={{
-              background: "#fff",
-              border: "1px solid #e7e1d4",
-              borderRadius: "18px",
-              overflow: "hidden",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
+              padding: "12px",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              background: "#fff"
             }}
           >
-            <Link
-              to={`/products/${p.slug}`}
-              style={{ textDecoration: "none", color: "inherit" }}
+            {message}
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
+            gap: "20px"
+          }}
+        >
+          {products.map((product) => (
+            <article
+              key={product.id}
+              style={{
+                background: "#fff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "14px",
+                padding: "16px",
+                display: "grid",
+                gap: "12px"
+              }}
             >
-              <div
-                style={{
-                  height: "180px",
-                  background: "#f1eee8",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "14px",
-                  color: "#777",
-                  overflow: "hidden",
-                }}
-              >
-                {p.image_url ? (
-                  <img
-                    src={p.image_url}
-                    alt={p.title_ar}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  <span>صورة المنتج</span>
-                )}
-              </div>
-            </Link>
+              {product.image_url ? (
+                <img
+                  src={product.image_url}
+                  alt={product.title_ar}
+                  style={{
+                    width: "100%",
+                    height: "180px",
+                    objectFit: "cover",
+                    borderRadius: "10px"
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "180px",
+                    borderRadius: "10px",
+                    background: "#f8fafc",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "#94a3b8"
+                  }}
+                >
+                  No image
+                </div>
+              )}
 
-            <div style={{ padding: "14px" }}>
-              <Link
-                to={`/products/${p.slug}`}
-                style={{
-                  textDecoration: "none",
-                  color: "#1f3b73",
-                  fontSize: "18px",
-                  fontWeight: 700,
-                  display: "block",
-                  marginBottom: "8px",
-                  lineHeight: 1.4,
-                }}
-              >
-                {p.title_ar}
-              </Link>
+              <h3 style={{ margin: 0 }}>{product.title_ar}</h3>
 
-              <div
-                style={{
-                  fontSize: "14px",
-                  color: "#666",
-                  marginBottom: "10px",
-                }}
-              >
-                {p.category_id || "غير مصنف"}
+              <p style={{ margin: 0, color: "#64748b" }}>
+                {product.description_ar || "بدون وصف"}
+              </p>
+
+              <div style={{ fontWeight: "700" }}>
+                {product.price_mad} MAD
               </div>
 
-              <div
-                style={{
-                  fontSize: "24px",
-                  fontWeight: 800,
-                  color: "#111",
-                  marginBottom: "8px",
-                }}
-              >
-                {p.price_mad} MAD
+              <div style={{ color: "#64748b" }}>
+                المخزون: {product.stock}
               </div>
 
-              <div
+              <button
+                onClick={() => handleBuyNow(product)}
+                disabled={buyingId === product.id || product.stock <= 0}
                 style={{
-                  fontSize: "14px",
-                  color: "#666",
-                  marginBottom: "14px",
-                }}
-              >
-                المخزون: {p.stock} · الحالة: {p.status}
-              </div>
-
-              <Link
-                to={`/products/${p.slug}`}
-                style={{
-                  display: "inline-block",
-                  padding: "10px 14px",
+                  padding: "12px",
                   borderRadius: "12px",
-                  background: "#1f3b73",
+                  border: "none",
+                  background: product.stock <= 0 ? "#94a3b8" : "#111827",
                   color: "#fff",
-                  textDecoration: "none",
-                  fontWeight: 600,
+                  fontWeight: "700",
+                  cursor: product.stock <= 0 ? "not-allowed" : "pointer",
+                  opacity: buyingId === product.id ? 0.7 : 1
                 }}
               >
-                عرض المنتج
-              </Link>
-            </div>
-          </article>
-        ))}
+                {buyingId === product.id ? "جاري الطلب..." : product.stock <= 0 ? "غير متوفر" : "Buy Now"}
+              </button>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   );
