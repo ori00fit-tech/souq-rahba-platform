@@ -210,6 +210,21 @@ function ProtectedShell() {
   if (authLoading) return <div style={{ padding: "40px" }}>Loading...</div>;
   if (!currentSeller) return <Navigate to="/login" replace />;
   if (!currentSeller.id) return <Navigate to="/onboarding" replace />;
+  if (currentSeller.kyc_status !== "approved") {
+    return (
+      <div style={{ padding: "40px", maxWidth: "680px", margin: "0 auto" }}>
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "24px", display: "grid", gap: "12px" }}>
+          <h1 style={{ margin: 0 }}>Seller profile under review</h1>
+          <p style={{ color: "#64748b", margin: 0 }}>
+            Your seller account exists, but access to the full portal requires admin approval.
+          </p>
+          <p style={{ margin: 0 }}>
+            Current KYC status: <strong>{currentSeller.kyc_status || "pending"}</strong>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
