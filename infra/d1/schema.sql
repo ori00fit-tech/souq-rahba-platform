@@ -5,7 +5,17 @@ create table if not exists users (
   phone text,
   role text not null default 'buyer',
   locale text not null default 'ar',
+  password_hash text,
   created_at text not null default current_timestamp
+);
+
+create table if not exists sessions (
+  id text primary key,
+  user_id text not null,
+  token text not null unique,
+  created_at text not null default current_timestamp,
+  expires_at text,
+  foreign key (user_id) references users(id)
 );
 
 create table if not exists sellers (

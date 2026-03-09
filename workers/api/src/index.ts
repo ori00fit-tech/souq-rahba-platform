@@ -7,6 +7,7 @@ import { sellerRouter } from "./routes/sellers";
 import { orderRouter } from "./routes/orders";
 import { uploadRouter } from "./routes/upload";
 import { mediaRouter } from "./routes/media";
+import { authRouter } from "./routes/auth";
 import type { Bindings } from "./types";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -15,6 +16,7 @@ app.use("*", cors());
 app.use("*", requestId);
 
 app.route("/", healthRouter);
+app.route("/auth", authRouter);
 app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/commerce", orderRouter);

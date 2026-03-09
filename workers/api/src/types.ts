@@ -4,4 +4,5 @@ export type Bindings = {
   CACHE: KVNamespace;
   APP_ENV: string;
   JWT_ISSUER: string;
+  JWT_SECRET: string;
 };
