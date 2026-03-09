@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { apiPost } from "../lib/api";
 
 export default function CheckoutPage() {
-  const { cart, total, clearCart } = useApp();
+  const navigate = useNavigate();
+  const { cart, total, clearCart, currentUser, authLoading } = useApp();
 
   const [form, setForm] = useState({
     fullName: "",
@@ -22,7 +24,11 @@ export default function CheckoutPage() {
     return [...new Set(cart.map((item) => item.seller_id).filter(Boolean))];
   }, [cart]);
 
-  const canCheckout = cart.length > 0 && uniqueSellerIds.length === 1;
+  const canCheckout =
+    cart.length > 0 &&
+    uniqueSellerIds.length === 1 &&
+    !!currentUser &&
+    currentUser.role === "buyer";
 
   function handleChange(e) {
     setForm({
@@ -33,6 +39,22 @@ export default function CheckoutPage() {
 
   async function handlePlaceOrder() {
     try {
+      if (authLoading) {
+        setMessage("جاري التحقق من الجلسة...");
+        return;
+      }
+
+      if (!currentUser) {
+        setMessage("يجب تسجيل الدخول أولاً قبل إتمام الطلب");
+        navigate("/auth");
+        return;
+      }
+
+      if (currentUser.role !== "buyer") {
+        setMessage("فقط حسابات المشترين يمكنها إنشاء الطلبات");
+        return;
+      }
+
       if (cart.length === 0) {
         setMessage("السلة فارغة");
         return;
@@ -54,7 +76,7 @@ export default function CheckoutPage() {
       setMessage("");
 
       const result = await apiPost("/commerce/orders", {
-        buyer_user_id: "u3",
+        buyer_user_id: currentUser.id,
         seller_id: sellerId,
         payment_method: form.paymentMethod,
         shipping_status: "pending",
@@ -78,6 +100,9 @@ export default function CheckoutPage() {
       if (result.ok) {
         clearCart();
         setMessage(`تم إنشاء الطلب بنجاح. رقم الطلب: ${result.data.id}`);
+        setTimeout(() => {
+          navigate("/my-orders");
+        }, 1000);
       } else {
         setMessage("فشل إنشاء الطلب");
       }
@@ -159,7 +184,13 @@ export default function CheckoutPage() {
           Total: {total} MAD
         </div>
 
-        {!canCheckout && cart.length > 0 ? (
+        {!currentUser && !authLoading ? (
+          <p style={{ marginBottom: "16px", color: "#b45309" }}>
+            يجب تسجيل الدخول كمشتري قبل إتمام الطلب.
+          </p>
+        ) : null}
+
+        {!canCheckout && cart.length > 0 && currentUser ? (
           <p style={{ marginBottom: "16px", color: "#b45309" }}>
             السلة الحالية غير قابلة للطلب لأن المنتجات ليست موحدة المصدر أو بياناتها ناقصة.
           </p>
@@ -168,7 +199,7 @@ export default function CheckoutPage() {
         <button
           className="btn btn-primary full-width"
           onClick={handlePlaceOrder}
-          disabled={submitting || !canCheckout}
+          disabled={submitting || authLoading || !canCheckout}
         >
           {submitting ? "Placing order..." : "Place order"}
         </button>
