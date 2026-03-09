@@ -1,109 +1,67 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-
-const API = "https://souq-rahba-api.ori00fit.workers.dev";
-const SELLER_ID = "s1";
+import { Link, Navigate } from "react-router-dom";
+import { apiGet, apiPatch } from "../lib/api";
+import { useSellerAuth } from "../context/SellerAuthContext";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
 function badgeStyle(status) {
-  if (status === "delivered") {
-    return {
-      background: "#ecfdf5",
-      color: "#166534",
-      border: "1px solid #bbf7d0"
-    };
-  }
-
-  if (status === "shipped") {
-    return {
-      background: "#eff6ff",
-      color: "#1d4ed8",
-      border: "1px solid #bfdbfe"
-    };
-  }
-
-  if (status === "confirmed") {
-    return {
-      background: "#fef3c7",
-      color: "#92400e",
-      border: "1px solid #fde68a"
-    };
-  }
-
-  if (status === "cancelled") {
-    return {
-      background: "#fef2f2",
-      color: "#991b1b",
-      border: "1px solid #fecaca"
-    };
-  }
-
-  return {
-    background: "#f8fafc",
-    color: "#475569",
-    border: "1px solid #cbd5e1"
-  };
+  if (status === "delivered") return { background: "#ecfdf5", color: "#166534", border: "1px solid #bbf7d0" };
+  if (status === "shipped") return { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" };
+  if (status === "confirmed") return { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" };
+  if (status === "cancelled") return { background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" };
+  return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
 }
 
 export default function OrdersPage() {
+  const { currentSeller, authLoading } = useSellerAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  async function loadOrders() {
-    try {
-      setLoading(true);
-
-      const res = await fetch(`${API}/commerce/orders?seller_id=${SELLER_ID}`);
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Failed to load orders");
-      }
-
-      setOrders(data.data || []);
-    } catch (err) {
-      console.error(err);
-      alert("Could not load orders");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadOrders();
-  }, []);
+    async function loadOrders() {
+      try {
+        if (!currentSeller) return;
+        setLoading(true);
+        const res = await apiGet(`/commerce/orders?seller_id=${currentSeller.id}`);
+        setOrders(res.data || []);
+      } catch (err) {
+        console.error(err);
+        alert("Could not load orders");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      loadOrders();
+    }
+  }, [currentSeller, authLoading]);
+
+  if (!authLoading && !currentSeller) {
+    return <Navigate to="/login" replace />;
+  }
 
   async function updateStatus(orderId, orderStatus) {
     try {
-      const res = await fetch(`${API}/commerce/orders/${orderId}/status`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          order_status: orderStatus
-        })
+      const res = await apiPatch(`/commerce/orders/${orderId}/status`, {
+        order_status: orderStatus
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Failed to update order");
+      if (res.ok) {
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId ? { ...order, order_status: orderStatus } : order
+          )
+        );
       }
-
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === orderId ? { ...order, order_status: orderStatus } : order
-        )
-      );
     } catch (err) {
       console.error(err);
       alert("Failed to update order status");
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return <div>Loading orders...</div>;
   }
 
@@ -111,21 +69,12 @@ export default function OrdersPage() {
     <div style={{ display: "grid", gap: "20px" }}>
       <div>
         <h2 style={{ marginBottom: "6px" }}>Seller Orders</h2>
-        <p style={{ color: "#64748b", margin: 0 }}>
-          Manage orders for your store
-        </p>
+        <p style={{ color: "#64748b", margin: 0 }}>Manage orders for your store</p>
       </div>
 
       <div style={{ display: "grid", gap: "14px" }}>
         {orders.length === 0 ? (
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "14px",
-              padding: "20px"
-            }}
-          >
+          <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "20px" }}>
             No orders found.
           </div>
         ) : null}
@@ -142,18 +91,9 @@ export default function OrdersPage() {
               gap: "12px"
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: "12px",
-                flexWrap: "wrap"
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
               <div>
-                <div style={{ fontWeight: "700", fontSize: "16px" }}>
-                  Order #{order.id}
-                </div>
+                <div style={{ fontWeight: "700", fontSize: "16px" }}>Order #{order.id}</div>
                 <div style={{ color: "#64748b", marginTop: "4px" }}>
                   Total: {order.total_mad} {order.currency}
                 </div>
@@ -180,14 +120,7 @@ export default function OrdersPage() {
               Shipping: {order.shipping_status} · Created: {order.created_at}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                alignItems: "center"
-              }}
-            >
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
               <span style={{ fontWeight: "700" }}>Change status:</span>
 
               {STATUSES.map((status) => (

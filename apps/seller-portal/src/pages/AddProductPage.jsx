@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
+import { apiPost } from "../lib/api";
+import { useSellerAuth } from "../context/SellerAuthContext";
 
 const API = "https://souq-rahba-api.ori00fit.workers.dev";
 
@@ -13,6 +16,8 @@ function slugify(text) {
 }
 
 export default function AddProductPage() {
+  const { currentSeller, authLoading } = useSellerAuth();
+
   const [form, setForm] = useState({
     name: "",
     sku: "",
@@ -25,6 +30,10 @@ export default function AddProductPage() {
   const [image, setImage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  if (!authLoading && !currentSeller) {
+    return <Navigate to="/login" replace />;
+  }
+
   function handleChange(e) {
     setForm({
       ...form,
@@ -36,6 +45,8 @@ export default function AddProductPage() {
     e.preventDefault();
 
     try {
+      if (!currentSeller) return;
+
       setSubmitting(true);
 
       let imageKey = null;
@@ -46,6 +57,9 @@ export default function AddProductPage() {
 
         const uploadRes = await fetch(`${API}/upload`, {
           method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("seller_auth_token") || ""}`
+          },
           body: formData
         });
 
@@ -60,28 +74,20 @@ export default function AddProductPage() {
 
       const slug = slugify(form.name);
 
-      const productRes = await fetch(`${API}/catalog/products`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          seller_id: "s1",
-          slug,
-          title_ar: form.name,
-          description_ar: form.description,
-          category_id: form.categoryId || null,
-          sku: form.sku || null,
-          price_mad: Number(form.price),
-          stock: Number(form.stock || 0),
-          image_key: imageKey
-        })
+      const productRes = await apiPost(`/catalog/products`, {
+        seller_id: currentSeller.id,
+        slug,
+        title_ar: form.name,
+        description_ar: form.description,
+        category_id: form.categoryId || null,
+        sku: form.sku || null,
+        price_mad: Number(form.price),
+        stock: Number(form.stock || 0),
+        image_key: imageKey
       });
 
-      const productData = await productRes.json();
-
-      if (!productRes.ok || !productData.ok) {
-        throw new Error(productData.message || "Product creation failed");
+      if (!productRes.ok) {
+        throw new Error("Product creation failed");
       }
 
       alert("Product created successfully");
@@ -105,18 +111,9 @@ export default function AddProductPage() {
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "20px",
-          padding: "20px"
-        }}
-      >
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "20px" }}>
         <h2>Add Product</h2>
-        <p style={{ color: "#64748b" }}>
-          Create a new product listing for your marketplace store
-        </p>
+        <p style={{ color: "#64748b" }}>Create a new product listing for your marketplace store</p>
       </div>
 
       <form
@@ -130,68 +127,13 @@ export default function AddProductPage() {
           padding: "20px"
         }}
       >
-        <input
-          name="name"
-          placeholder="Product name"
-          value={form.name}
-          onChange={handleChange}
-          required
-          style={input}
-        />
-
-        <input
-          name="sku"
-          placeholder="SKU"
-          value={form.sku}
-          onChange={handleChange}
-          style={input}
-        />
-
-        <input
-          name="price"
-          placeholder="Price (MAD)"
-          value={form.price}
-          onChange={handleChange}
-          type="number"
-          min="0"
-          required
-          style={input}
-        />
-
-        <input
-          name="stock"
-          placeholder="Stock quantity"
-          value={form.stock}
-          onChange={handleChange}
-          type="number"
-          min="0"
-          required
-          style={input}
-        />
-
-        <input
-          name="categoryId"
-          placeholder="Category ID (example: c5)"
-          value={form.categoryId}
-          onChange={handleChange}
-          style={input}
-        />
-
-        <textarea
-          name="description"
-          placeholder="Product description"
-          value={form.description}
-          onChange={handleChange}
-          rows="4"
-          style={input}
-        />
-
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setImage(e.target.files?.[0] || null)}
-          style={input}
-        />
+        <input name="name" placeholder="Product name" value={form.name} onChange={handleChange} required style={input} />
+        <input name="sku" placeholder="SKU" value={form.sku} onChange={handleChange} style={input} />
+        <input name="price" placeholder="Price (MAD)" value={form.price} onChange={handleChange} type="number" min="0" required style={input} />
+        <input name="stock" placeholder="Stock quantity" value={form.stock} onChange={handleChange} type="number" min="0" required style={input} />
+        <input name="categoryId" placeholder="Category ID (example: c5)" value={form.categoryId} onChange={handleChange} style={input} />
+        <textarea name="description" placeholder="Product description" value={form.description} onChange={handleChange} rows="4" style={input} />
+        <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} style={input} />
 
         <button
           type="submit"

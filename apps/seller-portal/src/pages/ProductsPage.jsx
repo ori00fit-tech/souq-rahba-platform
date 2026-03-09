@@ -1,69 +1,65 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-
-const API = "https://souq-rahba-api.ori00fit.workers.dev";
-const SELLER_ID = "s1";
+import { Link, Navigate } from "react-router-dom";
+import { apiDelete, apiGet } from "../lib/api";
+import { useSellerAuth } from "../context/SellerAuthContext";
 
 export default function ProductsPage() {
+  const { currentSeller, authLoading } = useSellerAuth();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  async function loadProducts() {
-    try {
-      const res = await fetch(`${API}/catalog/products?seller_id=${SELLER_ID}`);
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        throw new Error("Failed to load products");
-      }
-
-      setProducts(data.data || []);
-    } catch (err) {
-      console.error(err);
-      alert("Could not load products");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [errorText, setErrorText] = useState("");
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    async function loadProducts() {
+      try {
+        if (!currentSeller) return;
+
+        setLoading(true);
+        setErrorText("");
+
+        const res = await apiGet(`/catalog/products?seller_id=${currentSeller.id}`);
+        setProducts(res.data || []);
+      } catch (err) {
+        console.error(err);
+        setErrorText("Could not load products.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      loadProducts();
+    }
+  }, [currentSeller, authLoading]);
+
+  if (!authLoading && !currentSeller) {
+    return <Navigate to="/login" replace />;
+  }
 
   async function deleteProduct(id) {
     const confirmDelete = window.confirm("Delete this product?");
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(`${API}/catalog/products/${id}`, {
-        method: "DELETE"
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.ok) {
-        throw new Error(data.message || "Delete failed");
+      const res = await apiDelete(`/catalog/products/${id}`);
+      if (res.ok) {
+        setProducts((prev) => prev.filter((p) => p.id !== id));
       }
-
-      setProducts(products.filter(p => p.id !== id));
     } catch (err) {
       console.error(err);
       alert("Failed to delete product");
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return <div>Loading products...</div>;
   }
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
-        <h2>Your Products</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0 }}>Your Products</h2>
 
         <Link
           to="/add-product"
@@ -80,20 +76,25 @@ export default function ProductsPage() {
         </Link>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))",
-        gap: "20px"
-      }}>
-        {products.map(p => (
-          <div key={p.id} style={{
-            background: "#fff",
-            padding: "16px",
-            borderRadius: "12px",
-            border: "1px solid #e2e8f0",
-            display: "grid",
-            gap: "10px"
-          }}>
+      {errorText ? (
+        <div style={{ background: "#fff7ed", color: "#9a3412", border: "1px solid #fed7aa", borderRadius: "12px", padding: "12px" }}>
+          {errorText}
+        </div>
+      ) : null}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: "20px" }}>
+        {products.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              background: "#fff",
+              padding: "16px",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+              display: "grid",
+              gap: "10px"
+            }}
+          >
             {p.image_url ? (
               <img
                 src={p.image_url}
@@ -106,28 +107,32 @@ export default function ProductsPage() {
                 }}
               />
             ) : (
-              <div style={{
-                width: "100%",
-                height: "160px",
-                borderRadius: "8px",
-                background: "#f8fafc",
-                display: "grid",
-                placeItems: "center",
-                color: "#94a3b8"
-              }}>
+              <div
+                style={{
+                  width: "100%",
+                  height: "160px",
+                  borderRadius: "8px",
+                  background: "#f8fafc",
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#94a3b8",
+                  fontWeight: "700"
+                }}
+              >
                 No image
               </div>
             )}
 
-            <h3>{p.title_ar}</h3>
-            <p>Price: {p.price_mad} MAD</p>
-            <p>Stock: {p.stock}</p>
-            <p style={{ color: "#64748b" }}>Slug: {p.slug}</p>
+            <h3 style={{ margin: 0 }}>{p.title_ar}</h3>
+            <p style={{ margin: 0 }}>Price: {p.price_mad} MAD</p>
+            <p style={{ margin: 0 }}>Stock: {p.stock}</p>
+            <p style={{ margin: 0, color: "#64748b" }}>Slug: {p.slug}</p>
 
             <Link
               to={`/edit-product/${p.id}`}
               style={{
-                padding: "10px",
+                marginTop: "6px",
+                padding: "10px 12px",
                 borderRadius: "10px",
                 background: "#111827",
                 color: "#fff",

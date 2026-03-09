@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import DashboardPage from "./pages/DashboardPage";
 import ProductsPage from "./pages/ProductsPage";
@@ -8,6 +8,8 @@ import SettingsPage from "./pages/SettingsPage";
 import AddProductPage from "./pages/AddProductPage";
 import EditProductPage from "./pages/EditProductPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
+import LoginPage from "./pages/LoginPage";
+import { SellerAuthProvider, useSellerAuth } from "./context/SellerAuthContext";
 
 function useIsMobile() {
   const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -41,9 +43,7 @@ function NavItem({ to, label, icon, isMobile }) {
         fontSize: isMobile ? "14px" : "15px",
         transition: "0.2s ease",
         color: active ? "#ffffff" : "#334155",
-        background: active
-          ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)"
-          : "#f8fafc",
+        background: active ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" : "#f8fafc",
         border: active ? "none" : "1px solid #e2e8f0",
         boxShadow: active ? "0 10px 24px rgba(15, 23, 42, 0.22)" : "none",
         minWidth: 0
@@ -56,6 +56,8 @@ function NavItem({ to, label, icon, isMobile }) {
 }
 
 function Sidebar({ isMobile }) {
+  const { currentSeller, logoutSeller } = useSellerAuth();
+
   return (
     <aside
       style={{
@@ -75,12 +77,8 @@ function Sidebar({ isMobile }) {
           boxShadow: "0 14px 30px rgba(234, 88, 12, 0.25)"
         }}
       >
-        <div style={{ fontSize: "12px", opacity: 0.92, letterSpacing: "0.4px" }}>
-          Souq Rahba
-        </div>
-        <div style={{ fontSize: isMobile ? "20px" : "22px", fontWeight: 800, marginTop: "4px" }}>
-          Seller Portal
-        </div>
+        <div style={{ fontSize: "12px", opacity: 0.92, letterSpacing: "0.4px" }}>Souq Rahba</div>
+        <div style={{ fontSize: isMobile ? "20px" : "22px", fontWeight: 800, marginTop: "4px" }}>Seller Portal</div>
         <div style={{ fontSize: "13px", marginTop: "8px", opacity: 0.95, lineHeight: 1.5 }}>
           Manage catalog, orders, earnings and store settings.
         </div>
@@ -95,14 +93,12 @@ function Sidebar({ isMobile }) {
           border: "1px solid #fed7aa"
         }}
       >
-        <div style={{ fontSize: "12px", color: "#9a3412", fontWeight: 700 }}>
-          Active Store
-        </div>
+        <div style={{ fontSize: "12px", color: "#9a3412", fontWeight: 700 }}>Active Store</div>
         <div style={{ fontSize: isMobile ? "17px" : "18px", fontWeight: 800, color: "#7c2d12", marginTop: "4px" }}>
-          Talidi Store
+          {currentSeller?.display_name || "Seller Store"}
         </div>
         <div style={{ fontSize: "13px", color: "#9a3412", marginTop: "6px" }}>
-          Ready to sell on the marketplace
+          {currentSeller?.slug || "Ready to sell on the marketplace"}
         </div>
       </div>
 
@@ -120,6 +116,23 @@ function Sidebar({ isMobile }) {
         <NavItem to="/earnings" label="Earnings" icon="💰" isMobile={isMobile} />
         <NavItem to="/settings" label="Settings" icon="⚙️" isMobile={isMobile} />
       </nav>
+
+      <button
+        onClick={logoutSeller}
+        style={{
+          marginTop: "16px",
+          width: "100%",
+          padding: "12px",
+          borderRadius: "12px",
+          border: "none",
+          background: "#111827",
+          color: "#fff",
+          fontWeight: "700",
+          cursor: "pointer"
+        }}
+      >
+        Logout
+      </button>
     </aside>
   );
 }
@@ -149,29 +162,13 @@ function Topbar({ isMobile }) {
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700 }}>
-            Marketplace Seller Console
-          </div>
-          <div
-            style={{
-              fontSize: isMobile ? "22px" : "24px",
-              fontWeight: 800,
-              color: "#0f172a",
-              lineHeight: 1.15
-            }}
-          >
+          <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700 }}>Marketplace Seller Console</div>
+          <div style={{ fontSize: isMobile ? "22px" : "24px", fontWeight: 800, color: "#0f172a", lineHeight: 1.15 }}>
             Seller Dashboard
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            flexWrap: "wrap"
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <div
             style={{
               padding: "10px 14px",
@@ -205,8 +202,12 @@ function Topbar({ isMobile }) {
   );
 }
 
-function Layout() {
+function ProtectedShell() {
   const isMobile = useIsMobile();
+  const { currentSeller, authLoading } = useSellerAuth();
+
+  if (authLoading) return <div style={{ padding: "40px" }}>Loading...</div>;
+  if (!currentSeller) return <Navigate to="/login" replace />;
 
   return (
     <div
@@ -244,7 +245,6 @@ function Layout() {
             <Route path="/edit-product/:id" element={<EditProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailsPage />} />
-            <Route path="/order-details/:id" element={<OrderDetailsPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
@@ -254,10 +254,21 @@ function Layout() {
   );
 }
 
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/*" element={<ProtectedShell />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout />
+      <SellerAuthProvider>
+        <AppRoutes />
+      </SellerAuthProvider>
     </BrowserRouter>
   );
 }
