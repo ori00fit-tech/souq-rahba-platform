@@ -1,16 +1,29 @@
 import { useState } from "react";
 
+const API = "https://souq-rahba-api.ori00fit.workers.dev";
+
+function slugify(text) {
+  return String(text || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\p{L}\p{N}-]+/gu, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export default function AddProductPage() {
   const [form, setForm] = useState({
     name: "",
     sku: "",
     price: "",
     stock: "",
-    category: "",
+    categoryId: "",
     description: ""
   });
 
   const [image, setImage] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   function handleChange(e) {
     setForm({
@@ -23,50 +36,54 @@ export default function AddProductPage() {
     e.preventDefault();
 
     try {
-      let image_key = null;
+      setSubmitting(true);
+
+      let imageKey = null;
 
       if (image) {
         const formData = new FormData();
         formData.append("file", image);
 
-        const upload = await fetch("https://souq-rahba-api.ori00fit.workers.dev/upload", {
+        const uploadRes = await fetch(`${API}/upload`, {
           method: "POST",
           body: formData
         });
 
-        const result = await upload.json();
+        const uploadData = await uploadRes.json();
 
-        if (!upload.ok || !result.ok) {
-          throw new Error(result.error || "Image upload failed");
+        if (!uploadRes.ok || !uploadData.ok) {
+          throw new Error(uploadData.error || "Image upload failed");
         }
 
-        image_key = result.key || null;
+        imageKey = uploadData.key || null;
       }
 
-      const res = await fetch("https://souq-rahba-api.ori00fit.workers.dev/catalog/products", {
+      const slug = slugify(form.name);
+
+      const productRes = await fetch(`${API}/catalog/products`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          title: form.name,
-          sku: form.sku,
-          price: Number(form.price),
-          stock_quantity: Number(form.stock),
-          description: form.description,
-          category: form.category,
-          vendor_id: "demo-vendor",
-          image: image_key
+          seller_id: "s1",
+          slug,
+          title_ar: form.name,
+          description_ar: form.description,
+          category_id: form.categoryId || null,
+          sku: form.sku || null,
+          price_mad: Number(form.price),
+          stock: Number(form.stock || 0),
+          image_key: imageKey
         })
       });
 
-      const data = await res.json();
+      const productData = await productRes.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || "Product creation failed");
+      if (!productRes.ok || !productData.ok) {
+        throw new Error(productData.message || "Product creation failed");
       }
 
-      console.log("Created product:", data);
       alert("Product created successfully");
 
       setForm({
@@ -74,13 +91,15 @@ export default function AddProductPage() {
         sku: "",
         price: "",
         stock: "",
-        category: "",
+        categoryId: "",
         description: ""
       });
       setImage(null);
     } catch (err) {
       console.error(err);
       alert("Error creating product");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -134,6 +153,8 @@ export default function AddProductPage() {
           value={form.price}
           onChange={handleChange}
           type="number"
+          min="0"
+          required
           style={input}
         />
 
@@ -143,13 +164,15 @@ export default function AddProductPage() {
           value={form.stock}
           onChange={handleChange}
           type="number"
+          min="0"
+          required
           style={input}
         />
 
         <input
-          name="category"
-          placeholder="Category"
-          value={form.category}
+          name="categoryId"
+          placeholder="Category ID (example: c5)"
+          value={form.categoryId}
           onChange={handleChange}
           style={input}
         />
@@ -172,6 +195,7 @@ export default function AddProductPage() {
 
         <button
           type="submit"
+          disabled={submitting}
           style={{
             padding: "14px",
             borderRadius: "12px",
@@ -179,10 +203,11 @@ export default function AddProductPage() {
             background: "#ea580c",
             color: "#fff",
             fontWeight: "700",
-            cursor: "pointer"
+            cursor: "pointer",
+            opacity: submitting ? 0.7 : 1
           }}
         >
-          Create Product
+          {submitting ? "Creating..." : "Create Product"}
         </button>
       </form>
     </div>
