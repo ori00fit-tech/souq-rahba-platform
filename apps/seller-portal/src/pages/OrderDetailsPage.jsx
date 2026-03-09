@@ -80,18 +80,10 @@ export default function OrderDetailsPage() {
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "12px",
-          flexWrap: "wrap"
-        }}
-      >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
         <div>
           <h2 style={{ margin: 0 }}>Order Details</h2>
-          <p style={{ color: "#64748b", margin: "6px 0 0" }}>
+          <p style={{ color: "#64748b", marginTop: "6px" }}>
             Order #{order.id}
           </p>
         </div>
@@ -101,10 +93,11 @@ export default function OrderDetailsPage() {
           style={{
             padding: "10px 14px",
             borderRadius: "10px",
-            border: "1px solid #e2e8f0",
+            background: "#111827",
+            color: "#fff",
             textDecoration: "none",
-            color: "#111827",
-            fontWeight: "700"
+            fontWeight: "700",
+            height: "fit-content"
           }}
         >
           Back to Orders
@@ -121,15 +114,19 @@ export default function OrderDetailsPage() {
           gap: "12px"
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-          <div>
-            <div style={{ color: "#64748b" }}>Buyer</div>
-            <div style={{ fontWeight: "700" }}>{order.buyer_user_id || "Guest"}</div>
-          </div>
-
-          <div
+        <div><strong>Buyer:</strong> {order.buyer_user_id || "Guest"}</div>
+        <div><strong>Seller:</strong> {order.seller_id}</div>
+        <div><strong>Total:</strong> {order.total_mad} {order.currency}</div>
+        <div><strong>Payment method:</strong> {order.payment_method}</div>
+        <div><strong>Payment status:</strong> {order.payment_status}</div>
+        <div><strong>Shipping status:</strong> {order.shipping_status}</div>
+        <div>
+          <strong>Order status:</strong>{" "}
+          <span
             style={{
-              padding: "8px 12px",
+              display: "inline-block",
+              marginInlineStart: "8px",
+              padding: "6px 10px",
               borderRadius: "999px",
               fontSize: "13px",
               fontWeight: "700",
@@ -137,24 +134,9 @@ export default function OrderDetailsPage() {
             }}
           >
             {order.order_status}
-          </div>
+          </span>
         </div>
-
-        <div style={{ color: "#64748b" }}>
-          Payment: {order.payment_method} · Payment status: {order.payment_status}
-        </div>
-
-        <div style={{ color: "#64748b" }}>
-          Shipping: {order.shipping_status}
-        </div>
-
-        <div style={{ color: "#64748b" }}>
-          Created: {order.created_at}
-        </div>
-
-        <div style={{ fontWeight: "800", fontSize: "18px" }}>
-          Total: {order.total_mad} {order.currency}
-        </div>
+        <div><strong>Created at:</strong> {order.created_at}</div>
       </div>
 
       <div
@@ -167,7 +149,7 @@ export default function OrderDetailsPage() {
           gap: "12px"
         }}
       >
-        <h3 style={{ margin: 0 }}>Order Items</h3>
+        <h3 style={{ margin: 0 }}>Items</h3>
 
         {order.items?.length ? (
           order.items.map((item) => (
@@ -181,17 +163,14 @@ export default function OrderDetailsPage() {
                 gap: "6px"
               }}
             >
-              <div style={{ fontWeight: "700" }}>{item.title_ar || item.product_id}</div>
+              <div><strong>{item.title_ar || item.product_id}</strong></div>
               <div style={{ color: "#64748b" }}>Slug: {item.slug || "-"}</div>
               <div>Quantity: {item.quantity}</div>
               <div>Unit price: {item.unit_price_mad} MAD</div>
-              <div style={{ fontWeight: "700" }}>
-                Line total: {item.quantity * item.unit_price_mad} MAD
-              </div>
             </div>
           ))
         ) : (
-          <div style={{ color: "#64748b" }}>No items found.</div>
+          <p style={{ margin: 0 }}>No items found.</p>
         )}
       </div>
     </div>

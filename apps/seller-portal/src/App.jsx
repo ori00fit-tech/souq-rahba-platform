@@ -243,6 +243,7 @@ function Layout() {
             <Route path="/add-product" element={<AddProductPage />} />
             <Route path="/edit-product/:id" element={<EditProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders/:id" element={<OrderDetailsPage />} />
             <Route path="/order-details/:id" element={<OrderDetailsPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />

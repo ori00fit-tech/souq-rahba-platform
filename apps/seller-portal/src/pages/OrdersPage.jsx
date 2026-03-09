@@ -188,19 +188,7 @@ export default function OrdersPage() {
                 alignItems: "center"
               }}
             >
-              <Link
-                to={`/order-details/${order.id}`}
-                style={{
-                  padding: "8px 12px",
-                  borderRadius: "10px",
-                  background: "#111827",
-                  color: "#fff",
-                  textDecoration: "none",
-                  fontWeight: "700"
-                }}
-              >
-                View Details
-              </Link>
+              <span style={{ fontWeight: "700" }}>Change status:</span>
 
               {STATUSES.map((status) => (
                 <button
@@ -210,7 +198,7 @@ export default function OrdersPage() {
                     padding: "8px 12px",
                     borderRadius: "10px",
                     border: "1px solid #e2e8f0",
-                    background: order.order_status === status ? "#ea580c" : "#fff",
+                    background: order.order_status === status ? "#111827" : "#fff",
                     color: order.order_status === status ? "#fff" : "#111827",
                     cursor: "pointer",
                     fontWeight: "700"
@@ -219,6 +207,20 @@ export default function OrdersPage() {
                   {status}
                 </button>
               ))}
+
+              <Link
+                to={`/orders/${order.id}`}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "10px",
+                  background: "#ea580c",
+                  color: "#fff",
+                  textDecoration: "none",
+                  fontWeight: "700"
+                }}
+              >
+                View Details
+              </Link>
             </div>
           </div>
         ))}
