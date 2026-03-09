@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
+import { useApp } from "../context/AppContext";
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
+  const { addToCart } = useApp();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [buyingId, setBuyingId] = useState("");
@@ -22,6 +27,29 @@ export default function ProductsPage() {
 
     loadProducts();
   }, []);
+
+  function normalizeProduct(product) {
+    return {
+      id: product.id,
+      slug: product.slug,
+      name: product.title_ar || "",
+      price: product.price_mad || 0,
+      seller_id: product.seller_id || null,
+      seller: product.seller_id || "Souq Rahba",
+      city: "",
+      rating: 0,
+      reviews: 0,
+      stock: product.stock || 0,
+      badge: product.status || "",
+      description: product.description_ar || "",
+      image_url: product.image_url || ""
+    };
+  }
+
+  function handleAddToCart(product) {
+    addToCart(normalizeProduct(product));
+    setMessage("تمت إضافة المنتج إلى السلة");
+  }
 
   async function handleBuyNow(product) {
     try {
@@ -54,8 +82,17 @@ export default function ProductsPage() {
     }
   }
 
+  function handleGoToCheckout(product) {
+    addToCart(normalizeProduct(product));
+    navigate("/checkout");
+  }
+
   if (loading) {
-    return <section className="container section-space"><p>جاري تحميل المنتجات...</p></section>;
+    return (
+      <section className="container section-space">
+        <p>جاري تحميل المنتجات...</p>
+      </section>
+    );
   }
 
   return (
@@ -63,7 +100,7 @@ export default function ProductsPage() {
       <div style={{ display: "grid", gap: "16px" }}>
         <div>
           <h1>المنتجات</h1>
-          <p style={{ color: "#64748b" }}>تصفح المنتجات واطلب مباشرة</p>
+          <p style={{ color: "#64748b" }}>تصفح المنتجات واطلب مباشرة أو أضفها إلى السلة</p>
         </div>
 
         {message ? (
@@ -139,22 +176,60 @@ export default function ProductsPage() {
                 المخزون: {product.stock}
               </div>
 
-              <button
-                onClick={() => handleBuyNow(product)}
-                disabled={buyingId === product.id || product.stock <= 0}
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  border: "none",
-                  background: product.stock <= 0 ? "#94a3b8" : "#111827",
-                  color: "#fff",
-                  fontWeight: "700",
-                  cursor: product.stock <= 0 ? "not-allowed" : "pointer",
-                  opacity: buyingId === product.id ? 0.7 : 1
-                }}
-              >
-                {buyingId === product.id ? "جاري الطلب..." : product.stock <= 0 ? "غير متوفر" : "Buy Now"}
-              </button>
+              <div style={{ display: "grid", gap: "10px" }}>
+                <button
+                  onClick={() => handleAddToCart(product)}
+                  disabled={product.stock <= 0}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "1px solid #d1d5db",
+                    background: "#fff",
+                    color: "#111827",
+                    fontWeight: "700",
+                    cursor: product.stock <= 0 ? "not-allowed" : "pointer"
+                  }}
+                >
+                  {product.stock <= 0 ? "غير متوفر" : "أضف إلى السلة"}
+                </button>
+
+                <button
+                  onClick={() => handleGoToCheckout(product)}
+                  disabled={product.stock <= 0}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: "#1f3b73",
+                    color: "#fff",
+                    fontWeight: "700",
+                    cursor: product.stock <= 0 ? "not-allowed" : "pointer"
+                  }}
+                >
+                  اشتر الآن عبر Checkout
+                </button>
+
+                <button
+                  onClick={() => handleBuyNow(product)}
+                  disabled={buyingId === product.id || product.stock <= 0}
+                  style={{
+                    padding: "12px",
+                    borderRadius: "12px",
+                    border: "none",
+                    background: product.stock <= 0 ? "#94a3b8" : "#111827",
+                    color: "#fff",
+                    fontWeight: "700",
+                    cursor: product.stock <= 0 ? "not-allowed" : "pointer",
+                    opacity: buyingId === product.id ? 0.7 : 1
+                  }}
+                >
+                  {buyingId === product.id
+                    ? "جاري الطلب..."
+                    : product.stock <= 0
+                    ? "غير متوفر"
+                    : "Buy Now مباشر"}
+                </button>
+              </div>
             </article>
           ))}
         </div>
