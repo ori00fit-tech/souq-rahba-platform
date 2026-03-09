@@ -7,6 +7,7 @@ import SellersPage from './pages/SellersPage'
 import SellerDashboardPage from './pages/SellerDashboardPage'
 import CartPage from './pages/CartPage'
 import CheckoutPage from './pages/CheckoutPage'
+import BuyerOrdersPage from './pages/BuyerOrdersPage'
 import AboutPage from './pages/AboutPage'
 import HelpPage from './pages/HelpPage'
 import AuthPage from './pages/AuthPage'
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/my-orders" element={<BuyerOrdersPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/auth" element={<AuthPage />} />

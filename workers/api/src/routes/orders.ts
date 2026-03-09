@@ -4,6 +4,7 @@ export const orderRouter = new Hono<{ Bindings: import("../types").Bindings }>()
 
 orderRouter.get("/orders", async (c) => {
   const sellerId = c.req.query("seller_id");
+  const buyerUserId = c.req.query("buyer_user_id");
 
   if (sellerId) {
     const rows = await c.env.DB.prepare(
@@ -23,6 +24,29 @@ orderRouter.get("/orders", async (c) => {
       order by o.created_at desc`
     )
       .bind(sellerId)
+      .all();
+
+    return c.json({ ok: true, data: rows.results || [] });
+  }
+
+  if (buyerUserId) {
+    const rows = await c.env.DB.prepare(
+      `select
+        o.id,
+        o.buyer_user_id,
+        o.seller_id,
+        o.order_status,
+        o.payment_method,
+        o.payment_status,
+        o.shipping_status,
+        o.total_mad,
+        o.currency,
+        o.created_at
+      from orders o
+      where o.buyer_user_id = ?
+      order by o.created_at desc`
+    )
+      .bind(buyerUserId)
       .all();
 
     return c.json({ ok: true, data: rows.results || [] });
