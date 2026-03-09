@@ -16,6 +16,8 @@ export default function EditProductPage() {
     description_ar: ""
   });
 
+  const [currentImage, setCurrentImage] = useState("");
+  const [newImage, setNewImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -46,6 +48,8 @@ export default function EditProductPage() {
           category_id: p.category_id || "",
           description_ar: p.description_ar || ""
         });
+
+        setCurrentImage(p.image_url || "");
       } catch (err) {
         console.error(err);
         alert("Failed to load product");
@@ -63,6 +67,26 @@ export default function EditProductPage() {
     try {
       setSaving(true);
 
+      let imageKey = null;
+
+      if (newImage) {
+        const formData = new FormData();
+        formData.append("file", newImage);
+
+        const uploadRes = await fetch(`${API}/upload`, {
+          method: "POST",
+          body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok || !uploadData.ok) {
+          throw new Error(uploadData.error || "Image upload failed");
+        }
+
+        imageKey = uploadData.key || null;
+      }
+
       const res = await fetch(`${API}/catalog/products/${id}`, {
         method: "PUT",
         headers: {
@@ -74,7 +98,8 @@ export default function EditProductPage() {
           price_mad: Number(form.price_mad),
           stock: Number(form.stock || 0),
           category_id: form.category_id || null,
-          description_ar: form.description_ar
+          description_ar: form.description_ar,
+          image_key: imageKey
         })
       });
 
@@ -125,6 +150,19 @@ export default function EditProductPage() {
           padding: "20px"
         }}
       >
+        {currentImage ? (
+          <img
+            src={currentImage}
+            alt={form.title_ar}
+            style={{
+              width: "100%",
+              maxHeight: "220px",
+              objectFit: "cover",
+              borderRadius: "12px"
+            }}
+          />
+        ) : null}
+
         <input
           name="title_ar"
           placeholder="Product name"
@@ -178,6 +216,13 @@ export default function EditProductPage() {
           value={form.description_ar}
           onChange={handleChange}
           rows="4"
+          style={input}
+        />
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setNewImage(e.target.files?.[0] || null)}
           style={input}
         />
 

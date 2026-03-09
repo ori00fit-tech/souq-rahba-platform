@@ -169,20 +169,66 @@ catalogRouter.put("/products/:id", async (c) => {
     )
     .run();
 
+  if (body.image_key) {
+    const imageUrl = `${new URL(c.req.url).origin}/media/${body.image_key}`;
+
+    const existingMedia = await c.env.DB.prepare(
+      `select id
+       from product_media
+       where product_id = ?
+       order by sort_order asc
+       limit 1`
+    )
+      .bind(id)
+      .first();
+
+    if (existingMedia?.id) {
+      await c.env.DB.prepare(
+        `update product_media
+         set url = ?, alt_text = ?
+         where id = ?`
+      )
+        .bind(imageUrl, body.title_ar, existingMedia.id)
+        .run();
+    } else {
+      const mediaId = crypto.randomUUID();
+
+      await c.env.DB.prepare(
+        `insert into product_media (
+          id,
+          product_id,
+          media_type,
+          url,
+          alt_text,
+          sort_order
+        ) values (?, ?, 'image', ?, ?, 0)`
+      )
+        .bind(mediaId, id, imageUrl, body.title_ar)
+        .run();
+    }
+  }
+
   const updated = await c.env.DB.prepare(
     `select
-      id,
-      seller_id,
-      slug,
-      title_ar,
-      description_ar,
-      category_id,
-      sku,
-      price_mad,
-      stock,
-      status
-    from products
-    where id = ?
+      p.id,
+      p.seller_id,
+      p.slug,
+      p.title_ar,
+      p.description_ar,
+      p.category_id,
+      p.sku,
+      p.price_mad,
+      p.stock,
+      p.status,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
+        order by pm.sort_order asc
+        limit 1
+      ) as image_url
+    from products p
+    where p.id = ?
     limit 1`
   )
     .bind(id)
