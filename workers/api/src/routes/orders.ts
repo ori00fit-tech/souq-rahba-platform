@@ -167,21 +167,102 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
     );
   }
 
+  const seller = await c.env.DB.prepare(
+    `select id from sellers where id = ? limit 1`
+  )
+    .bind(body.seller_id)
+    .first();
+
+  if (!seller) {
+    return c.json(
+      { ok: false, code: "SELLER_NOT_FOUND", message: "Seller not found" },
+      404
+    );
+  }
+
+  const validatedItems = [];
+  let totalMad = 0;
+
+  for (const item of body.items) {
+    if (!item?.product_id || !item?.quantity) {
+      return c.json(
+        { ok: false, code: "INVALID_ITEM", message: "Each item must include product_id and quantity" },
+        400
+      );
+    }
+
+    const quantity = Number(item.quantity || 0);
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return c.json(
+        { ok: false, code: "INVALID_QUANTITY", message: "Invalid quantity" },
+        400
+      );
+    }
+
+    const product = await c.env.DB.prepare(
+      `select
+        id,
+        seller_id,
+        title_ar,
+        price_mad,
+        stock,
+        status
+      from products
+      where id = ?
+      limit 1`
+    )
+      .bind(item.product_id)
+      .first();
+
+    if (!product) {
+      return c.json(
+        { ok: false, code: "PRODUCT_NOT_FOUND", message: `Product not found: ${item.product_id}` },
+        404
+      );
+    }
+
+    if (product.seller_id !== body.seller_id) {
+      return c.json(
+        { ok: false, code: "SELLER_MISMATCH", message: "All items must belong to the same seller" },
+        400
+      );
+    }
+
+    if (product.status !== "active") {
+      return c.json(
+        { ok: false, code: "PRODUCT_INACTIVE", message: `Product is not active: ${item.product_id}` },
+        400
+      );
+    }
+
+    if (Number(product.stock || 0) < quantity) {
+      return c.json(
+        { ok: false, code: "INSUFFICIENT_STOCK", message: `Insufficient stock for product: ${item.product_id}` },
+        400
+      );
+    }
+
+    const unitPrice = Number(product.price_mad || 0);
+    totalMad += quantity * unitPrice;
+
+    validatedItems.push({
+      product_id: product.id,
+      quantity,
+      unit_price_mad: unitPrice
+    });
+  }
+
   const orderId = crypto.randomUUID();
-  const buyerUserId = authUser.role === "admin" && body.buyer_user_id ? body.buyer_user_id : authUser.user_id;
-  const sellerId = body.seller_id;
+  const buyerUserId =
+    authUser.role === "admin" && body.buyer_user_id
+      ? body.buyer_user_id
+      : authUser.user_id;
+
   const paymentMethod = body.payment_method;
   const paymentStatus = body.payment_status || "pending";
   const shippingStatus = body.shipping_status || "pending";
   const orderStatus = body.order_status || "pending";
-
-  let totalMad = 0;
-
-  for (const item of body.items) {
-    const quantity = Number(item.quantity || 0);
-    const unitPrice = Number(item.unit_price_mad || 0);
-    totalMad += quantity * unitPrice;
-  }
 
   await c.env.DB.prepare(
     `insert into orders (
@@ -199,7 +280,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
     .bind(
       orderId,
       buyerUserId,
-      sellerId,
+      body.seller_id,
       orderStatus,
       paymentMethod,
       paymentStatus,
@@ -208,7 +289,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
     )
     .run();
 
-  for (const item of body.items) {
+  for (const item of validatedItems) {
     await c.env.DB.prepare(
       `insert into order_items (
         id,
@@ -222,9 +303,17 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
         crypto.randomUUID(),
         orderId,
         item.product_id,
-        Number(item.quantity || 0),
-        Number(item.unit_price_mad || 0)
+        item.quantity,
+        item.unit_price_mad
       )
+      .run();
+
+    await c.env.DB.prepare(
+      `update products
+       set stock = stock - ?
+       where id = ?`
+    )
+      .bind(item.quantity, item.product_id)
       .run();
   }
 
@@ -233,7 +322,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       ok: true,
       data: {
         id: orderId,
-        seller_id: sellerId,
+        seller_id: body.seller_id,
         total_mad: totalMad,
         order_status: orderStatus
       }

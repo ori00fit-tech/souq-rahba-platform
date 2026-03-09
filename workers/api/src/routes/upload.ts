@@ -1,23 +1,20 @@
 import { Hono } from "hono";
+import { authMiddleware } from "../middleware/auth";
+import { requireRole } from "../middleware/roleGuard";
 
-const uploadRouter = new Hono();
+const uploadRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
-uploadRouter.post("/upload", async (c) => {
+uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const body = await c.req.parseBody();
-  const file = body.file as File | undefined;
+  const file = body.file as File;
 
   if (!file) {
     return c.json({ ok: false, error: "No file uploaded" }, 400);
   }
 
-  if (!file.type || !file.type.startsWith("image/")) {
-    return c.json({ ok: false, error: "Only image files are allowed" }, 400);
-  }
+  const filename = `${Date.now()}-${file.name}`;
 
-  const safeName = file.name.replace(/\s+/g, "-");
-  const key = `products/${Date.now()}-${safeName}`;
-
-  await c.env.MEDIA.put(key, file.stream(), {
+  await c.env.MEDIA.put(filename, file.stream(), {
     httpMetadata: {
       contentType: file.type
     }
@@ -25,8 +22,8 @@ uploadRouter.post("/upload", async (c) => {
 
   return c.json({
     ok: true,
-    key,
-    message: "Image uploaded successfully"
+    key: filename,
+    url: `${new URL(c.req.url).origin}/media/${filename}`
   });
 });
 
