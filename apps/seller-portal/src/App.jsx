@@ -6,6 +6,7 @@ import OrdersPage from "./pages/OrdersPage";
 import EarningsPage from "./pages/EarningsPage";
 import SettingsPage from "./pages/SettingsPage";
 import AddProductPage from "./pages/AddProductPage";
+import EditProductPage from "./pages/EditProductPage";
 
 function useIsMobile() {
   const getValue = () => (typeof window !== "undefined" ? window.innerWidth <= 768 : false);
@@ -230,18 +231,19 @@ function Layout() {
           gap: "18px"
         }}
       >
-        <div style={{ minWidth: 0, order: isMobile ? 1 : 1 }}>
+        <div style={{ minWidth: 0 }}>
           <Sidebar isMobile={isMobile} />
         </div>
 
-        <main style={{ minWidth: 0, order: isMobile ? 2 : 2 }}>
+        <main style={{ minWidth: 0 }}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/add-product" element={<AddProductPage />} />
+            <Route path="/edit-product/:id" element={<EditProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/add-product" element={<AddProductPage />} />
           </Routes>
         </main>
       </div>

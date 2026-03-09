@@ -131,6 +131,22 @@ export default function ProductsPage() {
             <p style={{ margin: 0 }}>Price: {p.price_mad} MAD</p>
             <p style={{ margin: 0 }}>Stock: {p.stock}</p>
             <p style={{ margin: 0, color: "#64748b" }}>Slug: {p.slug}</p>
+
+            <Link
+              to={`/edit-product/${p.id}`}
+              style={{
+                marginTop: "6px",
+                padding: "10px 12px",
+                borderRadius: "10px",
+                background: "#111827",
+                color: "#fff",
+                textDecoration: "none",
+                textAlign: "center",
+                fontWeight: "700"
+              }}
+            >
+              Edit
+            </Link>
           </div>
         ))}
       </div>

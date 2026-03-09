@@ -9,6 +9,45 @@ catalogRouter.get("/products", async (c) => {
   return c.json({ ok: true, data: products });
 });
 
+catalogRouter.get("/products/id/:id", async (c) => {
+  const id = c.req.param("id");
+
+  const result = await c.env.DB.prepare(
+    `select
+      p.id,
+      p.seller_id,
+      p.slug,
+      p.title_ar,
+      p.description_ar,
+      p.category_id,
+      p.sku,
+      p.price_mad,
+      p.stock,
+      p.status,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
+        order by pm.sort_order asc
+        limit 1
+      ) as image_url
+    from products p
+    where p.id = ?
+    limit 1`
+  )
+    .bind(id)
+    .first();
+
+  if (!result) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      404
+    );
+  }
+
+  return c.json({ ok: true, data: result });
+});
+
 catalogRouter.get("/products/:slug", async (c) => {
   const slug = c.req.param("slug");
   const product = await getProductBySlug(c.env, slug);
@@ -95,4 +134,59 @@ catalogRouter.post("/products", async (c) => {
     },
     201
   );
+});
+
+catalogRouter.put("/products/:id", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+
+  if (!body?.title_ar || !body?.price_mad) {
+    return c.json(
+      { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
+      400
+    );
+  }
+
+  await c.env.DB.prepare(
+    `update products
+     set
+       title_ar = ?,
+       description_ar = ?,
+       category_id = ?,
+       sku = ?,
+       price_mad = ?,
+       stock = ?
+     where id = ?`
+  )
+    .bind(
+      body.title_ar,
+      body.description_ar || null,
+      body.category_id || null,
+      body.sku || null,
+      body.price_mad,
+      body.stock || 0,
+      id
+    )
+    .run();
+
+  const updated = await c.env.DB.prepare(
+    `select
+      id,
+      seller_id,
+      slug,
+      title_ar,
+      description_ar,
+      category_id,
+      sku,
+      price_mad,
+      stock,
+      status
+    from products
+    where id = ?
+    limit 1`
+  )
+    .bind(id)
+    .first();
+
+  return c.json({ ok: true, data: updated });
 });
