@@ -1,31 +1,16 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { getSellerByOwnerUserId } from "../repositories/access.repository";
 
 export const sellerRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
 sellerRouter.get("/me", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const authUser = c.get("authUser");
 
-  const seller = await c.env.DB.prepare(
-    `select
-      s.id,
-      s.owner_user_id,
-      s.slug,
-      s.display_name,
-      s.city,
-      s.verified,
-      s.kyc_status,
-      s.rating,
-      s.created_at
-    from sellers s
-    where s.owner_user_id = ?
-    limit 1`
-  )
-    .bind(authUser.user_id)
-    .first();
+  const seller = await getSellerByOwnerUserId(c.env, authUser.user_id);
 
-  if (!seller) {
+  if (!seller && authUser.role !== "admin") {
     return c.json(
       { ok: false, code: "SELLER_NOT_FOUND", message: "Seller profile not found" },
       404
@@ -35,7 +20,7 @@ sellerRouter.get("/me", authMiddleware, requireRole("seller", "admin"), async (c
   return c.json({
     ok: true,
     data: {
-      ...seller,
+      ...(seller || {}),
       user: {
         id: authUser.user_id,
         email: authUser.email,
