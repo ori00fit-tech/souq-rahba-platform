@@ -1,11 +1,48 @@
+import { useEffect, useState } from 'react'
 import Hero from '../components/Hero'
 import StatGrid from '../components/StatGrid'
 import ProductCard from '../components/ProductCard'
 import { useApp } from '../context/AppContext'
 import { sellers, categories } from '../data/site'
+import { apiGet } from '../lib/api'
 
 export default function HomePage() {
-  const { filteredProducts, t } = useApp()
+  const { t, query } = useApp()
+  const [products, setProducts] = useState([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const res = await apiGet('/catalog/products')
+        if (res.ok) {
+          setProducts(res.data || [])
+        }
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoadingProducts(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
+  const q = query.toLowerCase().trim()
+  const filteredProducts = !q
+    ? products
+    : products.filter((product) =>
+        [
+          product.title_ar || '',
+          product.description_ar || '',
+          product.slug || '',
+          product.category_id || '',
+          product.seller_id || ''
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      )
 
   return (
     <>
@@ -42,11 +79,15 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="product-grid">
-          {filteredProducts.slice(0, 12).map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {loadingProducts ? (
+          <p>جاري تحميل المنتجات...</p>
+        ) : (
+          <div className="product-grid">
+            {filteredProducts.slice(0, 12).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="container section-space dual-grid">

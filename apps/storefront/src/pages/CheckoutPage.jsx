@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { apiPost } from "../lib/api";
 
@@ -18,6 +18,12 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
 
+  const uniqueSellerIds = useMemo(() => {
+    return [...new Set(cart.map((item) => item.seller_id).filter(Boolean))];
+  }, [cart]);
+
+  const canCheckout = cart.length > 0 && uniqueSellerIds.length === 1;
+
   function handleChange(e) {
     setForm({
       ...form,
@@ -32,12 +38,17 @@ export default function CheckoutPage() {
         return;
       }
 
-      const sellerId = cart[0]?.seller_id || cart[0]?.seller || null;
-
-      if (!sellerId) {
-        setMessage("تعذر تحديد البائع لهذا الطلب");
+      if (uniqueSellerIds.length !== 1) {
+        setMessage("حالياً يجب أن تكون كل منتجات السلة من نفس البائع");
         return;
       }
+
+      if (!form.fullName || !form.phone || !form.city || !form.address) {
+        setMessage("يرجى إدخال معلومات المشتري والعنوان كاملة");
+        return;
+      }
+
+      const sellerId = uniqueSellerIds[0];
 
       setSubmitting(true);
       setMessage("");
@@ -148,10 +159,16 @@ export default function CheckoutPage() {
           Total: {total} MAD
         </div>
 
+        {!canCheckout && cart.length > 0 ? (
+          <p style={{ marginBottom: "16px", color: "#b45309" }}>
+            السلة الحالية غير قابلة للطلب لأن المنتجات ليست موحدة المصدر أو بياناتها ناقصة.
+          </p>
+        ) : null}
+
         <button
           className="btn btn-primary full-width"
           onClick={handlePlaceOrder}
-          disabled={submitting || cart.length === 0}
+          disabled={submitting || !canCheckout}
         >
           {submitting ? "Placing order..." : "Place order"}
         </button>
