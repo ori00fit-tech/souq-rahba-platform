@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
+import { requireRole } from "../middleware/roleGuard";
 
 export const sellerRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
-sellerRouter.get("/me", authMiddleware, async (c) => {
+sellerRouter.get("/me", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const authUser = c.get("authUser");
 
   const seller = await c.env.DB.prepare(

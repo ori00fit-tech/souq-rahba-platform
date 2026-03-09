@@ -1,5 +1,7 @@
 import { Hono } from "hono";
 import { listProducts, getProductBySlug } from "../repositories/catalog.repository";
+import { authMiddleware } from "../middleware/auth";
+import { requireRole } from "../middleware/roleGuard";
 
 export const catalogRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
@@ -9,8 +11,9 @@ catalogRouter.get("/products", async (c) => {
   return c.json({ ok: true, data: products });
 });
 
-catalogRouter.get("/products/id/:id", async (c) => {
+catalogRouter.get("/products/id/:id", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
+  const authUser = c.get("authUser");
 
   const result = await c.env.DB.prepare(
     `select
@@ -32,10 +35,12 @@ catalogRouter.get("/products/id/:id", async (c) => {
         limit 1
       ) as image_url
     from products p
+    left join sellers s on s.id = p.seller_id
     where p.id = ?
+      and (? = 'admin' or s.owner_user_id = ?)
     limit 1`
   )
-    .bind(id)
+    .bind(id, authUser.role, authUser.user_id)
     .first();
 
   if (!result) {
@@ -62,16 +67,31 @@ catalogRouter.get("/products/:slug", async (c) => {
   return c.json({ ok: true, data: product });
 });
 
-catalogRouter.post("/products", async (c) => {
+catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), async (c) => {
+  const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
 
-  if (!body?.title_ar || !body?.slug || !body?.price_mad || !body?.seller_id) {
+  if (!body?.title_ar || !body?.slug || !body?.price_mad) {
     return c.json(
       { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
       400
     );
   }
 
+  const seller = await c.env.DB.prepare(
+    `select id from sellers where owner_user_id = ? limit 1`
+  )
+    .bind(authUser.user_id)
+    .first();
+
+  if (!seller && authUser.role !== "admin") {
+    return c.json(
+      { ok: false, code: "SELLER_NOT_FOUND", message: "Seller profile not found" },
+      404
+    );
+  }
+
+  const sellerId = authUser.role === "admin" && body.seller_id ? body.seller_id : seller.id;
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(
@@ -92,7 +112,7 @@ catalogRouter.post("/products", async (c) => {
   )
     .bind(
       id,
-      body.seller_id,
+      sellerId,
       body.slug,
       body.title_ar,
       body.description_ar || null,
@@ -136,14 +156,33 @@ catalogRouter.post("/products", async (c) => {
   );
 });
 
-catalogRouter.put("/products/:id", async (c) => {
+catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
+  const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
 
   if (!body?.title_ar || !body?.price_mad) {
     return c.json(
       { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
       400
+    );
+  }
+
+  const existing = await c.env.DB.prepare(
+    `select p.id
+     from products p
+     left join sellers s on s.id = p.seller_id
+     where p.id = ?
+       and (? = 'admin' or s.owner_user_id = ?)
+     limit 1`
+  )
+    .bind(id, authUser.role, authUser.user_id)
+    .first();
+
+  if (!existing) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      404
     );
   }
 
@@ -237,31 +276,33 @@ catalogRouter.put("/products/:id", async (c) => {
   return c.json({ ok: true, data: updated });
 });
 
-catalogRouter.delete("/products/:id", async (c) => {
+catalogRouter.delete("/products/:id", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
+  const authUser = c.get("authUser");
 
-  const product = await c.env.DB.prepare(
-    `select id from products where id = ? limit 1`
+  const existing = await c.env.DB.prepare(
+    `select p.id
+     from products p
+     left join sellers s on s.id = p.seller_id
+     where p.id = ?
+       and (? = 'admin' or s.owner_user_id = ?)
+     limit 1`
   )
-    .bind(id)
+    .bind(id, authUser.role, authUser.user_id)
     .first();
 
-  if (!product) {
+  if (!existing) {
     return c.json(
       { ok: false, code: "NOT_FOUND", message: "Product not found" },
       404
     );
   }
 
-  await c.env.DB.prepare(
-    `delete from product_media where product_id = ?`
-  )
+  await c.env.DB.prepare(`delete from product_media where product_id = ?`)
     .bind(id)
     .run();
 
-  await c.env.DB.prepare(
-    `delete from products where id = ?`
-  )
+  await c.env.DB.prepare(`delete from products where id = ?`)
     .bind(id)
     .run();
 

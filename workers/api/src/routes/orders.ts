@@ -1,12 +1,19 @@
 import { Hono } from "hono";
+import { authMiddleware } from "../middleware/auth";
+import { requireRole } from "../middleware/roleGuard";
 
 export const orderRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
-orderRouter.get("/orders", async (c) => {
+orderRouter.get("/orders", authMiddleware, async (c) => {
+  const authUser = c.get("authUser");
   const sellerId = c.req.query("seller_id");
   const buyerUserId = c.req.query("buyer_user_id");
 
   if (sellerId) {
+    if (!["seller", "admin"].includes(authUser.role)) {
+      return c.json({ ok: false, code: "FORBIDDEN", message: "Insufficient permissions" }, 403);
+    }
+
     const rows = await c.env.DB.prepare(
       `select
         o.id,
@@ -20,16 +27,22 @@ orderRouter.get("/orders", async (c) => {
         o.currency,
         o.created_at
       from orders o
+      left join sellers s on s.id = o.seller_id
       where o.seller_id = ?
+        and (? = 'admin' or s.owner_user_id = ?)
       order by o.created_at desc`
     )
-      .bind(sellerId)
+      .bind(sellerId, authUser.role, authUser.user_id)
       .all();
 
     return c.json({ ok: true, data: rows.results || [] });
   }
 
   if (buyerUserId) {
+    if (authUser.role !== "buyer" && authUser.role !== "admin") {
+      return c.json({ ok: false, code: "FORBIDDEN", message: "Insufficient permissions" }, 403);
+    }
+
     const rows = await c.env.DB.prepare(
       `select
         o.id,
@@ -44,35 +57,41 @@ orderRouter.get("/orders", async (c) => {
         o.created_at
       from orders o
       where o.buyer_user_id = ?
+        and (? = 'admin' or o.buyer_user_id = ?)
       order by o.created_at desc`
     )
-      .bind(buyerUserId)
+      .bind(buyerUserId, authUser.role, authUser.user_id)
       .all();
 
     return c.json({ ok: true, data: rows.results || [] });
   }
 
-  const rows = await c.env.DB.prepare(
-    `select
-      o.id,
-      o.buyer_user_id,
-      o.seller_id,
-      o.order_status,
-      o.payment_method,
-      o.payment_status,
-      o.shipping_status,
-      o.total_mad,
-      o.currency,
-      o.created_at
-    from orders o
-    order by o.created_at desc`
-  ).all();
+  if (authUser.role === "admin") {
+    const rows = await c.env.DB.prepare(
+      `select
+        o.id,
+        o.buyer_user_id,
+        o.seller_id,
+        o.order_status,
+        o.payment_method,
+        o.payment_status,
+        o.shipping_status,
+        o.total_mad,
+        o.currency,
+        o.created_at
+      from orders o
+      order by o.created_at desc`
+    ).all();
 
-  return c.json({ ok: true, data: rows.results || [] });
+    return c.json({ ok: true, data: rows.results || [] });
+  }
+
+  return c.json({ ok: true, data: [] });
 });
 
-orderRouter.get("/orders/:id", async (c) => {
+orderRouter.get("/orders/:id", authMiddleware, async (c) => {
   const id = c.req.param("id");
+  const authUser = c.get("authUser");
 
   const order = await c.env.DB.prepare(
     `select
@@ -87,10 +106,16 @@ orderRouter.get("/orders/:id", async (c) => {
       o.currency,
       o.created_at
     from orders o
+    left join sellers s on s.id = o.seller_id
     where o.id = ?
+      and (
+        ? = 'admin'
+        or (? = 'buyer' and o.buyer_user_id = ?)
+        or (? = 'seller' and s.owner_user_id = ?)
+      )
     limit 1`
   )
-    .bind(id)
+    .bind(id, authUser.role, authUser.role, authUser.user_id, authUser.role, authUser.user_id)
     .first();
 
   if (!order) {
@@ -126,7 +151,8 @@ orderRouter.get("/orders/:id", async (c) => {
   });
 });
 
-orderRouter.post("/orders", async (c) => {
+orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async (c) => {
+  const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
 
   if (
@@ -142,7 +168,7 @@ orderRouter.post("/orders", async (c) => {
   }
 
   const orderId = crypto.randomUUID();
-  const buyerUserId = body.buyer_user_id || null;
+  const buyerUserId = authUser.role === "admin" && body.buyer_user_id ? body.buyer_user_id : authUser.user_id;
   const sellerId = body.seller_id;
   const paymentMethod = body.payment_method;
   const paymentStatus = body.payment_status || "pending";
@@ -216,19 +242,34 @@ orderRouter.post("/orders", async (c) => {
   );
 });
 
-orderRouter.patch("/orders/:id/status", async (c) => {
+orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
+  const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
-
   const nextStatus = body?.order_status;
 
-  if (
-    !nextStatus ||
-    !["pending", "confirmed", "shipped", "delivered", "cancelled"].includes(nextStatus)
-  ) {
+  if (!nextStatus || !["pending", "confirmed", "shipped", "delivered", "cancelled"].includes(nextStatus)) {
     return c.json(
       { ok: false, code: "INVALID_STATUS", message: "Invalid order status" },
       400
+    );
+  }
+
+  const existing = await c.env.DB.prepare(
+    `select o.id
+     from orders o
+     left join sellers s on s.id = o.seller_id
+     where o.id = ?
+       and (? = 'admin' or s.owner_user_id = ?)
+     limit 1`
+  )
+    .bind(id, authUser.role, authUser.user_id)
+    .first();
+
+  if (!existing) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Order not found" },
+      404
     );
   }
 
@@ -258,13 +299,6 @@ orderRouter.patch("/orders/:id/status", async (c) => {
   )
     .bind(id)
     .first();
-
-  if (!updated) {
-    return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Order not found" },
-      404
-    );
-  }
 
   return c.json({ ok: true, data: updated });
 });
