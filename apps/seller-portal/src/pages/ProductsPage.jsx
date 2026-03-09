@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const API = "https://souq-rahba-api.ori00fit.workers.dev";
 
@@ -38,7 +39,31 @@ export default function ProductsPage() {
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
-      <h2>Your Products</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap"
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Your Products</h2>
+
+        <Link
+          to="/add-product"
+          style={{
+            padding: "12px 16px",
+            borderRadius: "12px",
+            background: "#ea580c",
+            color: "#fff",
+            textDecoration: "none",
+            fontWeight: "700"
+          }}
+        >
+          + Add Product
+        </Link>
+      </div>
 
       {errorText ? (
         <div
@@ -102,11 +127,8 @@ export default function ProductsPage() {
             )}
 
             <h3 style={{ margin: 0 }}>{p.title_ar}</h3>
-
             <p style={{ margin: 0 }}>Price: {p.price_mad} MAD</p>
-
             <p style={{ margin: 0 }}>Stock: {p.stock}</p>
-
             <p style={{ margin: 0, color: "#64748b" }}>Slug: {p.slug}</p>
           </div>
         ))}
