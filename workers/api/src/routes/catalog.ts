@@ -236,3 +236,37 @@ catalogRouter.put("/products/:id", async (c) => {
 
   return c.json({ ok: true, data: updated });
 });
+
+catalogRouter.delete("/products/:id", async (c) => {
+  const id = c.req.param("id");
+
+  const product = await c.env.DB.prepare(
+    `select id from products where id = ? limit 1`
+  )
+    .bind(id)
+    .first();
+
+  if (!product) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      404
+    );
+  }
+
+  await c.env.DB.prepare(
+    `delete from product_media where product_id = ?`
+  )
+    .bind(id)
+    .run();
+
+  await c.env.DB.prepare(
+    `delete from products where id = ?`
+  )
+    .bind(id)
+    .run();
+
+  return c.json({
+    ok: true,
+    message: "Product deleted"
+  });
+});
