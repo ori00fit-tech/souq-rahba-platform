@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
+import { useApp } from "../context/AppContext";
 
 function badgeStyle(status) {
   if (status === "delivered") {
@@ -44,14 +45,32 @@ function badgeStyle(status) {
 
 export default function BuyerOrderDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { currentUser, authLoading } = useApp();
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadOrder() {
       try {
+        if (authLoading) return;
+
+        if (!currentUser) {
+          navigate("/auth");
+          return;
+        }
+
+        if (currentUser.role !== "buyer") {
+          return;
+        }
+
         const res = await apiGet(`/commerce/orders/${id}`);
         if (res.ok) {
+          if (res.data.buyer_user_id !== currentUser.id) {
+            navigate("/my-orders");
+            return;
+          }
           setOrder(res.data);
         }
       } catch (err) {
@@ -63,12 +82,20 @@ export default function BuyerOrderDetailsPage() {
     }
 
     loadOrder();
-  }, [id]);
+  }, [id, currentUser, authLoading, navigate]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <section className="container section-space">
         <p>جاري تحميل تفاصيل الطلب...</p>
+      </section>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="container section-space">
+        <p>جاري التحويل إلى تسجيل الدخول...</p>
       </section>
     );
   }

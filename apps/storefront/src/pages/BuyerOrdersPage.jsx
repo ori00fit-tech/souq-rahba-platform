@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiGet } from "../lib/api";
+import { useApp } from "../context/AppContext";
 
 function badgeStyle(status) {
   if (status === "delivered") {
@@ -43,13 +44,27 @@ function badgeStyle(status) {
 }
 
 export default function BuyerOrdersPage() {
+  const navigate = useNavigate();
+  const { currentUser, authLoading } = useApp();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadOrders() {
       try {
-        const res = await apiGet("/commerce/orders?buyer_user_id=u3");
+        if (authLoading) return;
+
+        if (!currentUser) {
+          navigate("/auth");
+          return;
+        }
+
+        if (currentUser.role !== "buyer") {
+          return;
+        }
+
+        const res = await apiGet(`/commerce/orders?buyer_user_id=${currentUser.id}`);
         if (res.ok) {
           setOrders(res.data || []);
         }
@@ -62,12 +77,20 @@ export default function BuyerOrdersPage() {
     }
 
     loadOrders();
-  }, []);
+  }, [currentUser, authLoading, navigate]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <section className="container section-space">
         <p>جاري تحميل الطلبات...</p>
+      </section>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="container section-space">
+        <p>جاري التحويل إلى تسجيل الدخول...</p>
       </section>
     );
   }
