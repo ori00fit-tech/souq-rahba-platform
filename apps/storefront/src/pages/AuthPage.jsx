@@ -125,7 +125,7 @@ export default function AuthPage() {
       </div>
 
       <div className="panel-card">
-        <h1>Buyer registration</h1>
+        <h1>Buyer registration NEW 059c42c</h1>
         <form className="form-grid" onSubmit={handleRegister}>
           <input
             name="full_name"
