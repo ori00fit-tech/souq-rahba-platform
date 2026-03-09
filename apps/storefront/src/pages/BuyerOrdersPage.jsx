@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { apiGet } from "../lib/api";
 
 function badgeStyle(status) {
@@ -141,6 +142,23 @@ export default function BuyerOrdersPage() {
 
               <div style={{ color: "#64748b", fontSize: "14px" }}>
                 Shipping: {order.shipping_status} · Created: {order.created_at}
+              </div>
+
+              <div>
+                <Link
+                  to={`/my-orders/${order.id}`}
+                  style={{
+                    display: "inline-block",
+                    padding: "10px 14px",
+                    borderRadius: "10px",
+                    background: "#111827",
+                    color: "#fff",
+                    textDecoration: "none",
+                    fontWeight: "700"
+                  }}
+                >
+                  View Details
+                </Link>
               </div>
             </div>
           ))}
