@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const API = "https://souq-rahba-api.ori00fit.workers.dev";
+
 export default function SellerDashboardPage() {
   const [titleAr, setTitleAr] = useState("");
   const [slug, setSlug] = useState("");
@@ -13,10 +15,10 @@ export default function SellerDashboardPage() {
     setMessage("جارٍ الإرسال...");
 
     try {
-      const response = await fetch("https://souq-rahba-platform.ori00fit.workers.dev/catalog/products", {
+      const response = await fetch(`${API}/catalog/products`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           seller_id: "s1",
@@ -24,9 +26,9 @@ export default function SellerDashboardPage() {
           slug,
           price_mad: Number(priceMad),
           stock: Number(stock),
-          category_id: categoryId,
-          description_ar: "",
-        }),
+          category_id: categoryId || null,
+          description_ar: ""
+        })
       });
 
       const result = await response.json();
@@ -39,9 +41,10 @@ export default function SellerDashboardPage() {
         setStock("");
         setCategoryId("");
       } else {
-        setMessage("فشل الإضافة");
+        setMessage(result.message || "فشل الإضافة");
       }
     } catch (err) {
+      console.error(err);
       setMessage("حدث خطأ أثناء الإرسال");
     }
   }
@@ -51,11 +54,33 @@ export default function SellerDashboardPage() {
       <h1>لوحة البائع</h1>
 
       <form onSubmit={handleSubmit} style={{ maxWidth: "560px", display: "grid", gap: "12px" }}>
-        <input value={titleAr} onChange={(e) => setTitleAr(e.target.value)} placeholder="اسم المنتج بالعربية" />
-        <input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="slug مثال: samsung-a55" />
-        <input value={priceMad} onChange={(e) => setPriceMad(e.target.value)} placeholder="السعر" type="number" />
-        <input value={stock} onChange={(e) => setStock(e.target.value)} placeholder="المخزون" type="number" />
-        <input value={categoryId} onChange={(e) => setCategoryId(e.target.value)} placeholder="category_id مثال: c1" />
+        <input
+          value={titleAr}
+          onChange={(e) => setTitleAr(e.target.value)}
+          placeholder="اسم المنتج بالعربية"
+        />
+        <input
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+          placeholder="slug مثال: samsung-a55"
+        />
+        <input
+          value={priceMad}
+          onChange={(e) => setPriceMad(e.target.value)}
+          placeholder="السعر"
+          type="number"
+        />
+        <input
+          value={stock}
+          onChange={(e) => setStock(e.target.value)}
+          placeholder="المخزون"
+          type="number"
+        />
+        <input
+          value={categoryId}
+          onChange={(e) => setCategoryId(e.target.value)}
+          placeholder="category_id مثال: c1"
+        />
 
         <button type="submit">إضافة المنتج</button>
       </form>
