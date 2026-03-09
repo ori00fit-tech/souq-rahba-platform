@@ -23,6 +23,24 @@ export async function apiGet(path) {
   return data;
 }
 
+export async function apiPost(path, payload) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: getAuthHeaders({
+      "Content-Type": "application/json"
+    }),
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || `Request failed: ${response.status}`);
+  }
+
+  return data;
+}
+
 export async function apiPatch(path, payload) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "PATCH",
