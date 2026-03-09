@@ -38,13 +38,15 @@ export default function Header() {
         <NavLink to="/">{t.navHome}</NavLink>
         <NavLink to="/products">{t.navProducts}</NavLink>
         <NavLink to="/sellers">{t.navSellers}</NavLink>
+
         <a
-  href="https://souq-rahba-seller.pages.dev"
-  target="_blank"
-  rel="noopener noreferrer"
->
-{t.navDashboard}
-</a>
+          href="https://souq-rahba-seller.pages.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {t.navDashboard}
+        </a>
+
         <NavLink to="/about">{t.navAbout}</NavLink>
         <NavLink to="/help">{t.navHelp}</NavLink>
         <NavLink to="/auth">{t.navAccount}</NavLink>
