@@ -9,6 +9,7 @@ import AddProductPage from "./pages/AddProductPage";
 import EditProductPage from "./pages/EditProductPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
 import LoginPage from "./pages/LoginPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import { SellerAuthProvider, useSellerAuth } from "./context/SellerAuthContext";
 
 function useIsMobile() {
@@ -208,6 +209,7 @@ function ProtectedShell() {
 
   if (authLoading) return <div style={{ padding: "40px" }}>Loading...</div>;
   if (!currentSeller) return <Navigate to="/login" replace />;
+  if (!currentSeller.id) return <Navigate to="/onboarding" replace />;
 
   return (
     <div
@@ -258,6 +260,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/*" element={<ProtectedShell />} />
     </Routes>
   );
