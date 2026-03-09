@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiGet } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 
 export default function ProductDetailsPage() {
@@ -10,78 +10,106 @@ export default function ProductDetailsPage() {
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [buying, setBuying] = useState(false);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    let active = true;
-
-    apiGet(`/catalog/products/${slug}`)
-      .then((res) => {
-        if (!active) return;
+    async function loadProduct() {
+      try {
+        const res = await apiGet(`/catalog/products/${slug}`);
         if (res.ok) {
           setProduct(res.data);
-          setError("");
         } else {
-          setError("تعذر تحميل المنتج");
+          setMessage("تعذر تحميل المنتج");
         }
-      })
-      .catch(() => {
-        if (active) setError("تعذر تحميل المنتج");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
+      } catch (err) {
+        console.error(err);
+        setMessage("حدث خطأ أثناء تحميل المنتج");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProduct();
+  }, [slug]);
+
+  function normalizeProduct(p) {
+    return {
+      id: p.id,
+      slug: p.slug,
+      name: p.title_ar || "",
+      price: p.price_mad || 0,
+      seller_id: p.seller_id || null,
+      seller: p.seller_id || "Souq Rahba",
+      city: "",
+      rating: 0,
+      reviews: 0,
+      stock: p.stock || 0,
+      badge: p.status || "",
+      description: p.description_ar || "",
+      image_url: p.image_url || ""
+    };
+  }
+
+  function handleAddToCart() {
+    if (!product) return;
+    addToCart(normalizeProduct(product));
+    setMessage("تمت إضافة المنتج إلى السلة");
+  }
+
+  function handleGoToCheckout() {
+    if (!product) return;
+    addToCart(normalizeProduct(product));
+    navigate("/checkout");
+  }
+
+  async function handleBuyNow() {
+    if (!product) return;
+
+    try {
+      setBuying(true);
+      setMessage("");
+
+      const result = await apiPost("/commerce/orders", {
+        buyer_user_id: "u3",
+        seller_id: product.seller_id,
+        payment_method: "cash_on_delivery",
+        items: [
+          {
+            product_id: product.id,
+            quantity: 1,
+            unit_price_mad: product.price_mad
+          }
+        ]
       });
 
-    return () => {
-      active = false;
-    };
-  }, [slug]);
+      if (result.ok) {
+        setMessage(`تم إنشاء الطلب بنجاح. رقم الطلب: ${result.data.id}`);
+      } else {
+        setMessage("فشل إنشاء الطلب");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("حدث خطأ أثناء إنشاء الطلب");
+    } finally {
+      setBuying(false);
+    }
+  }
 
   if (loading) {
     return (
       <section className="container section-space">
-        <div className="panel-card">
-          <p>جارٍ تحميل المنتج...</p>
-        </div>
+        <p>جاري تحميل المنتج...</p>
       </section>
     );
   }
 
-  if (error || !product) {
+  if (!product) {
     return (
       <section className="container section-space">
-        <div className="panel-card">
-          <h2>المنتج غير موجود</h2>
-          <p>{error || "لم يتم العثور على المنتج المطلوب."}</p>
-        </div>
+        <p>المنتج غير موجود</p>
       </section>
     );
-  }
-
-  const cartProduct = {
-    id: product.id,
-    slug: product.slug,
-    name: product.title_ar,
-    price: product.price_mad,
-    seller_id: product.seller_id || "s1",
-    seller: product.seller_id || "s1",
-    city: "",
-    rating: 0,
-    reviews: 0,
-    cod: true,
-    stock: product.stock,
-    badge: product.status,
-    description: product.description_ar || "",
-    image_url: product.image_url || ""
-  };
-
-  function handleAddToCart() {
-    addToCart(cartProduct);
-  }
-
-  function handleBuyNow() {
-    addToCart(cartProduct);
-    navigate("/checkout");
   }
 
   return (
@@ -91,108 +119,121 @@ export default function ProductDetailsPage() {
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           gap: "24px",
-          alignItems: "start",
+          alignItems: "start"
         }}
       >
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e7e1d4",
-            borderRadius: "18px",
-            overflow: "hidden",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-          }}
-        >
-          <div
-            style={{
-              height: "320px",
-              background: "#f1eee8",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              overflow: "hidden",
-            }}
-          >
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.title_ar}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-              />
-            ) : (
-              <span>صورة المنتج</span>
-            )}
-          </div>
+        <div>
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.title_ar}
+              style={{
+                width: "100%",
+                maxHeight: "420px",
+                objectFit: "cover",
+                borderRadius: "14px",
+                border: "1px solid #e2e8f0"
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                minHeight: "320px",
+                borderRadius: "14px",
+                border: "1px solid #e2e8f0",
+                background: "#f8fafc",
+                display: "grid",
+                placeItems: "center",
+                color: "#94a3b8"
+              }}
+            >
+              No image
+            </div>
+          )}
         </div>
 
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e7e1d4",
-            borderRadius: "18px",
-            padding: "20px",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-          }}
-        >
-          <h1 style={{ marginBottom: "12px", lineHeight: 1.3 }}>
-            {product.title_ar}
-          </h1>
-
-          <div style={{ color: "#666", marginBottom: "10px" }}>
-            الفئة: {product.category_id || "غير مصنفة"}
+        <div style={{ display: "grid", gap: "16px" }}>
+          <div>
+            <h1 style={{ marginBottom: "8px" }}>{product.title_ar}</h1>
+            <p style={{ color: "#64748b", margin: 0 }}>
+              {product.description_ar || "بدون وصف"}
+            </p>
           </div>
 
-          <div
-            style={{
-              fontSize: "34px",
-              fontWeight: "800",
-              marginBottom: "14px",
-              color: "#111",
-            }}
-          >
+          <div style={{ fontSize: "28px", fontWeight: "700" }}>
             {product.price_mad} MAD
           </div>
 
-          <div style={{ color: "#666", marginBottom: "16px" }}>
-            المخزون: {product.stock} · الحالة: {product.status}
+          <div style={{ color: "#64748b" }}>
+            المخزون: {product.stock}
           </div>
 
-          <p style={{ lineHeight: 1.8, marginBottom: "20px" }}>
-            {product.description_ar || "لا يوجد وصف متاح حاليًا."}
-          </p>
-
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <button
-              onClick={handleAddToCart}
+          {message ? (
+            <div
               style={{
-                padding: "12px 18px",
+                padding: "12px",
                 borderRadius: "12px",
-                background: "#1f3b73",
-                color: "#fff",
-                border: "none",
-                fontWeight: 700,
+                border: "1px solid #e2e8f0",
+                background: "#fff"
               }}
             >
-              أضف إلى السلة
+              {message}
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gap: "10px" }}>
+            <button
+              onClick={handleAddToCart}
+              disabled={product.stock <= 0}
+              style={{
+                padding: "12px",
+                borderRadius: "12px",
+                border: "1px solid #d1d5db",
+                background: "#fff",
+                color: "#111827",
+                fontWeight: "700",
+                cursor: product.stock <= 0 ? "not-allowed" : "pointer"
+              }}
+            >
+              {product.stock <= 0 ? "غير متوفر" : "أضف إلى السلة"}
+            </button>
+
+            <button
+              onClick={handleGoToCheckout}
+              disabled={product.stock <= 0}
+              style={{
+                padding: "12px",
+                borderRadius: "12px",
+                border: "none",
+                background: "#1f3b73",
+                color: "#fff",
+                fontWeight: "700",
+                cursor: product.stock <= 0 ? "not-allowed" : "pointer"
+              }}
+            >
+              اشتر الآن عبر Checkout
             </button>
 
             <button
               onClick={handleBuyNow}
+              disabled={buying || product.stock <= 0}
               style={{
-                padding: "12px 18px",
+                padding: "12px",
                 borderRadius: "12px",
-                background: "#fff",
-                color: "#111",
-                border: "1px solid #d6d1c4",
-                fontWeight: 700,
+                border: "none",
+                background: product.stock <= 0 ? "#94a3b8" : "#111827",
+                color: "#fff",
+                fontWeight: "700",
+                cursor: product.stock <= 0 ? "not-allowed" : "pointer",
+                opacity: buying ? 0.7 : 1
               }}
             >
-              اشتر الآن
+              {buying
+                ? "جاري الطلب..."
+                : product.stock <= 0
+                ? "غير متوفر"
+                : "Buy Now مباشر"}
             </button>
           </div>
         </div>
