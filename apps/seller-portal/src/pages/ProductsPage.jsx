@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 const API = "https://souq-rahba-api.ori00fit.workers.dev";
+const SELLER_ID = "s1";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
@@ -14,7 +15,7 @@ export default function ProductsPage() {
         setLoading(true);
         setErrorText("");
 
-        const res = await fetch(`${API}/catalog/products`);
+        const res = await fetch(`${API}/catalog/products?seller_id=${SELLER_ID}`);
         const data = await res.json();
 
         if (!res.ok || !data.ok) {

@@ -1,7 +1,34 @@
 import type { Bindings } from "../types";
 import { all, first } from "../lib/db";
 
-export async function listProducts(env: Bindings) {
+export async function listProducts(env: Bindings, sellerId?: string) {
+  if (sellerId) {
+    return all(
+      env,
+      `select
+        p.id,
+        p.slug,
+        p.title_ar,
+        p.description_ar,
+        p.price_mad,
+        p.stock,
+        p.category_id,
+        p.status,
+        p.created_at,
+        (
+          select pm.url
+          from product_media pm
+          where pm.product_id = p.id
+          order by pm.sort_order asc
+          limit 1
+        ) as image_url
+      from products p
+      where p.seller_id = ?
+      order by p.created_at desc`,
+      sellerId
+    );
+  }
+
   return all(
     env,
     `select

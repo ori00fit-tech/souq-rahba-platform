@@ -4,7 +4,8 @@ import { listProducts, getProductBySlug } from "../repositories/catalog.reposito
 export const catalogRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
 catalogRouter.get("/products", async (c) => {
-  const products = await listProducts(c.env);
+  const sellerId = c.req.query("seller_id");
+  const products = await listProducts(c.env, sellerId || undefined);
   return c.json({ ok: true, data: products });
 });
 
@@ -77,12 +78,7 @@ catalogRouter.post("/products", async (c) => {
         sort_order
       ) values (?, ?, 'image', ?, ?, 0)`
     )
-      .bind(
-        mediaId,
-        id,
-        mediaUrl,
-        body.title_ar
-      )
+      .bind(mediaId, id, mediaUrl, body.title_ar)
       .run();
   }
 
