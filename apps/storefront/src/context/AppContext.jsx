@@ -16,22 +16,39 @@ export function AppProvider({ children }) {
     setCart((current) => {
       const existing = current.find((item) => item.id === product.id)
       if (existing) {
-        return current.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item)
+        return current.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+        )
       }
       return [...current, { ...product, qty: 1 }]
     })
   }
 
-  const removeFromCart = (productId) => setCart((current) => current.filter((item) => item.id !== productId))
-  const updateQty = (productId, qty) => setCart((current) => current.map((item) => item.id === productId ? { ...item, qty: Math.max(1, qty) } : item))
+  const removeFromCart = (productId) =>
+    setCart((current) => current.filter((item) => item.id !== productId))
 
-  const total = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.qty, 0), [cart])
+  const updateQty = (productId, qty) =>
+    setCart((current) =>
+      current.map((item) =>
+        item.id === productId ? { ...item, qty: Math.max(1, qty) } : item
+      )
+    )
+
+  const clearCart = () => setCart([])
+
+  const total = useMemo(
+    () => cart.reduce((sum, item) => sum + item.price * item.qty, 0),
+    [cart]
+  )
 
   const filteredProducts = useMemo(() => {
     const q = query.toLowerCase().trim()
     if (!q) return initialProducts
     return initialProducts.filter((product) =>
-      [product.name, product.enName, product.seller, product.city, product.category].join(' ').toLowerCase().includes(q)
+      [product.name, product.enName, product.seller, product.city, product.category]
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
     )
   }, [query])
 
@@ -46,6 +63,7 @@ export function AppProvider({ children }) {
     addToCart,
     removeFromCart,
     updateQty,
+    clearCart,
     total,
     query,
     setQuery,

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
 
 export default function ProductDetailsPage() {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const { addToCart } = useApp();
 
   const [product, setProduct] = useState(null);
@@ -59,9 +60,11 @@ export default function ProductDetailsPage() {
 
   const cartProduct = {
     id: product.id,
+    slug: product.slug,
     name: product.title_ar,
     price: product.price_mad,
-    seller: product.seller_id || "Souq Rahba",
+    seller_id: product.seller_id || "s1",
+    seller: product.seller_id || "s1",
     city: "",
     rating: 0,
     reviews: 0,
@@ -69,7 +72,17 @@ export default function ProductDetailsPage() {
     stock: product.stock,
     badge: product.status,
     description: product.description_ar || "",
+    image_url: product.image_url || ""
   };
+
+  function handleAddToCart() {
+    addToCart(cartProduct);
+  }
+
+  function handleBuyNow() {
+    addToCart(cartProduct);
+    navigate("/checkout");
+  }
 
   return (
     <section className="container section-space">
@@ -155,7 +168,7 @@ export default function ProductDetailsPage() {
 
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
-              onClick={() => addToCart(cartProduct)}
+              onClick={handleAddToCart}
               style={{
                 padding: "12px 18px",
                 borderRadius: "12px",
@@ -169,6 +182,7 @@ export default function ProductDetailsPage() {
             </button>
 
             <button
+              onClick={handleBuyNow}
               style={{
                 padding: "12px 18px",
                 borderRadius: "12px",
@@ -185,5 +199,4 @@ export default function ProductDetailsPage() {
       </div>
     </section>
   );
-}	
-
+}

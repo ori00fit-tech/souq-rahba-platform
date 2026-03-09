@@ -5,6 +5,7 @@ import { formatMoney } from '../lib/utils'
 export default function ProductCard({ product }) {
   const { addToCart, t, currency, language } = useApp()
   const locale = language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-US'
+  const productSlug = product.slug || product.id
 
   return (
     <article className="product-card">
@@ -20,8 +21,12 @@ export default function ProductCard({ product }) {
         </div>
         <div className="rating-row">⭐ {product.rating} • {product.reviews} reviews</div>
         <div className="card-actions">
-          <button className="btn btn-primary" onClick={() => addToCart(product)}>{t.addToCart}</button>
-          <Link className="btn btn-secondary" to={`/products/${product.id}`}>{t.buyNow}</Link>
+          <button className="btn btn-primary" onClick={() => addToCart(product)}>
+            {t.addToCart}
+          </button>
+          <Link className="btn btn-secondary" to={`/products/${productSlug}`}>
+            {t.buyNow}
+          </Link>
         </div>
       </div>
     </article>
