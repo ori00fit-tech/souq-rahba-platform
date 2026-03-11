@@ -1,6 +1,5 @@
 import { Link, NavLink } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { SELLER_PORTAL_URL } from "../lib/config";
 
 export default function Header() {
   const { cart, query, setQuery, language, setLanguage, currency, setCurrency } = useApp();
@@ -35,7 +34,7 @@ export default function Header() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "44px 1fr auto auto",
+            gridTemplateColumns: "44px 1fr 44px",
             alignItems: "center",
             gap: "10px"
           }}
@@ -54,23 +53,50 @@ export default function Header() {
             style={{
               textDecoration: "none",
               color: "#16356b",
-              fontWeight: "900",
-              fontSize: "26px",
-              letterSpacing: "0.5px",
-              justifySelf: "center"
+              justifySelf: "center",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px"
             }}
           >
-            RAHBA
-          </Link>
+            <img
+              src="/brand/logo-icon.png"
+              alt="RAHBA"
+              style={{
+                width: "42px",
+                height: "42px",
+                objectFit: "contain",
+                borderRadius: "10px",
+                background: "transparent"
+              }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
 
-          <button
-            type="button"
-            style={iconButton}
-            aria-label="Search"
-            title="Search"
-          >
-            🔍
-          </button>
+            <div style={{ display: "grid", lineHeight: 1 }}>
+              <span
+                style={{
+                  fontSize: "24px",
+                  fontWeight: "900",
+                  letterSpacing: "0.5px",
+                  color: "#16356b"
+                }}
+              >
+                RAHBA
+              </span>
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: "#0f766e",
+                  marginTop: "4px",
+                  fontWeight: "700"
+                }}
+              >
+                Online Marketplace
+              </span>
+            </div>
+          </Link>
 
           <NavLink
             to="/cart"
@@ -146,35 +172,6 @@ export default function Header() {
             السلة ({cart.length})
           </NavLink>
         </div>
-
-        <nav
-          style={{
-            display: "flex",
-            gap: "18px",
-            flexWrap: "wrap",
-            paddingTop: "2px",
-            color: "#16356b"
-          }}
-        >
-          <NavLink to="/" style={navLink}>
-            الرئيسية
-          </NavLink>
-          <NavLink to="/products" style={navLink}>
-            المنتجات
-          </NavLink>
-          <NavLink to="/sellers" style={navLink}>
-            الباعة
-          </NavLink>
-          <a href={SELLER_PORTAL_URL} target="_blank" rel="noopener noreferrer" style={navLink}>
-            لوحة البائع
-          </a>
-          <NavLink to="/about" style={navLink}>
-            من نحن
-          </NavLink>
-          <NavLink to="/auth" style={navLink}>
-            الحساب
-          </NavLink>
-        </nav>
       </div>
     </header>
   );
@@ -209,11 +206,4 @@ const pillLink = {
   background: "#fff",
   color: "#111827",
   fontWeight: "700"
-};
-
-const navLink = {
-  textDecoration: "none",
-  color: "#16356b",
-  fontWeight: "700",
-  fontSize: "15px"
 };
