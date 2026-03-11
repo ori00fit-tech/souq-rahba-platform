@@ -38,7 +38,7 @@ export default function Header() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "52px 1fr auto",
+              gridTemplateColumns: "52px 1fr",
               alignItems: "center",
               gap: "12px"
             }}
@@ -104,6 +104,31 @@ export default function Header() {
                 </span>
               </div>
             </Link>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr auto",
+              gap: "10px",
+              alignItems: "center"
+            }}
+          >
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="ابحث عن منتجات، فئات، بائعين..."
+              style={{
+                width: "100%",
+                padding: "15px 16px",
+                borderRadius: "20px",
+                border: "1px solid #e5dccb",
+                background: "#fff",
+                fontSize: "15px",
+                outline: "none",
+                boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)"
+              }}
+            />
 
             <NavLink
               to="/cart"
@@ -112,55 +137,38 @@ export default function Header() {
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
-                padding: "12px 14px",
-                borderRadius: "16px",
+                padding: "12px 12px",
+                borderRadius: "18px",
                 border: "1px solid #d8ccb7",
                 background: "#fff",
                 color: "#16356b",
                 fontWeight: "800",
-                position: "relative",
-                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)"
+                boxShadow: "0 4px 12px rgba(15, 23, 42, 0.05)",
+                whiteSpace: "nowrap"
               }}
               aria-label="Cart"
               title="Cart"
             >
-              <span style={{ fontSize: "20px", lineHeight: 1 }}>🛒</span>
-              <span style={{ fontSize: "14px" }}>Cart</span>
-
+              <span style={{ fontSize: "18px", lineHeight: 1 }}>🛒</span>
+              <span style={{ fontSize: "13px" }}>Cart</span>
               <span
                 style={{
-                  minWidth: "22px",
-                  height: "22px",
+                  minWidth: "20px",
+                  height: "20px",
                   borderRadius: "999px",
                   background: "#16356b",
                   color: "#fff",
-                  fontSize: "12px",
+                  fontSize: "11px",
                   display: "grid",
                   placeItems: "center",
                   fontWeight: "800",
-                  padding: "0 6px"
+                  padding: "0 5px"
                 }}
               >
                 {cart.length}
               </span>
             </NavLink>
           </div>
-
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث عن منتجات، فئات، بائعين..."
-            style={{
-              width: "100%",
-              padding: "16px 18px",
-              borderRadius: "20px",
-              border: "1px solid #e5dccb",
-              background: "#fff",
-              fontSize: "15px",
-              outline: "none",
-              boxShadow: "0 4px 14px rgba(15, 23, 42, 0.05)"
-            }}
-          />
         </div>
       </header>
 
@@ -313,11 +321,7 @@ export default function Header() {
 
 function NavItem({ to, label, onClick }) {
   return (
-    <NavLink
-      to={to}
-      onClick={onClick}
-      style={drawerLink}
-    >
+    <NavLink to={to} onClick={onClick} style={drawerLink}>
       {label}
     </NavLink>
   );
