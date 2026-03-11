@@ -3,7 +3,8 @@ import { Navigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useSellerAuth } from "../context/SellerAuthContext";
 
-const API = "https://souq-rahba-api.ori00fit.workers.dev";
+import { API_BASE_URL } from "../lib/config";
+const API = API_BASE_URL;
 
 function slugify(text) {
   return String(text || "")

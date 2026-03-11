@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../lib/config";
 
 export default function DashboardPage() {
 
@@ -15,11 +16,11 @@ export default function DashboardPage() {
       try {
 
         const products = await fetch(
-          "https://souq-rahba-api.ori00fit.workers.dev/catalog/products"
+          `${API_BASE_URL}/catalog/products`
         ).then(r => r.json());
 
         const orders = await fetch(
-          "https://souq-rahba-api.ori00fit.workers.dev/orders"
+          `${API_BASE_URL}/orders`
         ).then(r => r.json());
 
         const productCount = products.data?.length || 0;

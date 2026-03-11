@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://souq-rahba-api.ori00fit.workers.dev";
+import { API_BASE_URL } from "./config";
 
 function getAuthHeaders(extra = {}) {
   const token = localStorage.getItem("admin_auth_token");

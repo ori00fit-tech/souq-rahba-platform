@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-const API = "https://souq-rahba-api.ori00fit.workers.dev";
+import { API_BASE_URL } from "../lib/config";
+const API = API_BASE_URL;
 
 export default function EditProductPage() {
   const { id } = useParams();

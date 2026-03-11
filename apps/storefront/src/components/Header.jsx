@@ -1,5 +1,6 @@
 import { Link, NavLink } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { SELLER_PORTAL_URL } from '../lib/config'
 
 export default function Header() {
   const { t, cart, language, setLanguage, currency, setCurrency, query, setQuery } = useApp()
@@ -40,7 +41,7 @@ export default function Header() {
         <NavLink to="/sellers">{t.navSellers}</NavLink>
 
         <a
-          href="https://souq-rahba-seller.pages.dev"
+          href={SELLER_PORTAL_URL}
           target="_blank"
           rel="noopener noreferrer"
         >
