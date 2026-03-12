@@ -366,7 +366,7 @@ fontWeight:800
 drawerCartBadge:{
 marginLeft:"auto",
 background:"#fff",
-color:T.navy",
+color:T.navy,
 borderRadius:"999px",
 padding:"2px 6px",
 fontSize:"12px"
