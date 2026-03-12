@@ -12,7 +12,6 @@ const perks = [
 export default function SellCTA() {
   return (
     <section style={s.section}>
-      {/* left / text side */}
       <div style={s.content}>
         <div style={s.eyebrow}>For Sellers</div>
         <h2 style={s.title}>Sell on RAHBA</h2>
@@ -39,7 +38,6 @@ export default function SellCTA() {
         </a>
       </div>
 
-      {/* right / decorative */}
       <div style={s.deco} aria-hidden="true">
         <div style={s.decoInner}>🏷️</div>
       </div>
@@ -53,16 +51,14 @@ const s = {
     gridTemplateColumns: "1fr auto",
     gap: "24px",
     alignItems: "center",
-    background: \`linear-gradient(135deg, \${T.navy} 0%, \${T.blue} 100%)\`,
+    background: `linear-gradient(135deg, ${T.navy} 0%, ${T.blue} 100%)`,
     borderRadius: "22px",
     padding: "28px 24px",
     color: "#fff",
     overflow: "hidden",
     position: "relative",
   },
-
   content: { display: "grid", gap: "14px" },
-
   eyebrow: {
     display: "inline-block",
     width: "fit-content",
@@ -75,14 +71,12 @@ const s = {
     borderRadius: "999px",
     padding: "4px 12px",
   },
-
   title: {
     margin: 0,
     fontSize: "26px",
     fontWeight: 900,
     lineHeight: 1.2,
   },
-
   sub: {
     margin: 0,
     color: "rgba(255,255,255,0.80)",
@@ -90,13 +84,11 @@ const s = {
     lineHeight: 1.7,
     maxWidth: "460px",
   },
-
   perks: {
     display: "flex",
     flexWrap: "wrap",
     gap: "8px",
   },
-
   perk: {
     display: "flex",
     alignItems: "center",
@@ -108,9 +100,7 @@ const s = {
     fontSize: "12px",
     fontWeight: 600,
   },
-
   perkLabel: { color: "rgba(255,255,255,0.90)" },
-
   btn: {
     display: "inline-block",
     width: "fit-content",
@@ -123,12 +113,10 @@ const s = {
     fontSize: "14px",
     boxShadow: "0 4px 18px rgba(0,0,0,0.18)",
   },
-
   deco: {
     display: "grid",
     placeItems: "center",
   },
-
   decoInner: {
     width: "80px",
     height: "80px",
