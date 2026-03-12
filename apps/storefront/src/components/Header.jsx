@@ -4,272 +4,372 @@ import { useApp } from "../context/AppContext";
 import { SELLER_PORTAL_URL } from "../lib/config";
 
 const T = {
-  navy: "#16356b",
-  blue: "#1d4ed8",
-  teal: "#0f766e",
-  sand: "#f5f1e8",
-  sandSoft: "#f8f4eb",
-  border: "#ddd5c2",
-  white: "#ffffff",
-  text: "#2d2418",
-  shadow: "rgba(22, 53, 107, 0.10)",
+  navy:"#16356b",
+  blue:"#1d4ed8",
+  teal:"#0f766e",
+  gold:"#b08d3c",
+  sand:"#f5f1e8",
+  border:"#ddd5c2",
+  white:"#ffffff",
+  shadow:"rgba(22,53,107,0.10)"
 };
 
-const navItems = [
-  { to: "/", label: "الرئيسية", icon: "🏠" },
-  { to: "/products", label: "المنتجات", icon: "🛍️" },
-  { to: "/sellers", label: "الباعة", icon: "🏪" },
-  { to: "/my-orders", label: "طلباتي", icon: "📦" },
-  { to: "/auth", label: "الحساب", icon: "👤" },
-  { to: "/help", label: "المساعدة", icon: "💬" },
-];
+const navIcons={
+  "/":"🏠",
+  "/products":"🛍️",
+  "/sellers":"🏪",
+  "/my-orders":"📦",
+  "/auth":"👤",
+  "/help":"💬"
+};
 
-export default function Header() {
-  const { cart, query, setQuery } = useApp();
-  const [menuOpen, setMenuOpen] = useState(false);
+const navLabels={
+  "/":"الرئيسية",
+  "/products":"المنتجات",
+  "/sellers":"الباعة",
+  "/my-orders":"طلباتي",
+  "/auth":"الحساب",
+  "/help":"المساعدة"
+};
 
-  return (
-    <>
-      <header style={styles.header}>
-        <div style={styles.colorBar} />
+export default function Header(){
+  const {cart,query,setQuery}=useApp();
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [searchFocused,setSearchFocused]=useState(false);
 
-        <div style={styles.inner}>
-          <div style={styles.topRow}>
-            <Link to="/" style={styles.brand}>
-              <img
-                src="/brand/logo-icon.png"
-                alt="RAHBA"
-                style={styles.logo}
-                onError={(e) => (e.currentTarget.style.display = "none")}
-              />
-              <div style={styles.brandText}>
-                <span style={styles.brandName}>RAHBA</span>
-                <span style={styles.brandSub}>Online Marketplace</span>
-              </div>
-            </Link>
+  return(
+<>
+<header style={s.header}>
+<div style={s.colorBar}/>
 
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              style={styles.menuButton}
-              aria-label="Menu"
-            >
-              ☰
-            </button>
-          </div>
+<div style={s.inner}>
 
-          <div style={styles.searchRow}>
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="ابحث عن منتجات، فئات، بائعين..."
-              style={styles.searchInput}
-              dir="rtl"
-            />
+<div style={s.row}>
 
-            <NavLink to="/cart" style={styles.cartButton}>
-              🛒
-              <span style={styles.cartBadge}>{cart.length}</span>
-            </NavLink>
-          </div>
-        </div>
-      </header>
+<button onClick={()=>setMenuOpen(true)} style={s.iconBtn}>
+<HamburgerIcon/>
+</button>
 
-      {menuOpen && (
-        <>
-          <div style={styles.overlay} onClick={() => setMenuOpen(false)} />
+<Link to="/" style={s.logo}>
+<img src="/brand/logo-icon.png" alt="RAHBA" style={s.logoImg}/>
+<div style={s.logoText}>
+<span style={s.logoName}>RAHBA</span>
+<span style={s.logoSub}>Marketplace</span>
+</div>
+</Link>
 
-          <aside style={styles.drawer}>
-            <div style={styles.drawerHeader}>
-              <span style={{ fontWeight: 900 }}>RAHBA</span>
-              <button onClick={() => setMenuOpen(false)} style={styles.closeButton}>
-                ✕
-              </button>
-            </div>
+<NavLink to="/cart" style={s.cartBtn}>
+<span>🛒</span>
+<span style={s.cartLabel}>السلة</span>
+{cart.length>0&&<span style={s.cartBadge}>{cart.length}</span>}
+</NavLink>
 
-            <nav style={styles.drawerNav}>
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMenuOpen(false)}
-                  style={styles.drawerLink}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
+</div>
 
-              <a
-                href={SELLER_PORTAL_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={styles.sellerLink}
-              >
-                لوحة البائع ↗
-              </a>
-            </nav>
-          </aside>
-        </>
-      )}
-    </>
-  );
+<div style={{...s.searchWrap,...(searchFocused?s.searchWrapFocus:{})}}>
+<SearchIcon color={searchFocused?T.navy:"#9e9080"}/>
+<input
+value={query}
+onChange={e=>setQuery(e.target.value)}
+onFocus={()=>setSearchFocused(true)}
+onBlur={()=>setSearchFocused(false)}
+placeholder="ابحث عن منتجات..."
+style={s.searchInput}
+/>
+</div>
+
+</div>
+</header>
+
+{menuOpen&&(
+<>
+<div onClick={()=>setMenuOpen(false)} style={s.overlay}/>
+
+<aside style={s.drawer}>
+
+<div style={s.drawerHeader}>
+<div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+<img src="/brand/logo-icon.png" style={s.drawerLogo}/>
+<div>
+<div style={{fontWeight:900}}>RAHBA</div>
+<div style={{fontSize:"11px",opacity:0.8}}>Marketplace</div>
+</div>
+</div>
+
+<button onClick={()=>setMenuOpen(false)} style={s.closeBtn}>✕</button>
+</div>
+
+<nav style={s.drawerNav}>
+{Object.entries(navLabels).map(([path,label])=>(
+<NavLink
+key={path}
+to={path}
+onClick={()=>setMenuOpen(false)}
+style={s.drawerLink}
+>
+<span style={s.drawerIcon}>{navIcons[path]}</span>
+<span>{label}</span>
+</NavLink>
+))}
+
+<a
+href={SELLER_PORTAL_URL}
+target="_blank"
+rel="noopener noreferrer"
+style={s.sellerLink}
+>
+🏷️ لوحة البائع ↗
+</a>
+
+</nav>
+
+<div style={s.drawerFooter}>
+<NavLink to="/cart" onClick={()=>setMenuOpen(false)} style={s.drawerCartBtn}>
+🛒 السلة
+<span style={s.drawerCartBadge}>{cart.length}</span>
+</NavLink>
+</div>
+
+</aside>
+</>
+)}
+
+</>
+);
 }
 
-const styles = {
-  header: {
-    position: "sticky",
-    top: 0,
-    zIndex: 60,
-    background: T.sand,
-    borderBottom: `1px solid ${T.border}`,
-  },
+function HamburgerIcon(){
+return(
+<svg width="20" height="16" viewBox="0 0 20 16">
+<rect width="20" height="2.5" rx="1.25" fill="#16356b"/>
+<rect y="6.75" width="14" height="2.5" rx="1.25" fill="#16356b"/>
+<rect y="13.5" width="20" height="2.5" rx="1.25" fill="#16356b"/>
+</svg>
+);
+}
 
-  colorBar: {
-    height: "6px",
-    background:
-      "repeating-linear-gradient(90deg,#1d4ed8 0 32px,#d4af37 32px 64px,#0ea5e9 64px 96px,#16a34a 96px 128px)",
-  },
+function SearchIcon({color}){
+return(
+<svg width="18" height="18" viewBox="0 0 18 18">
+<circle cx="7.5" cy="7.5" r="5.5" stroke={color} strokeWidth="1.8"/>
+<path d="M12 12L16 16" stroke={color} strokeWidth="1.8"/>
+</svg>
+);
+}
 
-  inner: {
-    padding: "12px 16px",
-    display: "grid",
-    gap: "12px",
-  },
+const s={
 
-  topRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr 48px",
-    alignItems: "center",
-  },
+header:{
+position:"sticky",
+top:0,
+zIndex:60,
+background:T.sand,
+borderBottom:`1px solid ${T.border}`,
+boxShadow:`0 2px 16px ${T.shadow}`
+},
 
-  brand: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    justifyContent: "center",
-    textDecoration: "none",
-  },
+colorBar:{
+height:"4px",
+background:`linear-gradient(90deg,#16356b,#1d4ed8,#0ea5e9,#0f766e,#16a34a)`
+},
 
-  logo: {
-    width: "40px",
-    height: "40px",
-  },
+inner:{
+maxWidth:"1200px",
+margin:"0 auto",
+padding:"12px 16px",
+display:"grid",
+gap:"12px"
+},
 
-  brandText: {
-    display: "grid",
-    lineHeight: 1,
-  },
+row:{
+display:"grid",
+gridTemplateColumns:"48px 1fr auto",
+alignItems:"center",
+gap:"12px"
+},
 
-  brandName: {
-    fontWeight: 900,
-    fontSize: "22px",
-    color: T.navy,
-  },
+iconBtn:{
+width:"48px",
+height:"48px",
+borderRadius:"14px",
+border:`1.5px solid ${T.border}`,
+background:T.white,
+display:"grid",
+placeItems:"center",
+cursor:"pointer"
+},
 
-  brandSub: {
-    fontSize: "11px",
-    color: T.teal,
-  },
+logo:{
+display:"flex",
+alignItems:"center",
+gap:"10px",
+textDecoration:"none",
+justifySelf:"center"
+},
 
-  menuButton: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "12px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    cursor: "pointer",
-  },
+logoImg:{
+width:"40px",
+height:"40px"
+},
 
-  searchRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: "10px",
-  },
+logoText:{
+display:"grid",
+lineHeight:1
+},
 
-  searchInput: {
-    height: "46px",
-    borderRadius: "22px",
-    border: `1px solid ${T.border}`,
-    padding: "0 14px",
-    fontSize: "14px",
-  },
+logoName:{
+fontSize:"22px",
+fontWeight:900,
+color:T.navy
+},
 
-  cartButton: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "6px",
-    padding: "0 12px",
-    borderRadius: "18px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    textDecoration: "none",
-    color: T.navy,
-  },
+logoSub:{
+fontSize:"11px",
+color:T.teal
+},
 
-  cartBadge: {
-    background: T.navy,
-    color: "#fff",
-    borderRadius: "999px",
-    fontSize: "10px",
-    padding: "2px 6px",
-  },
+cartBtn:{
+display:"flex",
+alignItems:"center",
+gap:"6px",
+padding:"10px 14px",
+borderRadius:"14px",
+border:`1.5px solid ${T.border}`,
+background:T.white,
+textDecoration:"none",
+color:T.navy,
+fontWeight:800
+},
 
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.35)",
-  },
+cartLabel:{
+fontSize:"13px"
+},
 
-  drawer: {
-    position: "fixed",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: "74%",
-    maxWidth: "290px",
-    background: T.sandSoft,
-    padding: "16px",
-    display: "grid",
-    gap: "12px",
-  },
+cartBadge:{
+background:T.navy,
+color:"#fff",
+borderRadius:"999px",
+padding:"2px 6px",
+fontSize:"11px"
+},
 
-  drawerHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
+searchWrap:{
+display:"flex",
+alignItems:"center",
+gap:"10px",
+padding:"0 14px",
+height:"48px",
+borderRadius:"24px",
+border:`1.5px solid ${T.border}`,
+background:"#fff"
+},
 
-  closeButton: {
-    border: "none",
-    background: "none",
-    fontSize: "18px",
-    cursor: "pointer",
-  },
+searchWrapFocus:{
+borderColor:T.blue
+},
 
-  drawerNav: {
-    display: "grid",
-    gap: "8px",
-  },
+searchInput:{
+flex:1,
+border:"none",
+outline:"none",
+background:"transparent"
+},
 
-  drawerLink: {
-    display: "flex",
-    gap: "10px",
-    padding: "10px",
-    textDecoration: "none",
-    borderRadius: "10px",
-    background: "#fff",
-    border: `1px solid ${T.border}`,
-    color: T.navy,
-  },
+overlay:{
+position:"fixed",
+inset:0,
+background:"rgba(0,0,0,0.4)",
+zIndex:70
+},
 
-  sellerLink: {
-    padding: "10px",
-    borderRadius: "10px",
-    background: "#edf4ff",
-    textDecoration: "none",
-    color: T.blue,
-    fontWeight: 700,
-  },
+drawer:{
+position:"fixed",
+top:0,
+right:0,
+bottom:0,
+width:"78%",
+maxWidth:"300px",
+background:T.sand,
+zIndex:80,
+display:"grid",
+gridTemplateRows:"auto 1fr auto"
+},
+
+drawerHeader:{
+padding:"16px",
+background:`linear-gradient(135deg,#16356b,#1d4ed8)`,
+color:"#fff",
+display:"flex",
+justifyContent:"space-between"
+},
+
+drawerLogo:{
+width:"36px",
+height:"36px"
+},
+
+closeBtn:{
+background:"none",
+border:"none",
+color:"#fff",
+fontSize:"18px",
+cursor:"pointer"
+},
+
+drawerNav:{
+padding:"16px",
+display:"grid",
+gap:"6px"
+},
+
+drawerLink:{
+textDecoration:"none",
+display:"flex",
+gap:"12px",
+padding:"13px 14px",
+borderRadius:"12px",
+background:"#fff",
+border:`1px solid ${T.border}`,
+color:T.navy
+},
+
+drawerIcon:{
+width:"24px"
+},
+
+sellerLink:{
+marginTop:"6px",
+textDecoration:"none",
+padding:"13px",
+borderRadius:"12px",
+background:"#edf4ff",
+border:"1px solid #bdd4f8",
+color:T.blue
+},
+
+drawerFooter:{
+padding:"14px"
+},
+
+drawerCartBtn:{
+display:"flex",
+alignItems:"center",
+gap:"10px",
+padding:"14px",
+borderRadius:"14px",
+background:T.navy,
+color:"#fff",
+textDecoration:"none",
+fontWeight:800
+},
+
+drawerCartBadge:{
+marginLeft:"auto",
+background:"#fff",
+color:T.navy",
+borderRadius:"999px",
+padding:"2px 6px",
+fontSize:"12px"
+}
+
 };
