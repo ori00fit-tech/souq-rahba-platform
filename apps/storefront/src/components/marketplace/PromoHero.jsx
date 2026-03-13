@@ -1,118 +1,129 @@
+import { Link } from "react-router-dom";
+import { SELLER_PORTAL_URL } from "../../lib/config";
+
 export default function PromoHero() {
   return (
-    <section
-      style={{
-        background:
-          "linear-gradient(135deg, #16356b 0%, #1d4ed8 52%, #0ea5e9 100%)",
-        color: "#fff",
-        borderRadius: "28px",
-        padding: "22px 18px",
-        display: "grid",
-        gap: "16px",
-        boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)",
-        overflow: "hidden",
-        position: "relative"
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 35%), radial-gradient(circle at bottom left, rgba(255,255,255,0.10), transparent 28%)",
-          pointerEvents: "none"
-        }}
-      />
+    <section style={s.wrap} dir="rtl">
+      <div style={s.overlay} />
 
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "grid",
-          gap: "14px"
-        }}
-      >
-        <div
-          style={{
-            width: "fit-content",
-            maxWidth: "100%",
-            padding: "8px 12px",
-            borderRadius: "999px",
-            background: "rgba(255,255,255,0.14)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            fontWeight: "800",
-            fontSize: "13px",
-            backdropFilter: "blur(6px)"
-          }}
-        >
-          RAHBA • Online Marketplace
-        </div>
+      <div style={s.content}>
+        <div style={s.eyebrow}>رحبة • السوق الإلكتروني المغربي</div>
 
-        <div style={{ display: "grid", gap: "10px" }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "clamp(30px, 7vw, 52px)",
-              lineHeight: 1.08,
-              fontWeight: "900",
-              letterSpacing: "-0.02em"
-            }}
-          >
-            Discover products from trusted sellers across Morocco
-          </h1>
+        <h1 style={s.title}>
+          اكتشف منتجات موثوقة من باعة معتمدين عبر المغرب
+        </h1>
 
-          <p
-            style={{
-              margin: 0,
-              color: "rgba(255,255,255,0.88)",
-              fontSize: "clamp(15px, 3.7vw, 18px)",
-              lineHeight: 1.65,
-              maxWidth: "760px"
-            }}
-          >
-            Shop electronics, fashion, home goods, tools and more through one modern marketplace experience.
-          </p>
-        </div>
+        <p style={s.sub}>
+          تسوّق الإلكترونيات، الأزياء، مستلزمات المنزل، الأدوات وغيرها
+          في منصة عصرية تجمع بين الجودة والثقة وسهولة الاستخدام.
+        </p>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            flexWrap: "wrap"
-          }}
-        >
+        <div style={s.actions}>
           <a
-            href="/products"
-            style={{
-              textDecoration: "none",
-              padding: "13px 18px",
-              borderRadius: "16px",
-              background: "#ffffff",
-              color: "#16356b",
-              fontWeight: "900",
-              boxShadow: "0 10px 24px rgba(15, 23, 42, 0.14)"
-            }}
+            href={SELLER_PORTAL_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={s.primaryBtn}
           >
-            Browse Marketplace
+            ابدأ البيع
           </a>
 
-          <a
-            href="https://seller.rahba.site"
-            style={{
-              textDecoration: "none",
-              padding: "13px 18px",
-              borderRadius: "16px",
-              background: "rgba(255,255,255,0.14)",
-              color: "#ffffff",
-              border: "1px solid rgba(255,255,255,0.18)",
-              fontWeight: "900",
-              backdropFilter: "blur(6px)"
-            }}
-          >
-            Start Selling
-          </a>
+          <Link to="/products" style={s.secondaryBtn}>
+            تصفّح السوق
+          </Link>
         </div>
       </div>
     </section>
   );
 }
+
+const s = {
+  wrap: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: "28px",
+    padding: "28px 22px",
+    background: "linear-gradient(135deg, #0B4DBA 0%, #119ED9 55%, #17B890 100%)",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
+    minHeight: "320px",
+    display: "grid",
+    alignItems: "center",
+  },
+
+  overlay: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 28%), radial-gradient(circle at bottom right, rgba(255,255,255,0.10), transparent 24%)",
+    pointerEvents: "none",
+  },
+
+  content: {
+    position: "relative",
+    zIndex: 1,
+    display: "grid",
+    gap: "16px",
+    textAlign: "right",
+    maxWidth: "760px",
+    marginRight: "auto",
+  },
+
+  eyebrow: {
+    width: "fit-content",
+    padding: "8px 14px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.18)",
+    color: "#F8FAFC",
+    fontSize: "13px",
+    fontWeight: 800,
+    backdropFilter: "blur(8px)",
+  },
+
+  title: {
+    margin: 0,
+    color: "#FFFFFF",
+    fontSize: "clamp(30px, 6vw, 56px)",
+    lineHeight: 1.14,
+    fontWeight: 900,
+    letterSpacing: "-0.02em",
+  },
+
+  sub: {
+    margin: 0,
+    color: "rgba(255,255,255,0.88)",
+    fontSize: "clamp(15px, 3.2vw, 19px)",
+    lineHeight: 1.9,
+    maxWidth: "680px",
+  },
+
+  actions: {
+    display: "flex",
+    gap: "12px",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
+
+  primaryBtn: {
+    textDecoration: "none",
+    padding: "14px 20px",
+    borderRadius: "16px",
+    background: "#FFFFFF",
+    color: "#0B3D91",
+    fontWeight: 900,
+    fontSize: "15px",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.14)",
+  },
+
+  secondaryBtn: {
+    textDecoration: "none",
+    padding: "14px 20px",
+    borderRadius: "16px",
+    background: "rgba(255,255,255,0.12)",
+    color: "#FFFFFF",
+    border: "1px solid rgba(255,255,255,0.28)",
+    fontWeight: 900,
+    fontSize: "15px",
+    backdropFilter: "blur(8px)",
+  },
+};
