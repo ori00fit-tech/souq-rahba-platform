@@ -13,7 +13,8 @@ const T = {
   blueDark: "#13294b",
   gold: "#f59e0b",
   chip: "#eef2ff",
-  success: "#166534"
+  success: "#166534",
+  muted: "#94a3b8"
 };
 
 export default function ProductDetailsPage() {
@@ -29,6 +30,7 @@ export default function ProductDetailsPage() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [message, setMessage] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
+  const [selectedImage, setSelectedImage] = useState("");
 
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
@@ -48,6 +50,7 @@ export default function ProductDetailsPage() {
         const productRes = await apiGet(`/catalog/products/${slug}`);
         if (productRes.ok) {
           setProduct(productRes.data);
+          setSelectedImage(productRes.data?.image_url || "");
         } else {
           setMessage("تعذر تحميل المنتج");
         }
@@ -79,6 +82,17 @@ export default function ProductDetailsPage() {
     return { count, avg };
   }, [product, reviews]);
 
+  const galleryImages = useMemo(() => {
+    const base = product?.image_url ? [product.image_url] : [];
+
+    const reviewImages = reviews
+      .map((r) => r.review_image_url)
+      .filter(Boolean)
+      .slice(0, 3);
+
+    return [...new Set([...base, ...reviewImages])];
+  }, [product, reviews]);
+
   const highlights = useMemo(() => {
     const source = product?.description_long_ar || product?.description_ar || "";
     const lines = source
@@ -86,28 +100,49 @@ export default function ProductDetailsPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
-    const bulletLines = lines.filter((line) =>
+    const bullets = lines.filter((line) =>
       line.startsWith("-") || line.startsWith("•") || line.startsWith("*")
     );
 
-    if (bulletLines.length) {
-      return bulletLines.map((line) => line.replace(/^[-•*]\s*/, "")).slice(0, 5);
+    if (bullets.length) {
+      return bullets.map((line) => line.replace(/^[-•*]\s*/, "")).slice(0, 6);
     }
 
-    if (source) {
-      return source
-        .split(/[.،]/)
-        .map((x) => x.trim())
-        .filter(Boolean)
-        .slice(0, 5);
-    }
+    const parts = source
+      .split(/[.،]/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+
+    if (parts.length) return parts;
 
     return [
-      "منتج مناسب للاستخدام اليومي",
-      "جودة موثوقة داخل منصة رحبة",
-      "تجربة شراء سهلة وآمنة"
+      "جودة موثوقة للاستخدام اليومي",
+      "تصميم عملي ومريح",
+      "تجربة شراء آمنة داخل رحبة",
+      "قيمة جيدة مقابل السعر"
     ];
   }, [product]);
+
+  const specs = useMemo(() => {
+    return [
+      { label: "العلامة", value: product?.brand || product?.seller_name || "RAHBA" },
+      { label: "السعر", value: `${product?.price_mad || 0} MAD` },
+      { label: "الحالة", value: product?.status || "active" },
+      { label: "المخزون", value: String(product?.stock || 0) },
+      { label: "الفئة", value: product?.category_id || "—" },
+      { label: "SKU", value: product?.sku || "—" }
+    ];
+  }, [product]);
+
+  const faqChips = useMemo(() => {
+    return [
+      "هل المنتج أصلي؟",
+      "هل هو مناسب للاستعمال اليومي؟",
+      "هل يوجد ضمان أو متابعة؟",
+      "هل يمكن طلبه عبر Checkout؟"
+    ];
+  }, []);
 
   function normalizeProduct(p) {
     return {
@@ -233,21 +268,45 @@ export default function ProductDetailsPage() {
           <h1 style={s.title}>{product.title_ar}</h1>
 
           <div style={s.ratingRow}>
-            <span style={s.stars}>{"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}</span>
+            <span style={s.stars}>
+              {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+            </span>
             <span style={s.ratingValue}>{ratingSummary.avg || 0}</span>
             <span style={s.ratingCount}>({ratingSummary.count || 0})</span>
           </div>
 
-          <div style={s.imageCard}>
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.title_ar}
-                style={s.mainImage}
-              />
-            ) : (
-              <div style={s.noImage}>No image</div>
-            )}
+          <div style={s.galleryLayout}>
+            <div style={s.mainImageCard}>
+              {selectedImage ? (
+                <img
+                  src={selectedImage}
+                  alt={product.title_ar}
+                  style={s.mainImage}
+                />
+              ) : (
+                <div style={s.noImage}>No image</div>
+              )}
+            </div>
+
+            {galleryImages.length > 1 ? (
+              <div style={s.thumbRow}>
+                {galleryImages.map((img, idx) => (
+                  <button
+                    key={`${img}-${idx}`}
+                    onClick={() => setSelectedImage(img)}
+                    style={{
+                      ...s.thumbBtn,
+                      border:
+                        selectedImage === img
+                          ? `2px solid ${T.blue}`
+                          : `1px solid ${T.border}`
+                    }}
+                  >
+                    <img src={img} alt={`thumb-${idx}`} style={s.thumbImg} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <div style={s.priceWrap}>
@@ -280,44 +339,60 @@ export default function ProductDetailsPage() {
 
         <section style={s.sectionCard}>
           <h2 style={s.sectionTitle}>من الشركة المصنعة</h2>
+
           <div style={s.manufacturerHero}>
-            <div style={s.heroTextWrap}>
-              <div style={s.heroBadge}>منتج مختار على رحبة</div>
-              <h3 style={s.heroTitle}>اكتشف قيمة المنتج قبل الشراء</h3>
-              <p style={s.heroText}>
-                {product.description_long_ar ||
-                  product.description_ar ||
-                  "هذا المنتج يوفر توازنًا جيدًا بين الجودة، سهولة الاستخدام، والتجربة العملية داخل منصة رحبة."}
-              </p>
+            <div style={s.heroTop}>
+              <div style={s.heroBadge}>منتج مميز</div>
+              <div style={s.heroSmall}>جودة موثوقة داخل رحبة</div>
             </div>
 
-            <div style={s.heroChips}>
-              <span style={s.heroChip}>جودة موثوقة</span>
-              <span style={s.heroChip}>شراء آمن</span>
-              <span style={s.heroChip}>مناسب للاستخدام اليومي</span>
+            <h3 style={s.heroTitle}>
+              تجربة أوضح قبل الشراء مع عرض أقرب لأسلوب Amazon
+            </h3>
+
+            <p style={s.heroText}>
+              {product.description_long_ar ||
+                product.description_ar ||
+                "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، جودة واضحة، وثقة أكبر قبل اتخاذ قرار الشراء."}
+            </p>
+
+            <div style={s.heroStats}>
+              <HeroStat label="التقييم" value={`${ratingSummary.avg || 0} / 5`} />
+              <HeroStat label="المراجعات" value={`${ratingSummary.count || 0}`} />
+              <HeroStat label="المخزون" value={`${product.stock || 0}`} />
             </div>
           </div>
         </section>
 
         <section style={s.sectionCard}>
-          <h2 style={s.sectionTitle}>تفاصيل المنتج</h2>
+          <h2 style={s.sectionTitle}>أهم المميزات</h2>
+          <div style={s.highlightGrid}>
+            {highlights.map((item, idx) => (
+              <div key={`${item}-${idx}`} style={s.highlightCard}>
+                <div style={s.highlightIcon}>✓</div>
+                <div style={s.highlightText}>{item}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
+        <section style={s.sectionCard}>
+          <h2 style={s.sectionTitle}>تفاصيل المنتج</h2>
           <div style={s.detailsGrid}>
-            <DetailRow label="العلامة" value={product.brand || product.seller_name || "RAHBA"} />
-            <DetailRow label="السعر" value={`${product.price_mad} MAD`} />
-            <DetailRow label="الحالة" value={product.status || "active"} />
-            <DetailRow label="المخزون" value={String(product.stock || 0)} />
+            {specs.map((row) => (
+              <DetailRow key={row.label} label={row.label} value={row.value} />
+            ))}
           </div>
 
-          <div style={s.highlightsBox}>
-            <h3 style={s.subTitle}>أهم المميزات</h3>
-            <ul style={s.bulletList}>
-              {highlights.map((item, idx) => (
-                <li key={`${item}-${idx}`} style={s.bulletItem}>
-                  {item}
-                </li>
+          <div style={s.faqWrap}>
+            <div style={s.subTitle}>أسئلة شائعة</div>
+            <div style={s.faqChips}>
+              {faqChips.map((chip) => (
+                <span key={chip} style={s.faqChip}>
+                  {chip}
+                </span>
               ))}
-            </ul>
+            </div>
           </div>
         </section>
 
@@ -326,7 +401,9 @@ export default function ProductDetailsPage() {
             <div>
               <h2 style={s.sectionTitle}>مراجعات العملاء</h2>
               <div style={s.reviewSummary}>
-                <span style={s.bigStars}>{"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}</span>
+                <span style={s.bigStars}>
+                  {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+                </span>
                 <span style={s.bigRatingText}>
                   {ratingSummary.avg || 0} من 5
                 </span>
@@ -484,6 +561,15 @@ export default function ProductDetailsPage() {
   );
 }
 
+function HeroStat({ label, value }) {
+  return (
+    <div style={s.heroStat}>
+      <div style={s.heroStatValue}>{value}</div>
+      <div style={s.heroStatLabel}>{label}</div>
+    </div>
+  );
+}
+
 function DetailRow({ label, value }) {
   return (
     <div style={s.detailRow}>
@@ -551,8 +637,8 @@ const s = {
   title: {
     margin: 0,
     color: T.text,
-    fontSize: "26px",
-    lineHeight: 1.35,
+    fontSize: "24px",
+    lineHeight: 1.4,
     fontWeight: 900
   },
 
@@ -581,7 +667,12 @@ const s = {
     fontSize: "14px"
   },
 
-  imageCard: {
+  galleryLayout: {
+    display: "grid",
+    gap: "10px"
+  },
+
+  mainImageCard: {
     background: "#fff",
     borderRadius: "16px",
     border: `1px solid ${T.border}`,
@@ -602,6 +693,31 @@ const s = {
     placeItems: "center",
     color: "#94a3b8",
     background: T.bg
+  },
+
+  thumbRow: {
+    display: "flex",
+    gap: "8px",
+    overflowX: "auto",
+    paddingBottom: "4px"
+  },
+
+  thumbBtn: {
+    width: "68px",
+    minWidth: "68px",
+    height: "68px",
+    borderRadius: "12px",
+    background: "#fff",
+    padding: "4px",
+    overflow: "hidden",
+    cursor: "pointer"
+  },
+
+  thumbImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    borderRadius: "8px"
   },
 
   priceWrap: {
@@ -647,13 +763,16 @@ const s = {
     gap: "14px",
     padding: "18px",
     borderRadius: "18px",
-    background: "linear-gradient(135deg, #0f2f6b 0%, #1d4ed8 50%, #1fb6a6 100%)",
+    background: "linear-gradient(135deg, #0f2f6b 0%, #1d4ed8 52%, #16b1a4 100%)",
     color: "#fff"
   },
 
-  heroTextWrap: {
-    display: "grid",
-    gap: "10px"
+  heroTop: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    flexWrap: "wrap"
   },
 
   heroBadge: {
@@ -664,6 +783,12 @@ const s = {
     border: "1px solid rgba(255,255,255,0.18)",
     fontSize: "12px",
     fontWeight: 800
+  },
+
+  heroSmall: {
+    fontSize: "13px",
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.90)"
   },
 
   heroTitle: {
@@ -680,18 +805,66 @@ const s = {
     color: "rgba(255,255,255,0.92)"
   },
 
-  heroChips: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "8px"
+  heroStats: {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "10px"
   },
 
-  heroChip: {
-    padding: "8px 12px",
-    borderRadius: "999px",
+  heroStat: {
     background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.16)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "grid",
+    gap: "4px"
+  },
+
+  heroStatValue: {
+    fontSize: "18px",
+    fontWeight: 900,
+    color: "#fff"
+  },
+
+  heroStatLabel: {
+    fontSize: "12px",
+    color: "rgba(255,255,255,0.86)",
+    fontWeight: 700
+  },
+
+  highlightGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "10px"
+  },
+
+  highlightCard: {
+    border: `1px solid ${T.border}`,
+    background: T.bg,
+    borderRadius: "14px",
+    padding: "12px",
+    display: "grid",
+    gridTemplateColumns: "24px 1fr",
+    gap: "10px",
+    alignItems: "start"
+  },
+
+  highlightIcon: {
+    width: "24px",
+    height: "24px",
+    borderRadius: "999px",
+    background: "#dcfce7",
+    color: "#166534",
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 900,
+    fontSize: "13px"
+  },
+
+  highlightText: {
+    color: T.text,
     fontSize: "13px",
+    lineHeight: 1.8,
     fontWeight: 700
   },
 
@@ -721,7 +894,7 @@ const s = {
     lineHeight: 1.7
   },
 
-  highlightsBox: {
+  faqWrap: {
     display: "grid",
     gap: "10px"
   },
@@ -733,17 +906,19 @@ const s = {
     fontWeight: 900
   },
 
-  bulletList: {
-    margin: 0,
-    paddingInlineStart: "20px",
-    display: "grid",
+  faqChips: {
+    display: "flex",
+    flexWrap: "wrap",
     gap: "8px"
   },
 
-  bulletItem: {
-    color: T.text,
-    lineHeight: 1.9,
-    fontSize: "14px"
+  faqChip: {
+    padding: "10px 14px",
+    borderRadius: "999px",
+    background: "#eaf3ff",
+    color: T.blue,
+    fontWeight: 700,
+    fontSize: "13px"
   },
 
   reviewHeader: {
@@ -926,7 +1101,7 @@ const s = {
     display: "grid",
     placeItems: "center",
     background: T.bg,
-    color: "#94a3b8"
+    color: T.muted
   },
 
   similarBody: {
