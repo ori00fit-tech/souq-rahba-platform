@@ -489,3 +489,94 @@ catalogRouter.get("/home", async (c) => {
     }
   });
 });
+
+catalogRouter.get("/products/:slug/reviews", async (c) => {
+
+  const slug = c.req.param("slug");
+
+  const product = await c.env.DB.prepare(
+    "select id from products where slug=?"
+  ).bind(slug).first();
+
+  if (!product) {
+    return c.json({ ok:false, message:"product not found" },404);
+  }
+
+  const reviews = await c.env.DB.prepare(`
+    select
+      r.id,
+      r.rating,
+      r.title,
+      r.comment,
+      r.created_at
+    from product_reviews r
+    where r.product_id = ?
+    and r.is_approved = 1
+    order by r.created_at desc
+    limit 20
+  `)
+  .bind(product.id)
+  .all();
+
+  return c.json({
+    ok:true,
+    data:reviews.results
+  });
+});
+
+catalogRouter.post(
+  "/products/:slug/reviews",
+  authMiddleware,
+  requireRole("buyer"),
+  async (c) => {
+
+  const slug = c.req.param("slug");
+  const body = await c.req.json();
+
+  if (!body.rating) {
+    return c.json({ ok:false,message:"rating required"},400);
+  }
+
+  const product = await c.env.DB.prepare(
+    "select id from products where slug=?"
+  ).bind(slug).first();
+
+  if (!product) {
+    return c.json({ ok:false,message:"product not found"},404);
+  }
+
+  const authUser = c.get("authUser");
+
+  const id = crypto.randomUUID();
+
+  try {
+
+    await c.env.DB.prepare(`
+      insert into product_reviews
+      (id,product_id,buyer_user_id,rating,title,comment)
+      values (?,?,?,?,?,?)
+    `)
+    .bind(
+      id,
+      product.id,
+      authUser.user_id,
+      body.rating,
+      body.title || null,
+      body.comment || null
+    )
+    .run();
+
+  } catch(e) {
+
+    return c.json({
+      ok:false,
+      message:"review already exists"
+    },400);
+
+  }
+
+  return c.json({
+    ok:true,
+    data:{ id }
+  });
+});

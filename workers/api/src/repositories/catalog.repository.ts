@@ -61,13 +61,29 @@ export async function getProductBySlug(env: Bindings, slug: string) {
     env,
     `select
       p.*,
+
       (
         select pm.url
         from product_media pm
         where pm.product_id = p.id
         order by pm.sort_order asc
         limit 1
-      ) as image_url
+      ) as image_url,
+
+      (
+        select round(avg(r.rating),1)
+        from product_reviews r
+        where r.product_id = p.id
+        and r.is_approved = 1
+      ) as rating_avg,
+
+      (
+        select count(*)
+        from product_reviews r
+        where r.product_id = p.id
+        and r.is_approved = 1
+      ) as reviews_count
+
     from products p
     where p.slug = ?
     limit 1`,
