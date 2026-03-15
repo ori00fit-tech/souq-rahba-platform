@@ -4,42 +4,16 @@ import { SectionHead } from "./CategoryGrid";
 
 const T = { navy: "#16356b" };
 
-const featuredProducts = [
-  {
-    title: "سماعات لاسلكية برو",
-    seller: "متجر أطلس",
-    price: 499,
-    rating: "4.7",
-    href: "/products",
-    image: "https://images.unsplash.com/photo-1588423771073-b8903fbb85b5?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    title: "مصباح عصري لغرفة الجلوس",
-    seller: "كازا ماركت",
-    price: 349,
-    rating: "4.5",
-    href: "/products",
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    title: "حذاء رياضي مميز",
-    seller: "موف سبورت",
-    price: 799,
+export default function FeaturedProductsSection({ products = [] }) {
+  const items = products.map((p) => ({
+    title: p.title_ar,
+    seller: p.seller_name || "متجر رحبة",
+    price: p.price_mad,
     rating: "4.8",
-    href: "/products",
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=800&auto=format&fit=crop",
-  },
-  {
-    title: "مثقاب كهربائي لاسلكي",
-    seller: "رحبة للأدوات",
-    price: 649,
-    rating: "4.6",
-    href: "/products",
-    image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?q=80&w=800&auto=format&fit=crop",
-  },
-];
+    href: `/products/${p.slug}`,
+    image: p.image_url,
+  }));
 
-export default function FeaturedProductsSection() {
   return (
     <section style={s.section} dir="rtl">
       <div style={s.headRow}>
@@ -51,7 +25,7 @@ export default function FeaturedProductsSection() {
       </div>
 
       <div style={s.grid}>
-        {featuredProducts.map((p) => (
+        {items.map((p) => (
           <ProductCard key={p.title} product={p} />
         ))}
       </div>

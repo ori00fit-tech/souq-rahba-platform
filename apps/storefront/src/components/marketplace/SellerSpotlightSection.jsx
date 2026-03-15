@@ -3,73 +3,55 @@ import { SectionHead } from "./CategoryGrid";
 
 const T = {
   navy: "#16356b",
-  blue: "#1d4ed8",
   gold: "#b08d3c",
   border: "#ddd5c2",
-  shadow: "rgba(22,53,107,0.08)"
+  shadow: "rgba(22,53,107,0.08)",
 };
 
-const sellers = [
-  {
-    name: "متجر أطلس",
-    city: "الدار البيضاء",
-    rating: "4.8",
-    products: 124,
-    text: "متجر موثوق يقدّم الإلكترونيات والملحقات الأكثر طلبًا داخل السوق.",
-    color: "#1d4ed8",
-  },
-  {
-    name: "كازا ماركت",
-    city: "الرباط",
-    rating: "4.6",
-    products: 87,
-    text: "منتجات منزلية مختارة بعناية وديكور عصري للمساحات الحديثة.",
-    color: "#0f766e",
-  },
-  {
-    name: "رحبة للأدوات",
-    city: "طنجة",
-    rating: "4.7",
-    products: 63,
-    text: "أدوات عملية ومعدات موثوقة تلائم الأعمال والورش والاستعمال اليومي.",
-    color: "#b45309",
-  },
-];
-
-export default function SellerSpotlightSection() {
+export default function SellerSpotlightSection({ sellers = [] }) {
   return (
     <section style={s.section} dir="rtl">
       <div style={s.headRow}>
         <SectionHead
           title="باعة مميزون"
-          sub="اكتشف متاجر موثوقة تنمو داخل منصة رحبة"
+          sub="متاجر موثوقة ومعتمدة داخل منصة رحبة"
         />
         <Link to="/sellers" style={s.seeAll}>عرض الكل ←</Link>
       </div>
 
       <div style={s.grid}>
         {sellers.map((seller) => (
-          <article key={seller.name} style={s.card}>
+          <article key={seller.id} style={s.card}>
             <div style={s.top}>
-              <div style={{ ...s.avatar, background: seller.color }}>
-                {seller.name.charAt(0)}
+              <div style={s.avatar}>
+                {seller.logo_url ? (
+                  <img src={seller.logo_url} alt={seller.display_name} style={s.avatarImg} />
+                ) : (
+                  seller.display_name?.charAt(0) || "ر"
+                )}
               </div>
 
-              <div style={s.info}>
-                <div style={s.cardTitle}>{seller.name}</div>
+              <div style={{ textAlign: "right" }}>
+                <div style={s.cardTitle}>{seller.display_name}</div>
                 <div style={s.meta}>
-                  <span>📍 {seller.city}</span>
+                  <span>📍 {seller.city || "المغرب"}</span>
                   <span style={s.dot}>·</span>
-                  <span style={s.rating}>★ {seller.rating}</span>
+                  <span style={s.rating}>★ {seller.rating || 0}</span>
                 </div>
               </div>
             </div>
 
-            <p style={s.text}>{seller.text}</p>
+            <p style={s.text}>
+              بائع موثوق داخل منصة رحبة مع حساب موثق ومنتجات جاهزة للتصفح.
+            </p>
 
             <div style={s.footer}>
-              <span style={s.count}>{seller.products} منتج</span>
-              <Link to="/sellers" style={s.link}>زيارة المتجر ←</Link>
+              <span style={s.count}>
+                {seller.verified ? "موثّق" : "قيد المراجعة"}
+              </span>
+              <Link to="/sellers" style={s.link}>
+                زيارة المتجر
+              </Link>
             </div>
           </article>
         ))}
@@ -79,10 +61,7 @@ export default function SellerSpotlightSection() {
 }
 
 const s = {
-  section: {
-    display: "grid",
-    gap: "18px",
-  },
+  section: { display: "grid", gap: "18px" },
 
   headRow: {
     display: "flex",
@@ -118,30 +97,33 @@ const s = {
     display: "grid",
     gap: "12px",
     boxShadow: `0 4px 16px ${T.shadow}`,
-    textAlign: "right",
   },
 
   top: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
+    flexDirection: "row-reverse",
   },
 
   avatar: {
     width: "46px",
     height: "46px",
     borderRadius: "14px",
-    color: "#fff",
+    background: "#eef4ff",
+    color: T.navy,
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
     fontSize: "18px",
     flexShrink: 0,
+    overflow: "hidden",
   },
 
-  info: {
-    display: "grid",
-    gap: "4px",
+  avatarImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
   },
 
   cardTitle: {
@@ -154,14 +136,12 @@ const s = {
     display: "flex",
     alignItems: "center",
     gap: "6px",
-    marginTop: "2px",
-    color: "#64748b",
-    fontSize: "13px",
+    marginTop: "3px",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
   },
 
-  dot: {
-    color: "#cbd5e1",
-  },
+  dot: { color: "#cbd5e1" },
 
   rating: {
     fontSize: "13px",
@@ -173,7 +153,8 @@ const s = {
     margin: 0,
     color: "#475569",
     fontSize: "13px",
-    lineHeight: 1.8,
+    lineHeight: 1.6,
+    textAlign: "right",
   },
 
   footer: {

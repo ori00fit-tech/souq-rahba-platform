@@ -9,18 +9,29 @@ const T = {
   shadow: "rgba(22,53,107,0.08)",
 };
 
-const categories = [
-  { name: "الإلكترونيات", icon: "📱", text: "هواتف، أجهزة وملحقات رقمية", slug: "electronics" },
-  { name: "الأزياء", icon: "👕", text: "ملابس، أحذية وإكسسوارات", slug: "fashion" },
-  { name: "المنزل", icon: "🏠", text: "أثاث، ديكور ولوازم منزلية", slug: "home" },
-  { name: "الجمال", icon: "💄", text: "عناية، مستحضرات وتجميل", slug: "beauty" },
-  { name: "الرياضة", icon: "🏃", text: "معدات رياضية ولياقة", slug: "sports" },
-  { name: "الأدوات", icon: "🛠️", text: "معدات العمل والـ DIY", slug: "tools" },
-  { name: "السيارات", icon: "🚗", text: "إكسسوارات وصيانة السيارات", slug: "automotive" },
-  { name: "الحديقة", icon: "🌿", text: "مستلزمات الزراعة والخارج", slug: "garden" },
-];
+const fallbackIcons = {
+  electronics: "📱",
+  appliances: "🧊",
+  tools: "🛠️",
+  agriculture: "🌾",
+  fishing: "🎣",
+  construction: "🏗️",
+  fashion: "👕",
+  food: "🥫",
+  home: "🏠",
+  beauty: "💄",
+  sports: "🏃",
+  automotive: "🚗",
+  garden: "🌿",
+};
 
-export default function CategoryGrid() {
+export default function CategoryGrid({ categories = [] }) {
+  const items = categories.map((cat) => ({
+    ...cat,
+    icon: fallbackIcons[cat.slug] || "📦",
+    text: `تصفح منتجات ${cat.name_ar}`,
+  }));
+
   return (
     <section style={s.section} dir="rtl">
       <SectionHead
@@ -29,14 +40,14 @@ export default function CategoryGrid() {
       />
 
       <div style={s.grid}>
-        {categories.map((cat) => (
-          <Link key={cat.name} to={`/products?category=${cat.slug}`} style={s.card}>
+        {items.map((cat) => (
+          <Link key={cat.id || cat.slug} to={`/products?category=${cat.slug}`} style={s.card}>
             <div style={s.iconWrap}>
               <span style={s.icon}>{cat.icon}</span>
             </div>
 
             <div style={s.content}>
-              <div style={s.cardTitle}>{cat.name}</div>
+              <div style={s.cardTitle}>{cat.name_ar}</div>
               <div style={s.cardText}>{cat.text}</div>
             </div>
           </Link>
