@@ -7,8 +7,118 @@ export const catalogRouter = new Hono<{ Bindings: import("../types").Bindings }>
 
 catalogRouter.get("/products", async (c) => {
   const sellerId = c.req.query("seller_id");
-  const products = await listProducts(c.env, sellerId || undefined);
-  return c.json({ ok: true, data: products });
+  const q = (c.req.query("q") || "").trim();
+  const category = (c.req.query("category") || "").trim();
+  const sort = (c.req.query("sort") || "newest").trim();
+  const page = Math.max(parseInt(c.req.query("page") || "1", 10) || 1, 1);
+  const limit = Math.min(Math.max(parseInt(c.req.query("limit") || "12", 10) || 12, 1), 48);
+  const offset = (page - 1) * limit;
+
+  if (!q && !category && !sellerId && sort === "newest" && page === 1 && limit === 12) {
+    const products = await listProducts(c.env, sellerId || undefined);
+    return c.json({
+      ok: true,
+      data: {
+        items: products,
+        pagination: {
+          page: 1,
+          limit: 12,
+          total: Array.isArray(products) ? products.length : 0,
+          pages: 1
+        }
+      }
+    });
+  }
+
+  const whereParts: string[] = [`p.status = 'active'`];
+  const binds: unknown[] = [];
+
+  if (sellerId) {
+    whereParts.push(`p.seller_id = ?`);
+    binds.push(sellerId);
+  }
+
+  if (q) {
+    whereParts.push(`(p.title_ar like ? or ifnull(p.description_ar, '') like ?)`);
+    binds.push(`%${q}%`, `%${q}%`);
+  }
+
+  if (category) {
+    whereParts.push(`c.slug = ?`);
+    binds.push(category);
+  }
+
+  const whereSql = whereParts.length ? `where ${whereParts.join(" and ")}` : "";
+
+  let orderBySql = `order by p.created_at desc`;
+  if (sort === "price_asc") {
+    orderBySql = `order by p.price_mad asc, p.created_at desc`;
+  } else if (sort === "price_desc") {
+    orderBySql = `order by p.price_mad desc, p.created_at desc`;
+  } else if (sort === "featured") {
+    orderBySql = `order by p.featured desc, p.created_at desc`;
+  } else if (sort === "stock_desc") {
+    orderBySql = `order by p.stock desc, p.created_at desc`;
+  }
+
+  const totalRow = await c.env.DB.prepare(
+    `
+    select count(*) as total
+    from products p
+    left join categories c on c.id = p.category_id
+    ${whereSql}
+    `
+  )
+    .bind(...binds)
+    .first<{ total: number }>();
+
+  const itemsResult = await c.env.DB.prepare(
+    `
+    select
+      p.id,
+      p.seller_id,
+      p.slug,
+      p.title_ar,
+      p.description_ar,
+      p.category_id,
+      c.slug as category_slug,
+      p.price_mad,
+      p.stock,
+      p.status,
+      p.featured,
+      p.created_at,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
+        order by pm.sort_order asc
+        limit 1
+      ) as image_url
+    from products p
+    left join categories c on c.id = p.category_id
+    ${whereSql}
+    ${orderBySql}
+    limit ? offset ?
+    `
+  )
+    .bind(...binds, limit, offset)
+    .all();
+
+  const total = Number(totalRow?.total || 0);
+  const pages = Math.max(Math.ceil(total / limit), 1);
+
+  return c.json({
+    ok: true,
+    data: {
+      items: itemsResult.results || [],
+      pagination: {
+        page,
+        limit,
+        total,
+        pages
+      }
+    }
+  });
 });
 
 catalogRouter.get("/products/id/:id", authMiddleware, requireRole("seller", "admin"), async (c) => {
