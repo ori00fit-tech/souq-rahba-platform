@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
@@ -10,9 +10,9 @@ export default function ProductDetailsPage() {
 
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [similar, setSimilar] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewsLoading, setReviewsLoading] = useState(true);
-  const [buying, setBuying] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [message, setMessage] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
@@ -20,11 +20,12 @@ export default function ProductDetailsPage() {
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
     title: "",
-    comment: ""
+    comment: "",
+    review_image_url: ""
   });
 
   useEffect(() => {
-    async function loadProductAndReviews() {
+    async function loadAll() {
       try {
         setLoading(true);
         setReviewsLoading(true);
@@ -42,6 +43,11 @@ export default function ProductDetailsPage() {
         if (reviewsRes.ok) {
           setReviews(reviewsRes.data || []);
         }
+
+        const similarRes = await apiGet(`/catalog/products/${slug}/similar`);
+        if (similarRes.ok) {
+          setSimilar(similarRes.data || []);
+        }
       } catch (err) {
         console.error(err);
         setMessage("حدث خطأ أثناء تحميل المنتج");
@@ -51,8 +57,14 @@ export default function ProductDetailsPage() {
       }
     }
 
-    loadProductAndReviews();
+    loadAll();
   }, [slug]);
+
+  const ratingSummary = useMemo(() => {
+    const count = Number(product?.reviews_count || reviews.length || 0);
+    const avg = Number(product?.rating_avg || 0);
+    return { count, avg };
+  }, [product, reviews]);
 
   function normalizeProduct(p) {
     return {
@@ -82,58 +94,6 @@ export default function ProductDetailsPage() {
     if (!product) return;
     addToCart(normalizeProduct(product));
     navigate("/checkout");
-  }
-
-  async function handleBuyNow() {
-    if (!product) return;
-
-    try {
-      if (authLoading) {
-        setMessage("جاري التحقق من الجلسة...");
-        return;
-      }
-
-      if (!currentUser) {
-        setMessage("يجب تسجيل الدخول أولاً قبل إنشاء الطلب");
-        navigate("/auth");
-        return;
-      }
-
-      if (currentUser.role !== "buyer") {
-        setMessage("فقط حسابات المشترين يمكنها إنشاء الطلبات");
-        return;
-      }
-
-      setBuying(true);
-      setMessage("");
-
-      const result = await apiPost("/commerce/orders", {
-        buyer_user_id: currentUser.id,
-        seller_id: product.seller_id,
-        payment_method: "cash_on_delivery",
-        items: [
-          {
-            product_id: product.id,
-            quantity: 1,
-            unit_price_mad: product.price_mad
-          }
-        ]
-      });
-
-      if (result.ok) {
-        setMessage(`تم إنشاء الطلب بنجاح. رقم الطلب: ${result.data.id}`);
-        setTimeout(() => {
-          navigate("/my-orders");
-        }, 1000);
-      } else {
-        setMessage("فشل إنشاء الطلب");
-      }
-    } catch (err) {
-      console.error(err);
-      setMessage("حدث خطأ أثناء إنشاء الطلب");
-    } finally {
-      setBuying(false);
-    }
   }
 
   async function handleSubmitReview(e) {
@@ -169,7 +129,8 @@ export default function ProductDetailsPage() {
       const result = await apiPost(`/catalog/products/${slug}/reviews`, {
         rating: Number(reviewForm.rating),
         title: reviewForm.title.trim(),
-        comment: reviewForm.comment.trim()
+        comment: reviewForm.comment.trim(),
+        review_image_url: reviewForm.review_image_url.trim() || null
       });
 
       if (!result.ok) {
@@ -177,11 +138,12 @@ export default function ProductDetailsPage() {
         return;
       }
 
-      setReviewMessage("تم إرسال التقييم بنجاح");
+      setReviewMessage("تم إرسال التقييم بنجاح ✅");
       setReviewForm({
         rating: 5,
         title: "",
-        comment: ""
+        comment: "",
+        review_image_url: ""
       });
 
       const reviewsRes = await apiGet(`/catalog/products/${slug}/reviews`);
@@ -220,6 +182,7 @@ export default function ProductDetailsPage() {
   return (
     <section className="container section-space" dir="rtl">
       <div style={{ display: "grid", gap: "32px" }}>
+
         <div
           style={{
             display: "grid",
@@ -261,9 +224,12 @@ export default function ProductDetailsPage() {
 
           <div style={{ display: "grid", gap: "16px" }}>
             <div>
-              <h1 style={{ marginBottom: "8px" }}>{product.title_ar}</h1>
+              <h1 style={{ marginBottom: "8px", lineHeight: 1.4 }}>
+                {product.title_ar}
+              </h1>
+
               <p style={{ color: "#64748b", margin: 0, lineHeight: 1.8 }}>
-                {product.description_ar || "بدون وصف"}
+                {product.description_ar || "بدون وصف مختصر"}
               </p>
             </div>
 
@@ -281,24 +247,15 @@ export default function ProductDetailsPage() {
               }}
             >
               <span style={{ color: "#f59e0b", fontWeight: "700" }}>
-                ⭐ {product.rating_avg || 0}
+                ⭐ {ratingSummary.avg || 0}
               </span>
-              <span>({product.reviews_count || 0} تقييم)</span>
+              <span>({ratingSummary.count || 0} تقييم)</span>
               <span>•</span>
               <span>المخزون: {product.stock}</span>
             </div>
 
             {message ? (
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
-                  background: "#fff"
-                }}
-              >
-                {message}
-              </div>
+              <div style={infoBoxStyle}>{message}</div>
             ) : null}
 
             <div style={{ display: "grid", gap: "10px" }}>
@@ -317,21 +274,78 @@ export default function ProductDetailsPage() {
               >
                 اشتر الآن عبر Checkout
               </button>
-
-              <button
-                onClick={handleBuyNow}
-                disabled={buying || product.stock <= 0}
-                style={buttonDark(buying || product.stock <= 0)}
-              >
-                {buying
-                  ? "جاري الطلب..."
-                  : product.stock <= 0
-                  ? "غير متوفر"
-                  : "Buy Now مباشر"}
-              </button>
             </div>
           </div>
         </div>
+
+        <section
+          style={{
+            background: "linear-gradient(135deg, #0f2f6b 0%, #1d4ed8 45%, #14b8a6 100%)",
+            borderRadius: "22px",
+            padding: "28px 22px",
+            color: "#fff",
+            display: "grid",
+            gap: "18px",
+            overflow: "hidden",
+            position: "relative"
+          }}
+        >
+          <div
+            style={{
+              display: "inline-flex",
+              width: "fit-content",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 12px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              fontSize: "12px",
+              fontWeight: "800"
+            }}
+          >
+            منتج مميز على رحبة
+          </div>
+
+          <div style={{ display: "grid", gap: "10px" }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "30px",
+                lineHeight: 1.35,
+                fontWeight: "900"
+              }}
+            >
+              اكتشف لماذا يعتبر {product.title_ar} خيارًا ممتازًا
+            </h2>
+
+            <p
+              style={{
+                margin: 0,
+                color: "rgba(255,255,255,0.90)",
+                lineHeight: 2,
+                fontSize: "15px"
+              }}
+            >
+              {product.description_long_ar ||
+                product.description_ar ||
+                "هذا المنتج مناسب للمستخدمين الذين يبحثون عن جودة، أداء، وسهولة في الاستخدام ضمن تجربة شراء موثوقة داخل منصة رحبة."}
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "10px"
+            }}
+          >
+            <FeatureBadge text="جودة موثوقة" />
+            <FeatureBadge text="شراء آمن" />
+            <FeatureBadge text="تجربة سلسة" />
+            <FeatureBadge text="مناسب للاستخدام اليومي" />
+          </div>
+        </section>
 
         <div
           style={{
@@ -346,7 +360,7 @@ export default function ProductDetailsPage() {
           <div style={{ display: "grid", gap: "6px" }}>
             <h2 style={{ margin: 0 }}>تقييمات المشترين</h2>
             <p style={{ margin: 0, color: "#64748b" }}>
-              شارك تجربتك مع هذا المنتج وساعد المشترين الآخرين
+              يمكنك إضافة تقييم وصورة فقط بعد شراء المنتج
             </p>
           </div>
 
@@ -356,10 +370,7 @@ export default function ProductDetailsPage() {
               <select
                 value={reviewForm.rating}
                 onChange={(e) =>
-                  setReviewForm((prev) => ({
-                    ...prev,
-                    rating: Number(e.target.value)
-                  }))
+                  setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
                 }
                 style={inputStyle}
               >
@@ -377,10 +388,7 @@ export default function ProductDetailsPage() {
                 type="text"
                 value={reviewForm.title}
                 onChange={(e) =>
-                  setReviewForm((prev) => ({
-                    ...prev,
-                    title: e.target.value
-                  }))
+                  setReviewForm((prev) => ({ ...prev, title: e.target.value }))
                 }
                 placeholder="مثلاً: منتج ممتاز"
                 style={inputStyle}
@@ -392,27 +400,28 @@ export default function ProductDetailsPage() {
               <textarea
                 value={reviewForm.comment}
                 onChange={(e) =>
-                  setReviewForm((prev) => ({
-                    ...prev,
-                    comment: e.target.value
-                  }))
+                  setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
                 }
                 placeholder="اكتب تجربتك مع المنتج"
                 style={{ ...inputStyle, minHeight: "120px", resize: "vertical" }}
               />
             </div>
 
+            <div style={{ display: "grid", gap: "6px" }}>
+              <label style={labelStyle}>رابط صورة المراجعة (اختياري)</label>
+              <input
+                type="url"
+                value={reviewForm.review_image_url}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
+                }
+                placeholder="https://..."
+                style={inputStyle}
+              />
+            </div>
+
             {reviewMessage ? (
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "12px",
-                  border: "1px solid #e2e8f0",
-                  background: "#fff"
-                }}
-              >
-                {reviewMessage}
-              </div>
+              <div style={infoBoxStyle}>{reviewMessage}</div>
             ) : null}
 
             <button
@@ -467,6 +476,12 @@ export default function ProductDetailsPage() {
                     </div>
                   </div>
 
+                  {review.buyer_name ? (
+                    <div style={{ fontSize: "13px", color: "#64748b", fontWeight: "700" }}>
+                      {review.buyer_name}
+                    </div>
+                  ) : null}
+
                   {review.title ? (
                     <strong style={{ fontSize: "15px" }}>{review.title}</strong>
                   ) : null}
@@ -474,13 +489,113 @@ export default function ProductDetailsPage() {
                   <p style={{ margin: 0, color: "#475569", lineHeight: 1.8 }}>
                     {review.comment}
                   </p>
+
+                  {review.review_image_url ? (
+                    <img
+                      src={review.review_image_url}
+                      alt="صورة المراجعة"
+                      style={{
+                        width: "120px",
+                        borderRadius: "8px",
+                        border: "1px solid #e2e8f0"
+                      }}
+                    />
+                  ) : null}
                 </article>
               ))
             )}
           </div>
         </div>
+
+        {similar.length > 0 ? (
+          <div style={{ display: "grid", gap: "16px" }}>
+            <h2 style={{ margin: 0 }}>منتجات مشابهة</h2>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: "16px"
+              }}
+            >
+              {similar.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => navigate(`/products/${p.slug}`)}
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "12px",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    background: "#fff"
+                  }}
+                >
+                  {p.image_url ? (
+                    <img
+                      src={p.image_url}
+                      alt={p.title_ar}
+                      style={{
+                        width: "100%",
+                        height: "140px",
+                        objectFit: "cover"
+                      }}
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: "100%",
+                        height: "140px",
+                        background: "#f1f5f9",
+                        display: "grid",
+                        placeItems: "center",
+                        color: "#94a3b8"
+                      }}
+                    >
+                      No image
+                    </div>
+                  )}
+
+                  <div style={{ padding: "10px", display: "grid", gap: "4px" }}>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        color: "#111827",
+                        lineHeight: 1.6
+                      }}
+                    >
+                      {p.title_ar}
+                    </div>
+
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#1f3b73" }}>
+                      {p.price_mad} MAD
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
+  );
+}
+
+function FeatureBadge({ text }) {
+  return (
+    <span
+      style={{
+        padding: "8px 12px",
+        borderRadius: "999px",
+        background: "rgba(255,255,255,0.12)",
+        border: "1px solid rgba(255,255,255,0.16)",
+        fontSize: "13px",
+        fontWeight: "700",
+        color: "#fff"
+      }}
+    >
+      {text}
+    </span>
   );
 }
 
@@ -497,6 +612,13 @@ const labelStyle = {
   fontSize: "14px",
   fontWeight: "700",
   color: "#111827"
+};
+
+const infoBoxStyle = {
+  padding: "12px",
+  borderRadius: "12px",
+  border: "1px solid #e2e8f0",
+  background: "#fff"
 };
 
 function buttonPrimary(disabled) {
@@ -519,19 +641,6 @@ function buttonSecondary(disabled) {
     border: "1px solid #d1d5db",
     background: "#fff",
     color: "#111827",
-    fontWeight: "700",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.8 : 1
-  };
-}
-
-function buttonDark(disabled) {
-  return {
-    padding: "12px",
-    borderRadius: "12px",
-    border: "none",
-    background: disabled ? "#94a3b8" : "#111827",
-    color: "#fff",
     fontWeight: "700",
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.8 : 1
