@@ -12,7 +12,6 @@ const T = {
   blue: "#1f3b73",
   blueDark: "#13294b",
   gold: "#f59e0b",
-  chip: "#eef2ff",
   success: "#166534",
   muted: "#94a3b8"
 };
@@ -50,7 +49,8 @@ export default function ProductDetailsPage() {
         const productRes = await apiGet(`/catalog/products/${slug}`);
         if (productRes.ok) {
           setProduct(productRes.data);
-          setSelectedImage(productRes.data?.image_url || "");
+          const firstMedia = productRes.data?.media?.[0]?.url || productRes.data?.image_url || "";
+          setSelectedImage(firstMedia);
         } else {
           setMessage("تعذر تحميل المنتج");
         }
@@ -83,14 +83,18 @@ export default function ProductDetailsPage() {
   }, [product, reviews]);
 
   const galleryImages = useMemo(() => {
-    const base = product?.image_url ? [product.image_url] : [];
+    const mediaImages = Array.isArray(product?.media)
+      ? product.media.map((m) => m.url).filter(Boolean)
+      : [];
 
     const reviewImages = reviews
       .map((r) => r.review_image_url)
       .filter(Boolean)
-      .slice(0, 3);
+      .slice(0, 4);
 
-    return [...new Set([...base, ...reviewImages])];
+    const fallback = product?.image_url ? [product.image_url] : [];
+
+    return [...new Set([...mediaImages, ...fallback, ...reviewImages])];
   }, [product, reviews]);
 
   const highlights = useMemo(() => {
@@ -125,24 +129,35 @@ export default function ProductDetailsPage() {
   }, [product]);
 
   const specs = useMemo(() => {
+    if (Array.isArray(product?.specs) && product.specs.length > 0) {
+      return product.specs;
+    }
+
     return [
-      { label: "العلامة", value: product?.brand || product?.seller_name || "RAHBA" },
-      { label: "السعر", value: `${product?.price_mad || 0} MAD` },
-      { label: "الحالة", value: product?.status || "active" },
-      { label: "المخزون", value: String(product?.stock || 0) },
-      { label: "الفئة", value: product?.category_id || "—" },
-      { label: "SKU", value: product?.sku || "—" }
+      { label_ar: "العلامة", value_ar: product?.brand || product?.seller_name || "RAHBA" },
+      { label_ar: "السعر", value_ar: `${product?.price_mad || 0} MAD` },
+      { label_ar: "الحالة", value_ar: product?.status || "active" },
+      { label_ar: "المخزون", value_ar: String(product?.stock || 0) },
+      { label_ar: "SKU", value_ar: product?.sku || "—" }
     ];
   }, [product]);
 
-  const faqChips = useMemo(() => {
+  const faqs = useMemo(() => {
+    if (Array.isArray(product?.faqs) && product.faqs.length > 0) {
+      return product.faqs;
+    }
+
     return [
-      "هل المنتج أصلي؟",
-      "هل هو مناسب للاستعمال اليومي؟",
-      "هل يوجد ضمان أو متابعة؟",
-      "هل يمكن طلبه عبر Checkout؟"
+      {
+        question_ar: "هل المنتج مناسب للاستعمال اليومي؟",
+        answer_ar: "نعم، تم تقديم هذا المنتج داخل المنصة ليكون مناسبًا للاستعمال العملي واليومي."
+      },
+      {
+        question_ar: "هل يمكن الشراء مباشرة عبر Checkout؟",
+        answer_ar: "نعم، يمكنك إضافته إلى السلة ثم إتمام الطلب عبر صفحة Checkout."
+      }
     ];
-  }, []);
+  }, [product]);
 
   function normalizeProduct(p) {
     return {
@@ -278,11 +293,7 @@ export default function ProductDetailsPage() {
           <div style={s.galleryLayout}>
             <div style={s.mainImageCard}>
               {selectedImage ? (
-                <img
-                  src={selectedImage}
-                  alt={product.title_ar}
-                  style={s.mainImage}
-                />
+                <img src={selectedImage} alt={product.title_ar} style={s.mainImage} />
               ) : (
                 <div style={s.noImage}>No image</div>
               )}
@@ -346,14 +357,12 @@ export default function ProductDetailsPage() {
               <div style={s.heroSmall}>جودة موثوقة داخل رحبة</div>
             </div>
 
-            <h3 style={s.heroTitle}>
-              تجربة أوضح قبل الشراء مع عرض أقرب لأسلوب Amazon
-            </h3>
+            <h3 style={s.heroTitle}>عرض أغنى للمحتوى والمواصفات والصور</h3>
 
             <p style={s.heroText}>
               {product.description_long_ar ||
                 product.description_ar ||
-                "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، جودة واضحة، وثقة أكبر قبل اتخاذ قرار الشراء."}
+                "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، وصف واضح، وصور أكثر قبل الشراء."}
             </p>
 
             <div style={s.heroStats}>
@@ -379,20 +388,25 @@ export default function ProductDetailsPage() {
         <section style={s.sectionCard}>
           <h2 style={s.sectionTitle}>تفاصيل المنتج</h2>
           <div style={s.detailsGrid}>
-            {specs.map((row) => (
-              <DetailRow key={row.label} label={row.label} value={row.value} />
+            {specs.map((row, idx) => (
+              <DetailRow
+                key={row.id || `${row.label_ar}-${idx}`}
+                label={row.label_ar}
+                value={row.value_ar}
+              />
             ))}
           </div>
+        </section>
 
-          <div style={s.faqWrap}>
-            <div style={s.subTitle}>أسئلة شائعة</div>
-            <div style={s.faqChips}>
-              {faqChips.map((chip) => (
-                <span key={chip} style={s.faqChip}>
-                  {chip}
-                </span>
-              ))}
-            </div>
+        <section style={s.sectionCard}>
+          <h2 style={s.sectionTitle}>أسئلة شائعة</h2>
+          <div style={s.faqList}>
+            {faqs.map((faq, idx) => (
+              <div key={faq.id || `${faq.question_ar}-${idx}`} style={s.faqItem}>
+                <div style={s.faqQuestion}>{faq.question_ar}</div>
+                <div style={s.faqAnswer}>{faq.answer_ar}</div>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -535,11 +549,7 @@ export default function ProductDetailsPage() {
                   style={s.similarCard}
                 >
                   {p.image_url ? (
-                    <img
-                      src={p.image_url}
-                      alt={p.title_ar}
-                      style={s.similarImage}
-                    />
+                    <img src={p.image_url} alt={p.title_ar} style={s.similarImage} />
                   ) : (
                     <div style={s.similarNoImage}>No image</div>
                   )}
@@ -894,31 +904,30 @@ const s = {
     lineHeight: 1.7
   },
 
-  faqWrap: {
+  faqList: {
     display: "grid",
     gap: "10px"
   },
 
-  subTitle: {
-    margin: 0,
-    color: T.text,
-    fontSize: "16px",
-    fontWeight: 900
-  },
-
-  faqChips: {
-    display: "flex",
-    flexWrap: "wrap",
+  faqItem: {
+    border: `1px solid ${T.border}`,
+    borderRadius: "14px",
+    padding: "14px",
+    background: T.bg,
+    display: "grid",
     gap: "8px"
   },
 
-  faqChip: {
-    padding: "10px 14px",
-    borderRadius: "999px",
-    background: "#eaf3ff",
-    color: T.blue,
-    fontWeight: 700,
-    fontSize: "13px"
+  faqQuestion: {
+    color: T.blueDark,
+    fontWeight: 900,
+    fontSize: "14px"
+  },
+
+  faqAnswer: {
+    color: T.subtext,
+    fontSize: "14px",
+    lineHeight: 1.9
   },
 
   reviewHeader: {

@@ -93,7 +93,19 @@ catalogRouter.get("/products", async (c) => {
         where pm.product_id = p.id
         order by pm.sort_order asc
         limit 1
-      ) as image_url
+      ) as image_url,
+      (
+        select round(avg(r.rating), 1)
+        from product_reviews r
+        where r.product_id = p.id
+          and r.is_approved = 1
+      ) as rating_avg,
+      (
+        select count(*)
+        from product_reviews r
+        where r.product_id = p.id
+          and r.is_approved = 1
+      ) as reviews_count
     from products p
     left join categories c on c.id = p.category_id
     ${whereSql}
