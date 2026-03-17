@@ -38,15 +38,15 @@ function NavItem({ to, label, icon, isMobile }) {
         justifyContent: isMobile ? "center" : "flex-start",
         gap: "10px",
         padding: isMobile ? "12px 10px" : "12px 14px",
-        borderRadius: "14px",
+        borderRadius: "var(--radius-md)",
         textDecoration: "none",
-        fontWeight: 700,
+        fontWeight: 800,
         fontSize: isMobile ? "14px" : "15px",
         transition: "0.2s ease",
-        color: active ? "#ffffff" : "#334155",
-        background: active ? "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)" : "#f8fafc",
-        border: active ? "none" : "1px solid #e2e8f0",
-        boxShadow: active ? "0 10px 24px rgba(15, 23, 42, 0.22)" : "none",
+        color: active ? "var(--text-on-dark)" : "var(--text-primary)",
+        background: active ? "var(--seller-hero-gradient)" : "var(--bg-surface)",
+        border: active ? "1px solid transparent" : "1px solid var(--border-soft)",
+        boxShadow: active ? "var(--shadow-strong)" : "none",
         minWidth: 0
       }}
     >
@@ -62,26 +62,26 @@ function Sidebar({ isMobile }) {
   return (
     <aside
       style={{
-        background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
-        border: "1px solid #e2e8f0",
-        borderRadius: "24px",
+        background: "var(--seller-panel-gradient)",
+        border: "1px solid var(--border-soft)",
+        borderRadius: "var(--radius-xl)",
         padding: isMobile ? "14px" : "18px",
-        boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)"
+        boxShadow: "var(--shadow-card)"
       }}
     >
       <div
         style={{
           borderRadius: "20px",
           padding: isMobile ? "16px" : "18px",
-          background: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)",
-          color: "#ffffff",
-          boxShadow: "0 14px 30px rgba(234, 88, 12, 0.25)"
+          background: "var(--seller-hero-gradient)",
+          color: "var(--text-on-dark)",
+          boxShadow: "var(--shadow-strong)"
         }}
       >
-        <div style={{ fontSize: "12px", opacity: 0.92, letterSpacing: "0.4px" }}>Souq Rahba</div>
-        <div style={{ fontSize: isMobile ? "20px" : "22px", fontWeight: 800, marginTop: "4px" }}>Seller Portal</div>
-        <div style={{ fontSize: "13px", marginTop: "8px", opacity: 0.95, lineHeight: 1.5 }}>
-          Manage catalog, orders, earnings and store settings.
+        <div style={{ fontSize: "12px", opacity: 0.92, letterSpacing: "0.4px" }}>RAHBA</div>
+        <div style={{ fontSize: isMobile ? "20px" : "22px", fontWeight: 900, marginTop: "4px" }}>Seller Portal</div>
+        <div style={{ fontSize: "13px", marginTop: "8px", opacity: 0.95, lineHeight: 1.6 }}>
+          إدارة المنتجات، الطلبات، الأرباح وإعدادات المتجر داخل منصة رحبة.
         </div>
       </div>
 
@@ -90,15 +90,15 @@ function Sidebar({ isMobile }) {
           marginTop: "16px",
           padding: "14px",
           borderRadius: "18px",
-          background: "#fff7ed",
-          border: "1px solid #fed7aa"
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-soft)"
         }}
       >
-        <div style={{ fontSize: "12px", color: "#9a3412", fontWeight: 700 }}>Active Store</div>
-        <div style={{ fontSize: isMobile ? "17px" : "18px", fontWeight: 800, color: "#7c2d12", marginTop: "4px" }}>
+        <div style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: 800 }}>المتجر النشط</div>
+        <div style={{ fontSize: isMobile ? "17px" : "18px", fontWeight: 900, color: "var(--text-primary)", marginTop: "4px" }}>
           {currentSeller?.display_name || "Seller Store"}
         </div>
-        <div style={{ fontSize: "13px", color: "#9a3412", marginTop: "6px" }}>
+        <div style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "6px" }}>
           {currentSeller?.slug || "Ready to sell on the marketplace"}
         </div>
       </div>
@@ -124,11 +124,11 @@ function Sidebar({ isMobile }) {
           marginTop: "16px",
           width: "100%",
           padding: "12px",
-          borderRadius: "12px",
+          borderRadius: "var(--radius-md)",
           border: "none",
-          background: "#111827",
-          color: "#fff",
-          fontWeight: "700",
+          background: "var(--btn-primary-bg)",
+          color: "var(--btn-primary-text)",
+          fontWeight: 800,
           cursor: "pointer"
         }}
       >
@@ -146,8 +146,8 @@ function Topbar({ isMobile }) {
         top: 0,
         zIndex: 20,
         backdropFilter: "blur(10px)",
-        background: "rgba(255,255,255,0.92)",
-        borderBottom: "1px solid #e2e8f0"
+        background: "var(--seller-topbar-bg)",
+        borderBottom: "1px solid var(--border-soft)"
       }}
     >
       <div
@@ -163,8 +163,8 @@ function Topbar({ isMobile }) {
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: "12px", color: "#94a3b8", fontWeight: 700 }}>Marketplace Seller Console</div>
-          <div style={{ fontSize: isMobile ? "22px" : "24px", fontWeight: 800, color: "#0f172a", lineHeight: 1.15 }}>
+          <div style={{ fontSize: "12px", color: "var(--text-muted)", fontWeight: 800 }}>Marketplace Seller Console</div>
+          <div style={{ fontSize: isMobile ? "22px" : "24px", fontWeight: 900, color: "var(--text-primary)", lineHeight: 1.15 }}>
             Seller Dashboard
           </div>
         </div>
@@ -173,10 +173,10 @@ function Topbar({ isMobile }) {
           <div
             style={{
               padding: "10px 14px",
-              borderRadius: "999px",
-              background: "#ecfdf5",
-              color: "#166534",
-              border: "1px solid #bbf7d0",
+              borderRadius: "var(--radius-pill)",
+              background: "var(--success-bg)",
+              color: "var(--success-text)",
+              border: "1px solid var(--success-border)",
               fontSize: "13px",
               fontWeight: 800
             }}
@@ -187,10 +187,10 @@ function Topbar({ isMobile }) {
           <div
             style={{
               padding: "10px 14px",
-              borderRadius: "999px",
-              background: "#eff6ff",
-              color: "#1d4ed8",
-              border: "1px solid #bfdbfe",
+              borderRadius: "var(--radius-pill)",
+              background: "var(--info-bg)",
+              color: "var(--info-text)",
+              border: "1px solid var(--info-border)",
               fontSize: "13px",
               fontWeight: 800
             }}
@@ -207,18 +207,32 @@ function ProtectedShell() {
   const isMobile = useIsMobile();
   const { currentSeller, authLoading } = useSellerAuth();
 
-  if (authLoading) return <div style={{ padding: "40px" }}>Loading...</div>;
+  if (authLoading) {
+    return <div style={{ padding: "40px", color: "var(--text-secondary)" }}>Loading...</div>;
+  }
+
   if (!currentSeller) return <Navigate to="/login" replace />;
   if (!currentSeller.id) return <Navigate to="/onboarding" replace />;
+
   if (currentSeller.kyc_status !== "approved") {
     return (
       <div style={{ padding: "40px", maxWidth: "680px", margin: "0 auto" }}>
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "24px", display: "grid", gap: "12px" }}>
-          <h1 style={{ margin: 0 }}>Seller profile under review</h1>
-          <p style={{ color: "#64748b", margin: 0 }}>
+        <div
+          style={{
+            background: "var(--bg-surface)",
+            border: "1px solid var(--border-soft)",
+            borderRadius: "20px",
+            padding: "24px",
+            display: "grid",
+            gap: "12px",
+            boxShadow: "var(--shadow-soft)"
+          }}
+        >
+          <h1 style={{ margin: 0, color: "var(--text-primary)" }}>Seller profile under review</h1>
+          <p style={{ color: "var(--text-secondary)", margin: 0, lineHeight: 1.7 }}>
             Your seller account exists, but access to the full portal requires admin approval.
           </p>
-          <p style={{ margin: 0 }}>
+          <p style={{ margin: 0, color: "var(--text-primary)" }}>
             Current KYC status: <strong>{currentSeller.kyc_status || "pending"}</strong>
           </p>
         </div>
@@ -230,9 +244,8 @@ function ProtectedShell() {
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(245,158,11,0.10), transparent 28%), linear-gradient(180deg, #fffefc 0%, #f8fafc 100%)",
-        color: "#0f172a",
+        background: "var(--bg-app-gradient)",
+        color: "var(--text-primary)",
         fontFamily:
           'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
         overflowX: "hidden"
