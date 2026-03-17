@@ -120,10 +120,7 @@ export default function AddProductPage() {
 
       const res = await apiPost("/catalog/products", payload);
 
-if (!res?.ok) {
-  setMessage(res.message || "خطأ");
-  return;
-}
+      setMessage("تم إنشاء المنتج بنجاح");
       setTimeout(() => navigate("/products"), 800);
     } catch (err) {
       console.error(err);

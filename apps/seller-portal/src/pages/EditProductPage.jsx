@@ -169,10 +169,7 @@ export default function EditProductPage() {
         faqs: form.faqs.filter((x) => x.question_ar.trim() && x.answer_ar.trim())
       };
 
-      if (!res?.ok) {
-  setMessage(res.message || "خطأ");
-  return;
-}
+      await apiPut(`/catalog/products/${id}`, payload);
 
       setMessage("تم تحديث المنتج بنجاح");
       setTimeout(() => navigate("/products"), 800);
