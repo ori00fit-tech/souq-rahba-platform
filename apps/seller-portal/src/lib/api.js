@@ -9,18 +9,22 @@ function getAuthHeaders(extra = {}) {
   };
 }
 
-export async function apiGet(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: getAuthHeaders()
-  });
-
-  const data = await response.json();
+async function parseResponse(response) {
+  const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(data.message || `Request failed: ${response.status}`);
   }
 
   return data;
+}
+
+export async function apiGet(path) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: getAuthHeaders()
+  });
+
+  return parseResponse(response);
 }
 
 export async function apiPost(path, payload) {
@@ -32,13 +36,7 @@ export async function apiPost(path, payload) {
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || `Request failed: ${response.status}`);
-  }
-
-  return data;
+  return parseResponse(response);
 }
 
 export async function apiPut(path, payload) {
@@ -50,13 +48,7 @@ export async function apiPut(path, payload) {
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || `Request failed: ${response.status}`);
-  }
-
-  return data;
+  return parseResponse(response);
 }
 
 export async function apiPatch(path, payload) {
@@ -68,13 +60,7 @@ export async function apiPatch(path, payload) {
     body: JSON.stringify(payload)
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || `Request failed: ${response.status}`);
-  }
-
-  return data;
+  return parseResponse(response);
 }
 
 export async function apiDelete(path) {
@@ -83,11 +69,18 @@ export async function apiDelete(path) {
     headers: getAuthHeaders()
   });
 
-  const data = await response.json();
+  return parseResponse(response);
+}
 
-  if (!response.ok) {
-    throw new Error(data.message || `Request failed: ${response.status}`);
-  }
+export async function apiUploadFile(file) {
+  const formData = new FormData();
+  formData.append("file", file);
 
-  return data;
+  const response = await fetch(`${API_BASE_URL}/upload`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: formData
+  });
+
+  return parseResponse(response);
 }
