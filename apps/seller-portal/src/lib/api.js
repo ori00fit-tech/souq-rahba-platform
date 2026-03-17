@@ -23,6 +23,7 @@ export async function apiGet(path) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: getAuthHeaders()
   });
+
   return parseResponse(response);
 }
 
@@ -34,6 +35,7 @@ export async function apiPost(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
+
   return parseResponse(response);
 }
 
@@ -45,10 +47,10 @@ export async function apiPut(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
+
   return parseResponse(response);
 }
 
-/* 🔥 رجعناها */
 export async function apiPatch(path, payload) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "PATCH",
@@ -57,6 +59,7 @@ export async function apiPatch(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
+
   return parseResponse(response);
 }
 
@@ -65,10 +68,10 @@ export async function apiDelete(path) {
     method: "DELETE",
     headers: getAuthHeaders()
   });
+
   return parseResponse(response);
 }
 
-/* 🔥 upload */
 export async function apiUploadFile(file) {
   const formData = new FormData();
   formData.append("file", file);
