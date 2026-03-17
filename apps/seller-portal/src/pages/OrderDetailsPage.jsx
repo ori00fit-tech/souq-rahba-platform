@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-
-import { API_BASE_URL } from "../lib/config";
-const API = API_BASE_URL;
+import { apiGet } from "../lib/api";
 
 function badgeStyle(status) {
   if (status === "delivered") {
@@ -48,21 +46,25 @@ export default function OrderDetailsPage() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     async function loadOrder() {
       try {
-        const res = await fetch(`${API}/commerce/orders/${id}`);
-        const data = await res.json();
+        setLoading(true);
+        setMessage("");
 
-        if (!res.ok || !data.ok) {
-          throw new Error(data.message || "Failed to load order");
+        const res = await apiGet(`/commerce/orders/${id}`);
+
+        if (!res?.ok) {
+          setMessage(res?.message || "تعذر تحميل تفاصيل الطلب");
+          return;
         }
 
-        setOrder(data.data);
+        setOrder(res.data || null);
       } catch (err) {
         console.error(err);
-        alert("Could not load order details");
+        setMessage(err.message || "تعذر تحميل تفاصيل الطلب");
       } finally {
         setLoading(false);
       }
@@ -72,20 +74,53 @@ export default function OrderDetailsPage() {
   }, [id]);
 
   if (loading) {
-    return <div>Loading order details...</div>;
+    return <div>جاري تحميل تفاصيل الطلب...</div>;
+  }
+
+  if (message) {
+    return (
+      <div style={{ display: "grid", gap: "16px" }} dir="rtl">
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "14px",
+            padding: "18px"
+          }}
+        >
+          {message}
+        </div>
+
+        <div>
+          <Link
+            to="/orders"
+            style={{
+              padding: "10px 14px",
+              borderRadius: "10px",
+              background: "#111827",
+              color: "#fff",
+              textDecoration: "none",
+              fontWeight: "700"
+            }}
+          >
+            الرجوع إلى الطلبات
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (!order) {
-    return <div>Order not found.</div>;
+    return <div>الطلب غير موجود.</div>;
   }
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div style={{ display: "grid", gap: "20px" }} dir="rtl">
       <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ margin: 0 }}>Order Details</h2>
+          <h2 style={{ margin: 0 }}>تفاصيل الطلب</h2>
           <p style={{ color: "#64748b", marginTop: "6px" }}>
-            Order #{order.id}
+            رقم الطلب #{order.id}
           </p>
         </div>
 
@@ -101,7 +136,7 @@ export default function OrderDetailsPage() {
             height: "fit-content"
           }}
         >
-          Back to Orders
+          العودة إلى الطلبات
         </Link>
       </div>
 
@@ -115,14 +150,14 @@ export default function OrderDetailsPage() {
           gap: "12px"
         }}
       >
-        <div><strong>Buyer:</strong> {order.buyer_user_id || "Guest"}</div>
-        <div><strong>Seller:</strong> {order.seller_id}</div>
-        <div><strong>Total:</strong> {order.total_mad} {order.currency}</div>
-        <div><strong>Payment method:</strong> {order.payment_method}</div>
-        <div><strong>Payment status:</strong> {order.payment_status}</div>
-        <div><strong>Shipping status:</strong> {order.shipping_status}</div>
+        <div><strong>المشتري:</strong> {order.buyer_user_id || "زائر"}</div>
+        <div><strong>البائع:</strong> {order.seller_id}</div>
+        <div><strong>الإجمالي:</strong> {order.total_mad} {order.currency}</div>
+        <div><strong>طريقة الدفع:</strong> {order.payment_method}</div>
+        <div><strong>حالة الدفع:</strong> {order.payment_status}</div>
+        <div><strong>حالة الشحن:</strong> {order.shipping_status}</div>
         <div>
-          <strong>Order status:</strong>{" "}
+          <strong>حالة الطلب:</strong>{" "}
           <span
             style={{
               display: "inline-block",
@@ -137,7 +172,7 @@ export default function OrderDetailsPage() {
             {order.order_status}
           </span>
         </div>
-        <div><strong>Created at:</strong> {order.created_at}</div>
+        <div><strong>تاريخ الإنشاء:</strong> {order.created_at}</div>
       </div>
 
       <div
@@ -150,7 +185,7 @@ export default function OrderDetailsPage() {
           gap: "12px"
         }}
       >
-        <h3 style={{ margin: 0 }}>Items</h3>
+        <h3 style={{ margin: 0 }}>عناصر الطلب</h3>
 
         {order.items?.length ? (
           order.items.map((item) => (
@@ -166,12 +201,12 @@ export default function OrderDetailsPage() {
             >
               <div><strong>{item.title_ar || item.product_id}</strong></div>
               <div style={{ color: "#64748b" }}>Slug: {item.slug || "-"}</div>
-              <div>Quantity: {item.quantity}</div>
-              <div>Unit price: {item.unit_price_mad} MAD</div>
+              <div>الكمية: {item.quantity}</div>
+              <div>ثمن الوحدة: {item.unit_price_mad} MAD</div>
             </div>
           ))
         ) : (
-          <p style={{ margin: 0 }}>No items found.</p>
+          <p style={{ margin: 0 }}>لا توجد عناصر داخل هذا الطلب.</p>
         )}
       </div>
     </div>
