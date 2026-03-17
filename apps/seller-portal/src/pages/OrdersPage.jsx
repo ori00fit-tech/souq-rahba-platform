@@ -1,120 +1,120 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
 import { apiGet, apiPatch } from "../lib/api";
-import { useSellerAuth } from "../context/SellerAuthContext";
-
-const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
-
-function statusClass(status) {
-  return `badge-${status}`;
-}
 
 export default function OrdersPage() {
-  const { currentSeller, authLoading } = useSellerAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadOrders() {
-      try {
-        if (!currentSeller) return;
-
-        setLoading(true);
-
-        const res = await apiGet(`/commerce/orders?seller_id=${currentSeller.id}`);
-        setOrders(res.data || []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (!authLoading) loadOrders();
-  }, [currentSeller, authLoading]);
-
-  if (!authLoading && !currentSeller) {
-    return <Navigate to="/login" replace />;
-  }
-
-  async function updateStatus(orderId, orderStatus) {
+  async function loadOrders() {
     try {
-      await apiPatch(`/commerce/orders/${orderId}/status`, {
-        order_status: orderStatus
-      });
+      setLoading(true);
+      const res = await apiGet("/orders");
 
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, order_status: orderStatus } : o
-        )
-      );
+      setOrders(res.data || []);
     } catch (err) {
       console.error(err);
-      alert("فشل تحديث الحالة");
+    } finally {
+      setLoading(false);
     }
   }
 
-  if (loading || authLoading) {
-    return <div className="page-shell">جاري تحميل الطلبات...</div>;
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  async function updateStatus(id, status) {
+    try {
+      await apiPatch(`/orders/${id}`, { status });
+      loadOrders();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  if (loading) {
+    return <div>Loading...</div>;
   }
 
   return (
-    <section className="page-shell">
-      <div className="page-header">
-        <h1>الطلبات</h1>
-        <p>إدارة وتتبع طلبات المتجر</p>
-      </div>
+    <section className="page-shell" dir="rtl">
+      <h1>الطلبات</h1>
 
-      {orders.length === 0 ? (
-        <div className="card">
-          <p>لا توجد طلبات بعد</p>
-        </div>
-      ) : (
-        <div className="grid">
-          {orders.map((order) => (
-            <div key={order.id} className="card">
-              
-              <div className="row between">
-                <div>
-                  <strong>طلب #{order.id}</strong>
-                  <div className="muted">
-                    {order.total_mad} {order.currency}
-                  </div>
-                </div>
-
-                <span className={`badge ${statusClass(order.order_status)}`}>
-                  {order.order_status}
-                </span>
+      <div style={{ display: "grid", gap: "16px" }}>
+        {orders.map((order) => (
+          <div key={order.id} style={s.card}>
+            <div style={s.header}>
+              <div>
+                <strong>#{order.id}</strong>
+                <div>{order.status}</div>
               </div>
-
-              <div className="muted small">
-                الدفع: {order.payment_method} · {order.payment_status}
-              </div>
-
-              <div className="muted small">
-                الشحن: {order.shipping_status}
-              </div>
-
-              <div className="actions">
-                {STATUSES.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => updateStatus(order.id, status)}
-                    className={`btn ${order.order_status === status ? "btn-primary" : "btn-outline"}`}
-                  >
-                    {status}
-                  </button>
-                ))}
-
-                <Link to={`/orders/${order.id}`} className="btn btn-secondary">
-                  التفاصيل
-                </Link>
-              </div>
-
+              <div>{order.total} MAD</div>
             </div>
-          ))}
-        </div>
-      )}
+
+            {/* 👤 CUSTOMER */}
+            <div style={s.section}>
+              <h4>معلومات المشتري</h4>
+              <div>{order.customer?.name}</div>
+              <div>{order.customer?.phone}</div>
+              <div>{order.customer?.city}</div>
+              <div>{order.customer?.address}</div>
+            </div>
+
+            {/* 🛒 ITEMS */}
+            <div style={s.section}>
+              <h4>المنتجات</h4>
+              {order.items?.map((item, i) => (
+                <div key={i} style={s.item}>
+                  <span>{item.title}</span>
+                  <span>x{item.quantity}</span>
+                  <span>{item.price} MAD</span>
+                </div>
+              ))}
+            </div>
+
+            {/* ACTIONS */}
+            <div style={s.actions}>
+              <button onClick={() => updateStatus(order.id, "confirmed")}>
+                تأكيد
+              </button>
+              <button onClick={() => updateStatus(order.id, "shipped")}>
+                تم الشحن
+              </button>
+              <button onClick={() => updateStatus(order.id, "delivered")}>
+                تم التسليم
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }
+
+const s = {
+  card: {
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "18px",
+    padding: "16px",
+    display: "grid",
+    gap: "12px"
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    fontWeight: "700"
+  },
+  section: {
+    background: "#f8fafc",
+    padding: "10px",
+    borderRadius: "12px"
+  },
+  item: {
+    display: "flex",
+    justifyContent: "space-between"
+  },
+  actions: {
+    display: "flex",
+    gap: "10px"
+  }
+};
