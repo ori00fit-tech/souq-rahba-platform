@@ -348,6 +348,16 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
+        {product.landing_html_ar ? (
+          <section style={s.sectionCard}>
+            <h2 style={s.sectionTitle}>عرض تفصيلي للمنتج</h2>
+            <div
+              style={s.htmlLanding}
+              dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
+            />
+          </section>
+        ) : null}
+
         <section style={s.sectionCard}>
           <h2 style={s.sectionTitle}>من الشركة المصنعة</h2>
 
@@ -766,6 +776,12 @@ const s = {
     color: T.text,
     fontSize: "18px",
     fontWeight: 900
+  },
+
+  htmlLanding: {
+    overflow: "hidden",
+    borderRadius: "14px",
+    background: "#fff"
   },
 
   manufacturerHero: {

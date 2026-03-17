@@ -80,6 +80,8 @@ catalogRouter.get("/products", async (c) => {
       p.slug,
       p.title_ar,
       p.description_ar,
+      p.description_long_ar,
+      p.landing_html_ar,
       p.category_id,
       c.slug as category_slug,
       p.price_mad,
@@ -145,18 +147,13 @@ catalogRouter.get("/products/id/:id", authMiddleware, requireRole("seller", "adm
       p.title_ar,
       p.description_ar,
       p.description_long_ar,
+      p.landing_html_ar,
       p.category_id,
       p.sku,
       p.price_mad,
       p.stock,
       p.status,
-      (
-        select pm.url
-        from product_media pm
-        where pm.product_id = p.id
-        order by pm.sort_order asc
-        limit 1
-      ) as image_url
+      p.featured
     from products p
     left join sellers s on s.id = p.seller_id
     where p.id = ?
@@ -173,7 +170,36 @@ catalogRouter.get("/products/id/:id", authMiddleware, requireRole("seller", "adm
     );
   }
 
-  return c.json({ ok: true, data: result });
+  const media = await c.env.DB.prepare(`
+    select id, url, alt_text, sort_order
+    from product_media
+    where product_id = ?
+    order by sort_order asc, id asc
+  `).bind(id).all();
+
+  const specs = await c.env.DB.prepare(`
+    select id, label_ar, value_ar, sort_order
+    from product_specs
+    where product_id = ?
+    order by sort_order asc, id asc
+  `).bind(id).all();
+
+  const faqs = await c.env.DB.prepare(`
+    select id, question_ar, answer_ar, sort_order
+    from product_faqs
+    where product_id = ?
+    order by sort_order asc, id asc
+  `).bind(id).all();
+
+  return c.json({
+    ok: true,
+    data: {
+      ...result,
+      media: media.results || [],
+      specs: specs.results || [],
+      faqs: faqs.results || []
+    }
+  });
 });
 
 catalogRouter.get("/products/:slug", async (c) => {
@@ -225,14 +251,16 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       title_ar,
       description_ar,
       description_long_ar,
+      landing_html_ar,
       category_id,
       product_kind,
       condition_label,
       sku,
       price_mad,
       stock,
-      status
-    ) values (?, ?, ?, ?, ?, ?, ?, 'physical', 'new', ?, ?, ?, 'active')`
+      status,
+      featured
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, 'physical', 'new', ?, ?, ?, 'active', ?)`
   )
     .bind(
       id,
@@ -241,14 +269,40 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       body.title_ar,
       body.description_ar || null,
       body.description_long_ar || null,
+      body.landing_html_ar || null,
       body.category_id || null,
       body.sku || null,
       body.price_mad,
-      body.stock || 0
+      body.stock || 0,
+      body.featured ? 1 : 0
     )
     .run();
 
-  if (body.image_key) {
+  if (Array.isArray(body.images)) {
+    for (let i = 0; i < body.images.length; i += 1) {
+      const img = body.images[i];
+      if (!img?.url) continue;
+
+      await c.env.DB.prepare(
+        `insert into product_media (
+          id,
+          product_id,
+          media_type,
+          url,
+          alt_text,
+          sort_order
+        ) values (?, ?, 'image', ?, ?, ?)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          id,
+          img.url,
+          img.alt_text || body.title_ar,
+          i
+        )
+        .run();
+    }
+  } else if (body.image_key) {
     const mediaId = crypto.randomUUID();
     const mediaUrl = `${new URL(c.req.url).origin}/media/${body.image_key}`;
 
@@ -264,6 +318,56 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
     )
       .bind(mediaId, id, mediaUrl, body.title_ar)
       .run();
+  }
+
+  if (Array.isArray(body.specs)) {
+    for (let i = 0; i < body.specs.length; i += 1) {
+      const spec = body.specs[i];
+      if (!spec?.label_ar || !spec?.value_ar) continue;
+
+      await c.env.DB.prepare(
+        `insert into product_specs (
+          id,
+          product_id,
+          label_ar,
+          value_ar,
+          sort_order
+        ) values (?, ?, ?, ?, ?)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          id,
+          spec.label_ar,
+          spec.value_ar,
+          i
+        )
+        .run();
+    }
+  }
+
+  if (Array.isArray(body.faqs)) {
+    for (let i = 0; i < body.faqs.length; i += 1) {
+      const faq = body.faqs[i];
+      if (!faq?.question_ar || !faq?.answer_ar) continue;
+
+      await c.env.DB.prepare(
+        `insert into product_faqs (
+          id,
+          product_id,
+          question_ar,
+          answer_ar,
+          sort_order
+        ) values (?, ?, ?, ?, ?)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          id,
+          faq.question_ar,
+          faq.answer_ar,
+          i
+        )
+        .run();
+    }
   }
 
   return c.json(
@@ -315,49 +419,40 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
     `update products
      set
        title_ar = ?,
+       slug = ?,
        description_ar = ?,
        description_long_ar = ?,
+       landing_html_ar = ?,
        category_id = ?,
        sku = ?,
        price_mad = ?,
-       stock = ?
+       stock = ?,
+       featured = ?
      where id = ?`
   )
     .bind(
       body.title_ar,
+      body.slug || null,
       body.description_ar || null,
       body.description_long_ar || null,
+      body.landing_html_ar || null,
       body.category_id || null,
       body.sku || null,
       body.price_mad,
       body.stock || 0,
+      body.featured ? 1 : 0,
       id
     )
     .run();
 
-  if (body.image_key) {
-    const imageUrl = `${new URL(c.req.url).origin}/media/${body.image_key}`;
-
-    const existingMedia = await c.env.DB.prepare(
-      `select id
-       from product_media
-       where product_id = ?
-       order by sort_order asc
-       limit 1`
-    )
+  if (Array.isArray(body.images)) {
+    await c.env.DB.prepare(`delete from product_media where product_id = ?`)
       .bind(id)
-      .first();
+      .run();
 
-    if (existingMedia?.id) {
-      await c.env.DB.prepare(
-        `update product_media
-         set url = ?, alt_text = ?
-         where id = ?`
-      )
-        .bind(imageUrl, body.title_ar, existingMedia.id)
-        .run();
-    } else {
-      const mediaId = crypto.randomUUID();
+    for (let i = 0; i < body.images.length; i += 1) {
+      const img = body.images[i];
+      if (!img?.url) continue;
 
       await c.env.DB.prepare(
         `insert into product_media (
@@ -367,9 +462,73 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
           url,
           alt_text,
           sort_order
-        ) values (?, ?, 'image', ?, ?, 0)`
+        ) values (?, ?, 'image', ?, ?, ?)`
       )
-        .bind(mediaId, id, imageUrl, body.title_ar)
+        .bind(
+          crypto.randomUUID(),
+          id,
+          img.url,
+          img.alt_text || body.title_ar,
+          i
+        )
+        .run();
+    }
+  }
+
+  await c.env.DB.prepare(`delete from product_specs where product_id = ?`)
+    .bind(id)
+    .run();
+
+  if (Array.isArray(body.specs)) {
+    for (let i = 0; i < body.specs.length; i += 1) {
+      const spec = body.specs[i];
+      if (!spec?.label_ar || !spec?.value_ar) continue;
+
+      await c.env.DB.prepare(
+        `insert into product_specs (
+          id,
+          product_id,
+          label_ar,
+          value_ar,
+          sort_order
+        ) values (?, ?, ?, ?, ?)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          id,
+          spec.label_ar,
+          spec.value_ar,
+          i
+        )
+        .run();
+    }
+  }
+
+  await c.env.DB.prepare(`delete from product_faqs where product_id = ?`)
+    .bind(id)
+    .run();
+
+  if (Array.isArray(body.faqs)) {
+    for (let i = 0; i < body.faqs.length; i += 1) {
+      const faq = body.faqs[i];
+      if (!faq?.question_ar || !faq?.answer_ar) continue;
+
+      await c.env.DB.prepare(
+        `insert into product_faqs (
+          id,
+          product_id,
+          question_ar,
+          answer_ar,
+          sort_order
+        ) values (?, ?, ?, ?, ?)`
+      )
+        .bind(
+          crypto.randomUUID(),
+          id,
+          faq.question_ar,
+          faq.answer_ar,
+          i
+        )
         .run();
     }
   }
@@ -382,18 +541,13 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
       p.title_ar,
       p.description_ar,
       p.description_long_ar,
+      p.landing_html_ar,
       p.category_id,
       p.sku,
       p.price_mad,
       p.stock,
       p.status,
-      (
-        select pm.url
-        from product_media pm
-        where pm.product_id = p.id
-        order by pm.sort_order asc
-        limit 1
-      ) as image_url
+      p.featured
     from products p
     where p.id = ?
     limit 1`
@@ -426,13 +580,10 @@ catalogRouter.delete("/products/:id", authMiddleware, requireRole("seller", "adm
     );
   }
 
-  await c.env.DB.prepare(`delete from product_media where product_id = ?`)
-    .bind(id)
-    .run();
-
-  await c.env.DB.prepare(`delete from products where id = ?`)
-    .bind(id)
-    .run();
+  await c.env.DB.prepare(`delete from product_media where product_id = ?`).bind(id).run();
+  await c.env.DB.prepare(`delete from product_specs where product_id = ?`).bind(id).run();
+  await c.env.DB.prepare(`delete from product_faqs where product_id = ?`).bind(id).run();
+  await c.env.DB.prepare(`delete from products where id = ?`).bind(id).run();
 
   return c.json({
     ok: true,

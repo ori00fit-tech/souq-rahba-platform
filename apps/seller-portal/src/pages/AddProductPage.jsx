@@ -1,44 +1,68 @@
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
-import { useSellerAuth } from "../context/SellerAuthContext";
 
-import { API_BASE_URL } from "../lib/config";
-const API = API_BASE_URL;
+function emptyImage() {
+  return { url: "", alt_text: "" };
+}
 
-function slugify(text) {
-  return String(text || "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^\p{L}\p{N}-]+/gu, "")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+function emptySpec() {
+  return { label_ar: "", value_ar: "" };
+}
+
+function emptyFaq() {
+  return { question_ar: "", answer_ar: "" };
 }
 
 export default function AddProductPage() {
-  const { currentSeller, authLoading } = useSellerAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: "",
+    title_ar: "",
+    slug: "",
+    description_ar: "",
+    description_long_ar: "",
+    landing_html_ar: "",
+    category_id: "",
     sku: "",
-    price: "",
+    price_mad: "",
     stock: "",
-    categoryId: "",
-    description: ""
+    featured: false,
+    images: [emptyImage()],
+    specs: [emptySpec()],
+    faqs: [emptyFaq()]
   });
 
-  const [image, setImage] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  if (!authLoading && !currentSeller) {
-    return <Navigate to="/login" replace />;
+  const canSubmit = useMemo(() => {
+    return form.title_ar.trim() && form.slug.trim() && String(form.price_mad).trim();
+  }, [form]);
+
+  function updateField(name, value) {
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function handleChange(e) {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
+  function updateArrayItem(key, index, field, value) {
+    setForm((prev) => {
+      const next = [...prev[key]];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, [key]: next };
+    });
+  }
+
+  function addArrayItem(key, factory) {
+    setForm((prev) => ({ ...prev, [key]: [...prev[key], factory()] }));
+  }
+
+  function removeArrayItem(key, index) {
+    setForm((prev) => {
+      const next = prev[key].filter((_, i) => i !== index);
+      return {
+        ...prev,
+        [key]: next.length ? next : [key === "images" ? emptyImage() : key === "specs" ? emptySpec() : emptyFaq()]
+      };
     });
   }
 
@@ -46,120 +70,267 @@ export default function AddProductPage() {
     e.preventDefault();
 
     try {
-      if (!currentSeller) return;
+      setSaving(true);
+      setMessage("");
 
-      setSubmitting(true);
-
-      let imageKey = null;
-
-      if (image) {
-        const formData = new FormData();
-        formData.append("file", image);
-
-        const uploadRes = await fetch(`${API}/upload`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("seller_auth_token") || ""}`
-          },
-          body: formData
-        });
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok || !uploadData.ok) {
-          throw new Error(uploadData.error || "Image upload failed");
-        }
-
-        imageKey = uploadData.key || null;
-      }
-
-      const slug = slugify(form.name);
-
-      const productRes = await apiPost(`/catalog/products`, {
-        seller_id: currentSeller.id,
-        slug,
-        title_ar: form.name,
-        description_ar: form.description,
-        category_id: form.categoryId || null,
-        sku: form.sku || null,
-        price_mad: Number(form.price),
+      const payload = {
+        title_ar: form.title_ar.trim(),
+        slug: form.slug.trim(),
+        description_ar: form.description_ar.trim(),
+        description_long_ar: form.description_long_ar.trim(),
+        landing_html_ar: form.landing_html_ar.trim(),
+        category_id: form.category_id.trim() || null,
+        sku: form.sku.trim() || null,
+        price_mad: Number(form.price_mad || 0),
         stock: Number(form.stock || 0),
-        image_key: imageKey
-      });
+        featured: form.featured,
+        images: form.images.filter((x) => x.url.trim()),
+        specs: form.specs.filter((x) => x.label_ar.trim() && x.value_ar.trim()),
+        faqs: form.faqs.filter((x) => x.question_ar.trim() && x.answer_ar.trim())
+      };
 
-      if (!productRes.ok) {
-        throw new Error("Product creation failed");
+      const res = await apiPost("/catalog/products", payload);
+
+      if (!res.ok) {
+        setMessage(res.message || "تعذر إنشاء المنتج");
+        return;
       }
 
-      alert("Product created successfully");
-
-      setForm({
-        name: "",
-        sku: "",
-        price: "",
-        stock: "",
-        categoryId: "",
-        description: ""
-      });
-      setImage(null);
+      setMessage("تم إنشاء المنتج بنجاح");
+      setTimeout(() => navigate("/products"), 800);
     } catch (err) {
       console.error(err);
-      alert("Error creating product");
+      setMessage("حدث خطأ أثناء الحفظ");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "20px" }}>
-        <h2>Add Product</h2>
-        <p style={{ color: "#64748b" }}>Create a new product listing for your marketplace store</p>
+    <section className="page-shell" dir="rtl">
+      <div className="page-header">
+        <h1>إضافة منتج جديد</h1>
+        <p>أنشئ صفحة منتج متكاملة بصور، مواصفات وأسئلة شائعة و Landing HTML اختياري.</p>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: "grid",
-          gap: "16px",
-          background: "#fff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "20px",
-          padding: "20px"
-        }}
-      >
-        <input name="name" placeholder="Product name" value={form.name} onChange={handleChange} required style={input} />
-        <input name="sku" placeholder="SKU" value={form.sku} onChange={handleChange} style={input} />
-        <input name="price" placeholder="Price (MAD)" value={form.price} onChange={handleChange} type="number" min="0" required style={input} />
-        <input name="stock" placeholder="Stock quantity" value={form.stock} onChange={handleChange} type="number" min="0" required style={input} />
-        <input name="categoryId" placeholder="Category ID (example: c5)" value={form.categoryId} onChange={handleChange} style={input} />
-        <textarea name="description" placeholder="Product description" value={form.description} onChange={handleChange} rows="4" style={input} />
-        <input type="file" accept="image/*" onChange={(e) => setImage(e.target.files?.[0] || null)} style={input} />
+      <form onSubmit={handleSubmit} style={s.form}>
+        <Card title="المعلومات الأساسية">
+          <Input label="اسم المنتج" value={form.title_ar} onChange={(v) => updateField("title_ar", v)} />
+          <Input label="Slug" value={form.slug} onChange={(v) => updateField("slug", v)} />
+          <Input label="الوصف المختصر" value={form.description_ar} onChange={(v) => updateField("description_ar", v)} />
+          <Textarea label="الوصف الطويل" value={form.description_long_ar} onChange={(v) => updateField("description_long_ar", v)} />
+          <Textarea label="HTML Landing اختياري" value={form.landing_html_ar} onChange={(v) => updateField("landing_html_ar", v)} />
+          <Input label="الفئة category_id" value={form.category_id} onChange={(v) => updateField("category_id", v)} />
+          <Input label="SKU" value={form.sku} onChange={(v) => updateField("sku", v)} />
+          <Input label="السعر MAD" value={form.price_mad} onChange={(v) => updateField("price_mad", v)} type="number" />
+          <Input label="المخزون" value={form.stock} onChange={(v) => updateField("stock", v)} type="number" />
+          <label style={s.checkboxRow}>
+            <input
+              type="checkbox"
+              checked={form.featured}
+              onChange={(e) => updateField("featured", e.target.checked)}
+            />
+            <span>منتج مميز Featured</span>
+          </label>
+        </Card>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          style={{
-            padding: "14px",
-            borderRadius: "12px",
-            border: "none",
-            background: "#ea580c",
-            color: "#fff",
-            fontWeight: "700",
-            cursor: "pointer",
-            opacity: submitting ? 0.7 : 1
-          }}
-        >
-          {submitting ? "Creating..." : "Create Product"}
+        <Card title="صور المنتج">
+          {form.images.map((item, index) => (
+            <div key={index} style={s.rowBox}>
+              <Input
+                label={`رابط الصورة ${index + 1}`}
+                value={item.url}
+                onChange={(v) => updateArrayItem("images", index, "url", v)}
+              />
+              <Input
+                label="وصف الصورة"
+                value={item.alt_text}
+                onChange={(v) => updateArrayItem("images", index, "alt_text", v)}
+              />
+              <button type="button" onClick={() => removeArrayItem("images", index)} style={s.smallBtn}>
+                حذف
+              </button>
+            </div>
+          ))}
+          <button type="button" onClick={() => addArrayItem("images", emptyImage)} style={s.addBtn}>
+            + إضافة صورة
+          </button>
+        </Card>
+
+        <Card title="المواصفات">
+          {form.specs.map((item, index) => (
+            <div key={index} style={s.rowBox}>
+              <Input
+                label="الاسم"
+                value={item.label_ar}
+                onChange={(v) => updateArrayItem("specs", index, "label_ar", v)}
+              />
+              <Input
+                label="القيمة"
+                value={item.value_ar}
+                onChange={(v) => updateArrayItem("specs", index, "value_ar", v)}
+              />
+              <button type="button" onClick={() => removeArrayItem("specs", index)} style={s.smallBtn}>
+                حذف
+              </button>
+            </div>
+          ))}
+          <button type="button" onClick={() => addArrayItem("specs", emptySpec)} style={s.addBtn}>
+            + إضافة مواصفة
+          </button>
+        </Card>
+
+        <Card title="الأسئلة الشائعة">
+          {form.faqs.map((item, index) => (
+            <div key={index} style={s.rowBox}>
+              <Input
+                label="السؤال"
+                value={item.question_ar}
+                onChange={(v) => updateArrayItem("faqs", index, "question_ar", v)}
+              />
+              <Textarea
+                label="الجواب"
+                value={item.answer_ar}
+                onChange={(v) => updateArrayItem("faqs", index, "answer_ar", v)}
+              />
+              <button type="button" onClick={() => removeArrayItem("faqs", index)} style={s.smallBtn}>
+                حذف
+              </button>
+            </div>
+          ))}
+          <button type="button" onClick={() => addArrayItem("faqs", emptyFaq)} style={s.addBtn}>
+            + إضافة سؤال
+          </button>
+        </Card>
+
+        {message ? <div style={s.message}>{message}</div> : null}
+
+        <button type="submit" disabled={!canSubmit || saving} style={s.submitBtn}>
+          {saving ? "جاري الحفظ..." : "حفظ المنتج"}
         </button>
       </form>
+    </section>
+  );
+}
+
+function Card({ title, children }) {
+  return (
+    <div style={s.card}>
+      <h3 style={s.cardTitle}>{title}</h3>
+      <div style={s.cardBody}>{children}</div>
     </div>
   );
 }
 
-const input = {
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e2e8f0",
-  fontSize: "14px"
+function Input({ label, value, onChange, type = "text" }) {
+  return (
+    <label style={s.field}>
+      <span style={s.label}>{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={s.input}
+      />
+    </label>
+  );
+}
+
+function Textarea({ label, value, onChange }) {
+  return (
+    <label style={s.field}>
+      <span style={s.label}>{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={s.textarea}
+      />
+    </label>
+  );
+}
+
+const s = {
+  form: {
+    display: "grid",
+    gap: "18px"
+  },
+  card: {
+    background: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "18px",
+    padding: "18px"
+  },
+  cardTitle: {
+    margin: "0 0 14px",
+    fontSize: "18px",
+    fontWeight: 800
+  },
+  cardBody: {
+    display: "grid",
+    gap: "14px"
+  },
+  field: {
+    display: "grid",
+    gap: "6px"
+  },
+  label: {
+    fontWeight: 700,
+    fontSize: "14px"
+  },
+  input: {
+    padding: "12px",
+    borderRadius: "12px",
+    border: "1px solid #d1d5db"
+  },
+  textarea: {
+    padding: "12px",
+    borderRadius: "12px",
+    border: "1px solid #d1d5db",
+    minHeight: "120px",
+    resize: "vertical"
+  },
+  checkboxRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    fontWeight: 700
+  },
+  rowBox: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "grid",
+    gap: "10px",
+    background: "#f8fafc"
+  },
+  smallBtn: {
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    cursor: "pointer"
+  },
+  addBtn: {
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1px dashed #94a3b8",
+    background: "#fff",
+    cursor: "pointer",
+    fontWeight: 700
+  },
+  submitBtn: {
+    padding: "14px 18px",
+    borderRadius: "14px",
+    border: "none",
+    background: "#1f3b73",
+    color: "#fff",
+    fontWeight: 800,
+    cursor: "pointer"
+  },
+  message: {
+    padding: "12px",
+    borderRadius: "12px",
+    background: "#fff",
+    border: "1px solid #e5e7eb"
+  }
 };
