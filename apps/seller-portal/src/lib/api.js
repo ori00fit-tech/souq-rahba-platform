@@ -23,7 +23,6 @@ export async function apiGet(path) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: getAuthHeaders()
   });
-
   return parseResponse(response);
 }
 
@@ -35,7 +34,6 @@ export async function apiPost(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
-
   return parseResponse(response);
 }
 
@@ -47,10 +45,10 @@ export async function apiPut(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
-
   return parseResponse(response);
 }
 
+/* 🔥 رجعناها */
 export async function apiPatch(path, payload) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "PATCH",
@@ -59,7 +57,6 @@ export async function apiPatch(path, payload) {
     }),
     body: JSON.stringify(payload)
   });
-
   return parseResponse(response);
 }
 
@@ -68,10 +65,10 @@ export async function apiDelete(path) {
     method: "DELETE",
     headers: getAuthHeaders()
   });
-
   return parseResponse(response);
 }
 
+/* 🔥 upload */
 export async function apiUploadFile(file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -83,22 +80,4 @@ export async function apiUploadFile(file) {
   });
 
   return parseResponse(response);
-}
-
-export async function apiUpload(path, formData) {
-  const token = localStorage.getItem("seller_auth_token");
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: formData
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.message || "Upload failed");
-  }
-
-  return data;
 }
