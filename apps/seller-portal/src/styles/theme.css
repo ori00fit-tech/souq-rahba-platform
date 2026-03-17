@@ -496,3 +496,36 @@ img {
   color: var(--text-secondary);
   line-height: 1.9;
 }
+
+.settings-form {
+  max-width: 520px;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-form input,
+.settings-form textarea {
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  background: var(--bg-surface);
+}
+
+.settings-form input:focus,
+.settings-form textarea:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+}
+
+
+.settings-form {
+  max-width: 560px;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settings-form {
+  max-width: 560px;
+  display: grid;
+  gap: var(--space-3);
+}

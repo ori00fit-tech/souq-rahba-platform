@@ -84,3 +84,21 @@ export async function apiUploadFile(file) {
 
   return parseResponse(response);
 }
+
+export async function apiUpload(path, formData) {
+  const token = localStorage.getItem("seller_auth_token");
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Upload failed");
+  }
+
+  return data;
+}

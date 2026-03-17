@@ -3,19 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 
-const T = {
-  text: "#111827",
-  subtext: "#5b6472",
-  border: "#e5e7eb",
-  bg: "#f8fafc",
-  white: "#ffffff",
-  blue: "#1f3b73",
-  blueDark: "#13294b",
-  gold: "#f59e0b",
-  success: "#166534",
-  muted: "#94a3b8"
-};
-
 export default function ProductDetailsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -191,7 +178,6 @@ export default function ProductDetailsPage() {
 
   async function handleSubmitReview(e) {
     e.preventDefault();
-
     if (!product) return;
 
     try {
@@ -273,884 +259,315 @@ export default function ProductDetailsPage() {
   }
 
   return (
-    <section className="container section-space" dir="rtl">
-      <div style={s.page}>
-        <div style={s.topCard}>
-          <div style={s.brandRow}>
-            <span style={s.brandText}>{product.brand || product.seller_name || "RAHBA"}</span>
-          </div>
+    <section className="container section-space product-page" dir="rtl">
+      <div className="product-hero-card">
+        <div className="product-hero-grid">
+          <div className="product-gallery">
+            <div className="product-brand-line">
+              {product.brand || product.seller_name || "RAHBA"}
+            </div>
 
-          <h1 style={s.title}>{product.title_ar}</h1>
+            <h1 className="product-title-main">{product.title_ar}</h1>
 
-          <div style={s.ratingRow}>
-            <span style={s.stars}>
-              {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-            </span>
-            <span style={s.ratingValue}>{ratingSummary.avg || 0}</span>
-            <span style={s.ratingCount}>({ratingSummary.count || 0})</span>
-          </div>
+            <div className="product-rating-line">
+              <span className="product-stars">
+                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+              </span>
+              <span>{ratingSummary.avg || 0}</span>
+              <span>({ratingSummary.count || 0})</span>
+            </div>
 
-          <div style={s.galleryLayout}>
-            <div style={s.mainImageCard}>
+            <div className="product-main-image-card">
               {selectedImage ? (
-                <img src={selectedImage} alt={product.title_ar} style={s.mainImage} />
+                <img src={selectedImage} alt={product.title_ar} className="product-main-image" />
               ) : (
-                <div style={s.noImage}>No image</div>
+                <div className="product-no-image">No image</div>
               )}
             </div>
 
             {galleryImages.length > 1 ? (
-              <div style={s.thumbRow}>
+              <div className="product-thumbs-row">
                 {galleryImages.map((img, idx) => (
                   <button
                     key={`${img}-${idx}`}
+                    type="button"
                     onClick={() => setSelectedImage(img)}
-                    style={{
-                      ...s.thumbBtn,
-                      border:
-                        selectedImage === img
-                          ? `2px solid ${T.blue}`
-                          : `1px solid ${T.border}`
-                    }}
+                    className={`product-thumb-btn ${selectedImage === img ? "is-active" : ""}`}
                   >
-                    <img src={img} alt={`thumb-${idx}`} style={s.thumbImg} />
+                    <img src={img} alt={`thumb-${idx}`} className="product-thumb-img" />
                   </button>
                 ))}
               </div>
             ) : null}
           </div>
 
-          <div style={s.priceWrap}>
-            <div style={s.price}>{product.price_mad} MAD</div>
-            <div style={s.stock}>
+          <aside className="product-buy-card">
+            <div className="product-price-main">{product.price_mad} MAD</div>
+
+            <div className={`product-stock ${product.stock > 0 ? "in-stock" : "out-stock"}`}>
               {product.stock > 0 ? `متوفر في المخزون: ${product.stock}` : "غير متوفر حالياً"}
             </div>
-          </div>
 
-          <div style={s.buyBox}>
-            <button
-              onClick={handleAddToCart}
-              disabled={product.stock <= 0}
-              style={buttonSecondary(product.stock <= 0)}
-            >
-              {product.stock <= 0 ? "غير متوفر" : "أضف إلى السلة"}
-            </button>
+            <p className="product-short-desc">
+              {product.description_ar || "بدون وصف مختصر"}
+            </p>
 
-            <button
-              onClick={handleGoToCheckout}
-              disabled={product.stock <= 0}
-              style={buttonPrimary(product.stock <= 0)}
-            >
-              اشتر الآن عبر Checkout
-            </button>
+            <div className="product-buy-actions">
+              <button
+                onClick={handleAddToCart}
+                disabled={product.stock <= 0}
+                className="btn btn-primary full-width"
+              >
+                {product.stock <= 0 ? "غير متوفر" : "أضف إلى السلة"}
+              </button>
 
-            {message ? <div style={s.infoBox}>{message}</div> : null}
+              <button
+                onClick={handleGoToCheckout}
+                disabled={product.stock <= 0}
+                className="btn btn-secondary full-width"
+              >
+                اشتر الآن عبر Checkout
+              </button>
+            </div>
+
+            {message ? <div className="product-info-box">{message}</div> : null}
+          </aside>
+        </div>
+      </div>
+
+      {product.landing_html_ar ? (
+        <section className="product-section-card">
+          <h2 className="product-section-title">عرض تفصيلي للمنتج</h2>
+          <div
+            className="product-html-landing"
+            dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
+          />
+        </section>
+      ) : null}
+
+      <section className="product-section-card manufacturer-block">
+        <div className="manufacturer-badge">منتج مميز</div>
+        <div className="manufacturer-small">جودة موثوقة داخل رحبة</div>
+        <h2 className="manufacturer-title">عرض أغنى للمحتوى والمواصفات والصور</h2>
+        <p className="manufacturer-text">
+          {product.description_long_ar ||
+            product.description_ar ||
+            "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، وصف واضح، وصور أكثر قبل الشراء."}
+        </p>
+
+        <div className="manufacturer-stats">
+          <HeroStat label="التقييم" value={`${ratingSummary.avg || 0} / 5`} />
+          <HeroStat label="المراجعات" value={`${ratingSummary.count || 0}`} />
+          <HeroStat label="المخزون" value={`${product.stock || 0}`} />
+        </div>
+      </section>
+
+      <section className="product-section-card">
+        <h2 className="product-section-title">أهم المميزات</h2>
+        <div className="product-highlight-grid">
+          {highlights.map((item, idx) => (
+            <div key={`${item}-${idx}`} className="product-highlight-card">
+              <div className="product-highlight-icon">✓</div>
+              <div className="product-highlight-text">{item}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="product-section-card">
+        <h2 className="product-section-title">تفاصيل المنتج</h2>
+        <div className="product-details-grid">
+          {specs.map((row, idx) => (
+            <DetailRow
+              key={row.id || `${row.label_ar}-${idx}`}
+              label={row.label_ar}
+              value={row.value_ar}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="product-section-card">
+        <h2 className="product-section-title">أسئلة شائعة</h2>
+        <div className="product-faq-list">
+          {faqs.map((faq, idx) => (
+            <div key={faq.id || `${faq.question_ar}-${idx}`} className="product-faq-item">
+              <div className="product-faq-question">{faq.question_ar}</div>
+              <div className="product-faq-answer">{faq.answer_ar}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="product-section-card">
+        <div className="product-review-head">
+          <div>
+            <h2 className="product-section-title">مراجعات العملاء</h2>
+            <div className="product-review-summary">
+              <span className="product-review-stars">
+                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+              </span>
+              <span>{ratingSummary.avg || 0} من 5</span>
+            </div>
+            <div className="product-review-count">{ratingSummary.count || 0} تقييم</div>
           </div>
         </div>
 
-        {product.landing_html_ar ? (
-          <section style={s.sectionCard}>
-            <h2 style={s.sectionTitle}>عرض تفصيلي للمنتج</h2>
-            <div
-              style={s.htmlLanding}
-              dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
-            />
-          </section>
-        ) : null}
-
-        <section style={s.sectionCard}>
-          <h2 style={s.sectionTitle}>من الشركة المصنعة</h2>
-
-          <div style={s.manufacturerHero}>
-            <div style={s.heroTop}>
-              <div style={s.heroBadge}>منتج مميز</div>
-              <div style={s.heroSmall}>جودة موثوقة داخل رحبة</div>
-            </div>
-
-            <h3 style={s.heroTitle}>عرض أغنى للمحتوى والمواصفات والصور</h3>
-
-            <p style={s.heroText}>
-              {product.description_long_ar ||
-                product.description_ar ||
-                "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، وصف واضح، وصور أكثر قبل الشراء."}
-            </p>
-
-            <div style={s.heroStats}>
-              <HeroStat label="التقييم" value={`${ratingSummary.avg || 0} / 5`} />
-              <HeroStat label="المراجعات" value={`${ratingSummary.count || 0}`} />
-              <HeroStat label="المخزون" value={`${product.stock || 0}`} />
-            </div>
-          </div>
-        </section>
-
-        <section style={s.sectionCard}>
-          <h2 style={s.sectionTitle}>أهم المميزات</h2>
-          <div style={s.highlightGrid}>
-            {highlights.map((item, idx) => (
-              <div key={`${item}-${idx}`} style={s.highlightCard}>
-                <div style={s.highlightIcon}>✓</div>
-                <div style={s.highlightText}>{item}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section style={s.sectionCard}>
-          <h2 style={s.sectionTitle}>تفاصيل المنتج</h2>
-          <div style={s.detailsGrid}>
-            {specs.map((row, idx) => (
-              <DetailRow
-                key={row.id || `${row.label_ar}-${idx}`}
-                label={row.label_ar}
-                value={row.value_ar}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section style={s.sectionCard}>
-          <h2 style={s.sectionTitle}>أسئلة شائعة</h2>
-          <div style={s.faqList}>
-            {faqs.map((faq, idx) => (
-              <div key={faq.id || `${faq.question_ar}-${idx}`} style={s.faqItem}>
-                <div style={s.faqQuestion}>{faq.question_ar}</div>
-                <div style={s.faqAnswer}>{faq.answer_ar}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section style={s.sectionCard}>
-          <div style={s.reviewHeader}>
-            <div>
-              <h2 style={s.sectionTitle}>مراجعات العملاء</h2>
-              <div style={s.reviewSummary}>
-                <span style={s.bigStars}>
-                  {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-                </span>
-                <span style={s.bigRatingText}>
-                  {ratingSummary.avg || 0} من 5
-                </span>
-              </div>
-              <div style={s.reviewCountText}>
-                {ratingSummary.count || 0} تقييم
-              </div>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmitReview} style={s.reviewForm}>
-            <div style={s.formGroup}>
-              <label style={s.label}>التقييم</label>
-              <select
-                value={reviewForm.rating}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
-                }
-                style={s.input}
-              >
-                <option value={5}>5 - ممتاز</option>
-                <option value={4}>4 - جيد جدًا</option>
-                <option value={3}>3 - جيد</option>
-                <option value={2}>2 - مقبول</option>
-                <option value={1}>1 - ضعيف</option>
-              </select>
-            </div>
-
-            <div style={s.formGroup}>
-              <label style={s.label}>عنوان المراجعة</label>
-              <input
-                type="text"
-                value={reviewForm.title}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, title: e.target.value }))
-                }
-                placeholder="مثلاً: منتج ممتاز"
-                style={s.input}
-              />
-            </div>
-
-            <div style={s.formGroup}>
-              <label style={s.label}>التعليق</label>
-              <textarea
-                value={reviewForm.comment}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
-                }
-                placeholder="اكتب تجربتك بعد الشراء"
-                style={s.textarea}
-              />
-            </div>
-
-            <div style={s.formGroup}>
-              <label style={s.label}>رابط صورة المراجعة</label>
-              <input
-                type="url"
-                value={reviewForm.review_image_url}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
-                }
-                placeholder="https://..."
-                style={s.input}
-              />
-            </div>
-
-            <div style={s.reviewHint}>
-              التقييم وإرفاق الصورة متاحان فقط بعد شراء المنتج.
-            </div>
-
-            {reviewMessage ? <div style={s.infoBox}>{reviewMessage}</div> : null}
-
-            <button
-              type="submit"
-              disabled={submittingReview}
-              style={buttonPrimary(submittingReview)}
+        <form onSubmit={handleSubmitReview} className="product-review-form">
+          <div className="product-form-group">
+            <label>التقييم</label>
+            <select
+              value={reviewForm.rating}
+              onChange={(e) =>
+                setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
+              }
+              className="ui-select"
             >
-              {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
-            </button>
-          </form>
+              <option value={5}>5 - ممتاز</option>
+              <option value={4}>4 - جيد جدًا</option>
+              <option value={3}>3 - جيد</option>
+              <option value={2}>2 - مقبول</option>
+              <option value={1}>1 - ضعيف</option>
+            </select>
+          </div>
 
-          <div style={s.reviewsList}>
-            {reviewsLoading ? (
-              <p style={s.loadingText}>جاري تحميل المراجعات...</p>
-            ) : reviews.length === 0 ? (
-              <div style={s.emptyBox}>لا توجد مراجعات بعد</div>
-            ) : (
-              reviews.map((review) => (
-                <article key={review.id} style={s.reviewCard}>
-                  <div style={s.reviewCardTop}>
-                    <div style={s.reviewCardStars}>
-                      {"★".repeat(review.rating)}
-                    </div>
-                    <div style={s.reviewDate}>{review.created_at}</div>
+          <div className="product-form-group">
+            <label>عنوان المراجعة</label>
+            <input
+              type="text"
+              value={reviewForm.title}
+              onChange={(e) =>
+                setReviewForm((prev) => ({ ...prev, title: e.target.value }))
+              }
+              placeholder="مثلاً: منتج ممتاز"
+              className="ui-input"
+            />
+          </div>
+
+          <div className="product-form-group">
+            <label>التعليق</label>
+            <textarea
+              value={reviewForm.comment}
+              onChange={(e) =>
+                setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
+              }
+              placeholder="اكتب تجربتك بعد الشراء"
+              className="ui-textarea"
+            />
+          </div>
+
+          <div className="product-form-group">
+            <label>رابط صورة المراجعة</label>
+            <input
+              type="url"
+              value={reviewForm.review_image_url}
+              onChange={(e) =>
+                setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
+              }
+              placeholder="https://..."
+              className="ui-input"
+            />
+          </div>
+
+          <div className="product-review-hint">
+            التقييم وإرفاق الصورة متاحان فقط بعد شراء المنتج.
+          </div>
+
+          {reviewMessage ? <div className="product-info-box">{reviewMessage}</div> : null}
+
+          <button
+            type="submit"
+            disabled={submittingReview}
+            className="btn btn-secondary"
+          >
+            {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
+          </button>
+        </form>
+
+        <div className="product-reviews-list">
+          {reviewsLoading ? (
+            <p className="ui-muted">جاري تحميل المراجعات...</p>
+          ) : reviews.length === 0 ? (
+            <div className="ui-empty">لا توجد مراجعات بعد</div>
+          ) : (
+            reviews.map((review) => (
+              <article key={review.id} className="product-review-card">
+                <div className="product-review-card-top">
+                  <div className="product-review-card-stars">
+                    {"★".repeat(review.rating)}
                   </div>
+                  <div className="ui-muted">{review.created_at}</div>
+                </div>
 
-                  {review.buyer_name ? (
-                    <div style={s.reviewerName}>{review.buyer_name}</div>
-                  ) : null}
+                {review.buyer_name ? (
+                  <div className="product-reviewer-name">{review.buyer_name}</div>
+                ) : null}
 
-                  {review.title ? (
-                    <strong style={s.reviewTitle}>{review.title}</strong>
-                  ) : null}
+                {review.title ? (
+                  <strong className="product-review-title">{review.title}</strong>
+                ) : null}
 
-                  <p style={s.reviewText}>{review.comment}</p>
+                <p className="product-review-text">{review.comment}</p>
 
-                  {review.review_image_url ? (
-                    <img
-                      src={review.review_image_url}
-                      alt="صورة المراجعة"
-                      style={s.reviewImage}
-                    />
-                  ) : null}
-                </article>
-              ))
-            )}
+                {review.review_image_url ? (
+                  <img
+                    src={review.review_image_url}
+                    alt="صورة المراجعة"
+                    className="product-review-image"
+                  />
+                ) : null}
+              </article>
+            ))
+          )}
+        </div>
+      </section>
+
+      {similar.length > 0 ? (
+        <section className="product-section-card">
+          <h2 className="product-section-title">منتجات مشابهة</h2>
+          <div className="product-similar-grid">
+            {similar.map((p) => (
+              <div
+                key={p.id}
+                onClick={() => navigate(`/products/${p.slug}`)}
+                className="product-similar-card"
+              >
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.title_ar} className="product-similar-image" />
+                ) : (
+                  <div className="product-similar-noimage">No image</div>
+                )}
+
+                <div className="product-similar-body">
+                  <div className="product-similar-title">{p.title_ar}</div>
+                  <div className="product-similar-desc">
+                    {p.description_ar || "منتج مشابه داخل نفس الفئة"}
+                  </div>
+                  <div className="product-similar-price">{p.price_mad} MAD</div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
-
-        {similar.length > 0 ? (
-          <section style={s.sectionCard}>
-            <h2 style={s.sectionTitle}>منتجات مشابهة</h2>
-
-            <div style={s.similarGrid}>
-              {similar.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => navigate(`/products/${p.slug}`)}
-                  style={s.similarCard}
-                >
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.title_ar} style={s.similarImage} />
-                  ) : (
-                    <div style={s.similarNoImage}>No image</div>
-                  )}
-
-                  <div style={s.similarBody}>
-                    <div style={s.similarTitle}>{p.title_ar}</div>
-                    <div style={s.similarDesc}>
-                      {p.description_ar || "منتج مشابه داخل نفس الفئة"}
-                    </div>
-                    <div style={s.similarPrice}>{p.price_mad} MAD</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }
 
 function HeroStat({ label, value }) {
   return (
-    <div style={s.heroStat}>
-      <div style={s.heroStatValue}>{value}</div>
-      <div style={s.heroStatLabel}>{label}</div>
+    <div className="manufacturer-stat-card">
+      <div className="manufacturer-stat-value">{value}</div>
+      <div className="manufacturer-stat-label">{label}</div>
     </div>
   );
 }
 
 function DetailRow({ label, value }) {
   return (
-    <div style={s.detailRow}>
-      <div style={s.detailLabel}>{label}</div>
-      <div style={s.detailValue}>{value}</div>
+    <div className="product-detail-row">
+      <div className="product-detail-label">{label}</div>
+      <div className="product-detail-value">{value}</div>
     </div>
   );
 }
-
-function buttonPrimary(disabled) {
-  return {
-    padding: "13px 16px",
-    borderRadius: "999px",
-    border: "none",
-    background: disabled ? "#94a3b8" : "#1f3b73",
-    color: "#fff",
-    fontWeight: 800,
-    fontSize: "14px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.8 : 1
-  };
-}
-
-function buttonSecondary(disabled) {
-  return {
-    padding: "13px 16px",
-    borderRadius: "999px",
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111827",
-    fontWeight: 800,
-    fontSize: "14px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.8 : 1
-  };
-}
-
-const s = {
-  page: {
-    display: "grid",
-    gap: "18px"
-  },
-
-  topCard: {
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    borderRadius: "18px",
-    padding: "16px",
-    display: "grid",
-    gap: "14px"
-  },
-
-  brandRow: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start"
-  },
-
-  brandText: {
-    color: T.blue,
-    fontWeight: 700,
-    fontSize: "14px"
-  },
-
-  title: {
-    margin: 0,
-    color: T.text,
-    fontSize: "24px",
-    lineHeight: 1.4,
-    fontWeight: 900
-  },
-
-  ratingRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    flexWrap: "wrap"
-  },
-
-  stars: {
-    color: T.gold,
-    fontSize: "16px",
-    letterSpacing: "1px"
-  },
-
-  ratingValue: {
-    color: T.text,
-    fontWeight: 700,
-    fontSize: "14px"
-  },
-
-  ratingCount: {
-    color: T.blue,
-    fontWeight: 700,
-    fontSize: "14px"
-  },
-
-  galleryLayout: {
-    display: "grid",
-    gap: "10px"
-  },
-
-  mainImageCard: {
-    background: "#fff",
-    borderRadius: "16px",
-    border: `1px solid ${T.border}`,
-    overflow: "hidden"
-  },
-
-  mainImage: {
-    width: "100%",
-    maxHeight: "420px",
-    objectFit: "contain",
-    display: "block",
-    background: "#fff"
-  },
-
-  noImage: {
-    minHeight: "320px",
-    display: "grid",
-    placeItems: "center",
-    color: "#94a3b8",
-    background: T.bg
-  },
-
-  thumbRow: {
-    display: "flex",
-    gap: "8px",
-    overflowX: "auto",
-    paddingBottom: "4px"
-  },
-
-  thumbBtn: {
-    width: "68px",
-    minWidth: "68px",
-    height: "68px",
-    borderRadius: "12px",
-    background: "#fff",
-    padding: "4px",
-    overflow: "hidden",
-    cursor: "pointer"
-  },
-
-  thumbImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    borderRadius: "8px"
-  },
-
-  priceWrap: {
-    display: "grid",
-    gap: "6px"
-  },
-
-  price: {
-    fontSize: "32px",
-    fontWeight: 900,
-    color: T.text
-  },
-
-  stock: {
-    color: T.success,
-    fontWeight: 700,
-    fontSize: "14px"
-  },
-
-  buyBox: {
-    display: "grid",
-    gap: "10px"
-  },
-
-  sectionCard: {
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    borderRadius: "18px",
-    padding: "18px",
-    display: "grid",
-    gap: "14px"
-  },
-
-  sectionTitle: {
-    margin: 0,
-    color: T.text,
-    fontSize: "18px",
-    fontWeight: 900
-  },
-
-  htmlLanding: {
-    overflow: "hidden",
-    borderRadius: "14px",
-    background: "#fff"
-  },
-
-  manufacturerHero: {
-    display: "grid",
-    gap: "14px",
-    padding: "18px",
-    borderRadius: "18px",
-    background: "linear-gradient(135deg, #0f2f6b 0%, #1d4ed8 52%, #16b1a4 100%)",
-    color: "#fff"
-  },
-
-  heroTop: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "10px",
-    flexWrap: "wrap"
-  },
-
-  heroBadge: {
-    width: "fit-content",
-    padding: "6px 12px",
-    borderRadius: "999px",
-    background: "rgba(255,255,255,0.14)",
-    border: "1px solid rgba(255,255,255,0.18)",
-    fontSize: "12px",
-    fontWeight: 800
-  },
-
-  heroSmall: {
-    fontSize: "13px",
-    fontWeight: 700,
-    color: "rgba(255,255,255,0.90)"
-  },
-
-  heroTitle: {
-    margin: 0,
-    fontSize: "24px",
-    lineHeight: 1.35,
-    fontWeight: 900
-  },
-
-  heroText: {
-    margin: 0,
-    fontSize: "14px",
-    lineHeight: 2,
-    color: "rgba(255,255,255,0.92)"
-  },
-
-  heroStats: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-    gap: "10px"
-  },
-
-  heroStat: {
-    background: "rgba(255,255,255,0.12)",
-    border: "1px solid rgba(255,255,255,0.14)",
-    borderRadius: "14px",
-    padding: "12px",
-    display: "grid",
-    gap: "4px"
-  },
-
-  heroStatValue: {
-    fontSize: "18px",
-    fontWeight: 900,
-    color: "#fff"
-  },
-
-  heroStatLabel: {
-    fontSize: "12px",
-    color: "rgba(255,255,255,0.86)",
-    fontWeight: 700
-  },
-
-  highlightGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "10px"
-  },
-
-  highlightCard: {
-    border: `1px solid ${T.border}`,
-    background: T.bg,
-    borderRadius: "14px",
-    padding: "12px",
-    display: "grid",
-    gridTemplateColumns: "24px 1fr",
-    gap: "10px",
-    alignItems: "start"
-  },
-
-  highlightIcon: {
-    width: "24px",
-    height: "24px",
-    borderRadius: "999px",
-    background: "#dcfce7",
-    color: "#166534",
-    display: "grid",
-    placeItems: "center",
-    fontWeight: 900,
-    fontSize: "13px"
-  },
-
-  highlightText: {
-    color: T.text,
-    fontSize: "13px",
-    lineHeight: 1.8,
-    fontWeight: 700
-  },
-
-  detailsGrid: {
-    display: "grid",
-    gap: "10px"
-  },
-
-  detailRow: {
-    display: "grid",
-    gridTemplateColumns: "110px 1fr",
-    gap: "12px",
-    paddingBottom: "10px",
-    borderBottom: `1px solid ${T.border}`
-  },
-
-  detailLabel: {
-    color: T.text,
-    fontWeight: 800,
-    fontSize: "14px"
-  },
-
-  detailValue: {
-    color: T.subtext,
-    fontWeight: 600,
-    fontSize: "14px",
-    lineHeight: 1.7
-  },
-
-  faqList: {
-    display: "grid",
-    gap: "10px"
-  },
-
-  faqItem: {
-    border: `1px solid ${T.border}`,
-    borderRadius: "14px",
-    padding: "14px",
-    background: T.bg,
-    display: "grid",
-    gap: "8px"
-  },
-
-  faqQuestion: {
-    color: T.blueDark,
-    fontWeight: 900,
-    fontSize: "14px"
-  },
-
-  faqAnswer: {
-    color: T.subtext,
-    fontSize: "14px",
-    lineHeight: 1.9
-  },
-
-  reviewHeader: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between"
-  },
-
-  reviewSummary: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginTop: "6px"
-  },
-
-  bigStars: {
-    color: T.gold,
-    fontSize: "18px",
-    letterSpacing: "1px"
-  },
-
-  bigRatingText: {
-    color: T.text,
-    fontWeight: 800,
-    fontSize: "15px"
-  },
-
-  reviewCountText: {
-    color: T.subtext,
-    fontSize: "14px",
-    marginTop: "4px"
-  },
-
-  reviewForm: {
-    display: "grid",
-    gap: "12px",
-    padding: "14px",
-    border: `1px solid ${T.border}`,
-    borderRadius: "14px",
-    background: T.bg
-  },
-
-  formGroup: {
-    display: "grid",
-    gap: "6px"
-  },
-
-  label: {
-    color: T.text,
-    fontSize: "14px",
-    fontWeight: 800
-  },
-
-  input: {
-    padding: "12px",
-    borderRadius: "12px",
-    border: `1px solid #d1d5db`,
-    background: "#fff",
-    fontFamily: "inherit",
-    fontSize: "14px"
-  },
-
-  textarea: {
-    padding: "12px",
-    borderRadius: "12px",
-    border: `1px solid #d1d5db`,
-    background: "#fff",
-    fontFamily: "inherit",
-    fontSize: "14px",
-    minHeight: "120px",
-    resize: "vertical"
-  },
-
-  reviewHint: {
-    color: T.subtext,
-    fontSize: "13px",
-    lineHeight: 1.8
-  },
-
-  infoBox: {
-    padding: "12px",
-    borderRadius: "12px",
-    border: `1px solid ${T.border}`,
-    background: "#fff",
-    color: T.text
-  },
-
-  reviewsList: {
-    display: "grid",
-    gap: "12px"
-  },
-
-  loadingText: {
-    margin: 0,
-    color: T.subtext
-  },
-
-  emptyBox: {
-    padding: "16px",
-    borderRadius: "12px",
-    border: `1px solid ${T.border}`,
-    background: T.bg,
-    color: T.subtext
-  },
-
-  reviewCard: {
-    border: `1px solid ${T.border}`,
-    borderRadius: "14px",
-    padding: "14px",
-    display: "grid",
-    gap: "8px",
-    background: "#fff"
-  },
-
-  reviewCardTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    flexWrap: "wrap"
-  },
-
-  reviewCardStars: {
-    color: T.gold,
-    fontWeight: 800,
-    fontSize: "15px"
-  },
-
-  reviewDate: {
-    color: T.subtext,
-    fontSize: "13px"
-  },
-
-  reviewerName: {
-    color: T.blue,
-    fontWeight: 700,
-    fontSize: "13px"
-  },
-
-  reviewTitle: {
-    color: T.text,
-    fontSize: "15px"
-  },
-
-  reviewText: {
-    margin: 0,
-    color: T.text,
-    lineHeight: 1.9,
-    fontSize: "14px"
-  },
-
-  reviewImage: {
-    width: "120px",
-    borderRadius: "10px",
-    border: `1px solid ${T.border}`
-  },
-
-  similarGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-    gap: "14px"
-  },
-
-  similarCard: {
-    border: `1px solid ${T.border}`,
-    borderRadius: "14px",
-    overflow: "hidden",
-    cursor: "pointer",
-    background: "#fff"
-  },
-
-  similarImage: {
-    width: "100%",
-    height: "150px",
-    objectFit: "cover",
-    display: "block"
-  },
-
-  similarNoImage: {
-    height: "150px",
-    display: "grid",
-    placeItems: "center",
-    background: T.bg,
-    color: T.muted
-  },
-
-  similarBody: {
-    padding: "12px",
-    display: "grid",
-    gap: "6px"
-  },
-
-  similarTitle: {
-    color: T.text,
-    fontWeight: 800,
-    fontSize: "14px",
-    lineHeight: 1.7
-  },
-
-  similarDesc: {
-    color: T.subtext,
-    fontSize: "12px",
-    lineHeight: 1.7
-  },
-
-  similarPrice: {
-    color: T.blueDark,
-    fontWeight: 900,
-    fontSize: "15px"
-  }
-};
