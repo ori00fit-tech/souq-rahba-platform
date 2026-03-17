@@ -1,50 +1,46 @@
 const cards = [
-  { title: "Total Revenue", value: "24,500 MAD" },
-  { title: "Pending Payout", value: "6,200 MAD" },
-  { title: "Completed Payouts", value: "18,300 MAD" }
+  { title: "إجمالي الإيرادات", value: "24,500 MAD", tone: "info" },
+  { title: "دفعات قيد الانتظار", value: "6,200 MAD", tone: "warning" },
+  { title: "دفعات مكتملة", value: "18,300 MAD", tone: "success" }
 ];
 
 export default function EarningsPage() {
   return (
-    <div style={{ display: "grid", gap: "16px" }}>
-      <div
-        style={{
-          background: "#ffffff",
-          border: "1px solid #e5e7eb",
-          borderRadius: "20px",
-          padding: "20px",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.04)"
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Earnings</h2>
-        <div style={{ color: "#6b7280" }}>Track your revenue and payouts</div>
+    <section className="page-shell" dir="rtl">
+      <div className="page-header earnings-header">
+        <div>
+          <h1>الأرباح</h1>
+          <p>تتبع الإيرادات والمدفوعات الخاصة بمتجرك</p>
+        </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "14px"
-        }}
-      >
+      <div className="earnings-stats-grid">
         {cards.map((card) => (
-          <div
-            key={card.title}
-            style={{
-              background: "#ffffff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "18px",
-              padding: "18px",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.04)"
-            }}
-          >
-            <div style={{ color: "#6b7280", fontSize: "13px" }}>{card.title}</div>
-            <div style={{ marginTop: "8px", fontSize: "26px", fontWeight: "700" }}>
+          <div key={card.title} className="earnings-stat-card">
+            <div className={`ui-badge ${badgeClass(card.tone)}`}>
+              {card.title}
+            </div>
+
+            <div className="earnings-stat-value">
               {card.value}
             </div>
           </div>
         ))}
       </div>
-    </div>
+
+      <div className="earnings-panel">
+        <div className="earnings-panel__title">ملخص الأداء</div>
+        <div className="earnings-panel__text">
+          هذه الصفحة مهيأة لعرض الإيرادات، الدفعات، الأداء الشهري، والمقارنات المستقبلية
+          داخل لوحة تحكم البائع بشكل موحد واحترافي.
+        </div>
+      </div>
+    </section>
   );
+}
+
+function badgeClass(tone) {
+  if (tone === "success") return "ui-badge--success";
+  if (tone === "warning") return "ui-badge--warning";
+  return "ui-badge--info";
 }
