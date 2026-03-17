@@ -258,8 +258,8 @@ function ProtectedShell() {
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/products" element={<ProductsPage />} />
-            <Route path="/add-product" element={<AddProductPage />} />
-            <Route path="/edit-product/:id" element={<EditProductPage />} />
+            <Route path="/products/new" element={<AddProductPage />} />
+            <Route path="/products/:id/edit" element={<EditProductPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailsPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
