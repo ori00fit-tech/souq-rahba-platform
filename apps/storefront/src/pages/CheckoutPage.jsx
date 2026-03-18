@@ -5,12 +5,7 @@ import { useApp } from "../context/AppContext";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const {
-    cartItems = [],
-    clearCart,
-    currentUser,
-    authLoading
-  } = useApp();
+  const { cart, clearCart, currentUser, authLoading } = useApp();
 
   const [form, setForm] = useState({
     buyer_name: "",
@@ -35,7 +30,7 @@ export default function CheckoutPage() {
   const groupedBySeller = useMemo(() => {
     const groups = new Map();
 
-    for (const item of Array.isArray(cartItems) ? cartItems : []) {
+    for (const item of Array.isArray(cart) ? cart : []) {
       const sellerId = item?.seller_id || "unknown";
       const existing = groups.get(sellerId) || {
         seller_id: sellerId,
@@ -45,14 +40,14 @@ export default function CheckoutPage() {
 
       existing.items.push({
         ...item,
-        quantity: Number(item.quantity || item.qty || 1)
+        quantity: Number(item.qty || item.quantity || 1)
       });
 
       groups.set(sellerId, existing);
     }
 
     return Array.from(groups.values());
-  }, [cartItems]);
+  }, [cart]);
 
   const totals = useMemo(() => {
     let subtotal = 0;
@@ -97,7 +92,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!form.buyer_name.trim() || !form.buyer_phone.trim() || !form.buyer_city.trim() || !form.buyer_address.trim()) {
+    if (
+      !form.buyer_name.trim() ||
+      !form.buyer_phone.trim() ||
+      !form.buyer_city.trim() ||
+      !form.buyer_address.trim()
+    ) {
       setMessage("يرجى ملء الاسم والهاتف والمدينة والعنوان");
       return;
     }
@@ -120,7 +120,7 @@ export default function CheckoutPage() {
           notes: form.notes.trim() || null,
           items: sellerGroup.items.map((item) => ({
             product_id: item.id,
-            quantity: Number(item.quantity || item.qty || 1),
+            quantity: Number(item.quantity || 1),
             unit_price_mad: Number(item.price || item.price_mad || 0)
           }))
         };
@@ -134,9 +134,7 @@ export default function CheckoutPage() {
         createdOrders.push(res.data);
       }
 
-      if (typeof clearCart === "function") {
-        clearCart();
-      }
+      clearCart();
 
       const firstOrder = createdOrders[0];
       setMessage(
@@ -156,7 +154,7 @@ export default function CheckoutPage() {
     }
   }
 
-  if (!Array.isArray(cartItems) || cartItems.length === 0) {
+  if (!Array.isArray(cart) || cart.length === 0) {
     return (
       <section className="container section-space" dir="rtl">
         <div style={s.card}>
@@ -290,15 +288,17 @@ const s = {
   layout: {
     display: "grid",
     gridTemplateColumns: "1.2fr 0.8fr",
-    gap: "20px"
+    gap: "18px",
+    alignItems: "start"
   },
   card: {
     background: "#fff",
-    border: "1px solid #e5e7eb",
+    border: "1px solid #e6dccf",
     borderRadius: "20px",
-    padding: "20px",
+    padding: "18px",
     display: "grid",
-    gap: "16px"
+    gap: "16px",
+    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
   },
   head: {
     display: "grid",
@@ -306,23 +306,19 @@ const s = {
   },
   title: {
     margin: 0,
-    fontSize: "28px",
-    fontWeight: 800,
-    color: "#1f3b73"
+    color: "#1b3a6b"
   },
   sideTitle: {
     margin: 0,
-    fontSize: "22px",
-    fontWeight: 800,
-    color: "#1f3b73"
+    color: "#1b3a6b"
   },
   muted: {
     margin: 0,
-    color: "#64748b"
+    color: "#6e6357"
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "1fr 1fr",
     gap: "14px"
   },
   field: {
@@ -331,55 +327,54 @@ const s = {
   },
   label: {
     fontWeight: 700,
-    fontSize: "14px",
-    color: "#111827"
+    color: "#221d16"
   },
   input: {
     width: "100%",
     padding: "12px 14px",
-    borderRadius: "12px",
-    border: "1px solid #d1d5db",
+    borderRadius: "14px",
+    border: "1px solid #d9d2c7",
     background: "#fff"
   },
   textarea: {
     width: "100%",
     minHeight: "110px",
     padding: "12px 14px",
-    borderRadius: "12px",
-    border: "1px solid #d1d5db",
+    borderRadius: "14px",
+    border: "1px solid #d9d2c7",
     background: "#fff",
     resize: "vertical"
   },
   message: {
     padding: "12px 14px",
-    borderRadius: "12px",
-    border: "1px solid #e5e7eb",
-    background: "#f8fafc"
+    borderRadius: "14px",
+    border: "1px solid #e6dccf",
+    background: "#fffdfa"
   },
   submitBtn: {
     padding: "14px 18px",
     borderRadius: "14px",
     border: "none",
-    background: "#1f3b73",
+    background: "#1b3a6b",
     color: "#fff",
     fontWeight: 800,
     cursor: "pointer"
   },
   summaryList: {
     display: "grid",
-    gap: "12px"
+    gap: "14px"
   },
   groupCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
+    border: "1px solid #ede3d5",
+    borderRadius: "16px",
     padding: "14px",
     display: "grid",
     gap: "12px",
-    background: "#f8fafc"
+    background: "#fffdfa"
   },
   groupSeller: {
     fontWeight: 800,
-    color: "#1f3b73"
+    color: "#1b3a6b"
   },
   itemsList: {
     display: "grid",
@@ -392,19 +387,20 @@ const s = {
     alignItems: "center"
   },
   itemTitle: {
-    fontWeight: 700
+    fontWeight: 700,
+    color: "#221d16"
   },
   itemMeta: {
-    fontSize: "13px",
-    color: "#64748b"
+    color: "#6e6357",
+    fontSize: "14px"
   },
   itemPrice: {
     fontWeight: 800,
-    color: "#111827"
+    color: "#221d16"
   },
   totalBox: {
-    borderTop: "1px solid #e5e7eb",
-    paddingTop: "14px"
+    borderTop: "1px solid #eee4d8",
+    paddingTop: "10px"
   },
   totalRow: {
     display: "flex",

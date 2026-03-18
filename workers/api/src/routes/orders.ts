@@ -11,6 +11,12 @@ function makeOrderNumber() {
   return `RB-${year}-${short}`;
 }
 
+function cleanText(value: unknown) {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  return v ? v : null;
+}
+
 orderRouter.get("/orders", authMiddleware, async (c) => {
   const authUser = c.get("authUser");
   const sellerId = c.req.query("seller_id");
@@ -328,8 +334,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
   }
 
   const orderId = crypto.randomUUID();
-  const orderNumber = body.order_number || makeOrderNumber();
-
+  const orderNumber = makeOrderNumber();
   const buyerUserId =
     authUser.role === "admin" && body.buyer_user_id
       ? body.buyer_user_id
@@ -339,6 +344,12 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
   const paymentStatus = body.payment_status || "pending";
   const shippingStatus = body.shipping_status || "pending";
   const orderStatus = body.order_status || "pending";
+
+  const buyerName = cleanText(body.buyer_name);
+  const buyerPhone = cleanText(body.buyer_phone);
+  const buyerCity = cleanText(body.buyer_city);
+  const buyerAddress = cleanText(body.buyer_address);
+  const notes = cleanText(body.notes);
 
   await c.env.DB.prepare(
     `insert into orders (
@@ -370,12 +381,12 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       paymentStatus,
       shippingStatus,
       totalMad,
-      body.buyer_name || null,
-      body.buyer_phone || null,
-      body.buyer_city || null,
-      body.buyer_address || null,
-      body.notes || null,
-      body.tracking_number || null
+      buyerName,
+      buyerPhone,
+      buyerCity,
+      buyerAddress,
+      notes,
+      null
     )
     .run();
 
@@ -413,96 +424,103 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       data: {
         id: orderId,
         order_number: orderNumber,
-        buyer_user_id: buyerUserId,
-        seller_id: body.seller_id,
-        order_status: orderStatus,
-        payment_method: paymentMethod,
-        payment_status: paymentStatus,
-        shipping_status: shippingStatus,
         total_mad: totalMad,
-        currency: "MAD",
-        buyer_name: body.buyer_name || null,
-        buyer_phone: body.buyer_phone || null,
-        buyer_city: body.buyer_city || null,
-        buyer_address: body.buyer_address || null,
-        notes: body.notes || null,
-        tracking_number: body.tracking_number || null
+        currency: "MAD"
       }
     },
     201
   );
 });
 
-orderRouter.patch(
-  "/orders/:id/status",
-  authMiddleware,
-  requireRole("seller", "admin"),
-  async (c) => {
-    const id = c.req.param("id");
-    const authUser = c.get("authUser");
-    const body = await c.req.json().catch(() => null);
+orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "admin"), async (c) => {
+  const id = c.req.param("id");
+  const authUser = c.get("authUser");
+  const body = await c.req.json().catch(() => null);
+  const orderStatus = cleanText(body?.order_status);
 
-    const nextStatus = String(body?.order_status || "").trim();
-
-    if (!nextStatus) {
-      return c.json(
-        { ok: false, code: "INVALID_BODY", message: "order_status is required" },
-        400
-      );
-    }
-
-    const existing = await c.env.DB.prepare(
-      `select o.id
-       from orders o
-       left join sellers s on s.id = o.seller_id
-       where o.id = ?
-         and (? = 'admin' or s.owner_user_id = ?)
-       limit 1`
-    )
-      .bind(id, authUser.role, authUser.user_id)
-      .first();
-
-    if (!existing) {
-      return c.json(
-        { ok: false, code: "NOT_FOUND", message: "Order not found" },
-        404
-      );
-    }
-
-    await c.env.DB.prepare(
-      `update orders
-       set order_status = ?
-       where id = ?`
-    )
-      .bind(nextStatus, id)
-      .run();
-
-    const updated = await c.env.DB.prepare(
-      `select
-        id,
-        order_number,
-        buyer_user_id,
-        seller_id,
-        order_status,
-        payment_method,
-        payment_status,
-        shipping_status,
-        total_mad,
-        currency,
-        created_at,
-        buyer_name,
-        buyer_phone,
-        buyer_city,
-        buyer_address,
-        notes,
-        tracking_number
-      from orders
-      where id = ?
-      limit 1`
-    )
-      .bind(id)
-      .first();
-
-    return c.json({ ok: true, data: updated });
+  if (!orderStatus) {
+    return c.json(
+      { ok: false, code: "INVALID_BODY", message: "order_status is required" },
+      400
+    );
   }
-);
+
+  const order = await c.env.DB.prepare(
+    `select
+      o.id,
+      o.order_status
+    from orders o
+    left join sellers s on s.id = o.seller_id
+    where o.id = ?
+      and (? = 'admin' or s.owner_user_id = ?)
+    limit 1`
+  )
+    .bind(id, authUser.role, authUser.user_id)
+    .first();
+
+  if (!order) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Order not found" },
+      404
+    );
+  }
+
+  let shippingStatus = null;
+  if (orderStatus === "shipped") shippingStatus = "shipped";
+  if (orderStatus === "delivered") shippingStatus = "delivered";
+  if (orderStatus === "cancelled") shippingStatus = "cancelled";
+  if (orderStatus === "confirmed") shippingStatus = "pending";
+
+  await c.env.DB.prepare(
+    `update orders
+     set order_status = ?,
+         shipping_status = coalesce(?, shipping_status)
+     where id = ?`
+  )
+    .bind(orderStatus, shippingStatus, id)
+    .run();
+
+  return c.json({
+    ok: true,
+    message: "Order status updated"
+  });
+});
+
+orderRouter.patch("/orders/:id/tracking", authMiddleware, requireRole("seller", "admin"), async (c) => {
+  const id = c.req.param("id");
+  const authUser = c.get("authUser");
+  const body = await c.req.json().catch(() => null);
+  const trackingNumber = cleanText(body?.tracking_number);
+
+  const order = await c.env.DB.prepare(
+    `select
+      o.id
+    from orders o
+    left join sellers s on s.id = o.seller_id
+    where o.id = ?
+      and (? = 'admin' or s.owner_user_id = ?)
+    limit 1`
+  )
+    .bind(id, authUser.role, authUser.user_id)
+    .first();
+
+  if (!order) {
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Order not found" },
+      404
+    );
+  }
+
+  await c.env.DB.prepare(
+    `update orders
+     set tracking_number = ?
+     where id = ?`
+  )
+    .bind(trackingNumber, id)
+    .run();
+
+  return c.json({
+    ok: true,
+    message: "Tracking number updated"
+  });
+});
