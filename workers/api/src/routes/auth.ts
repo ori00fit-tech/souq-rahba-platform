@@ -133,3 +133,94 @@ authRouter.get("/me", authMiddleware, async (c) => {
     }
   });
 });
+
+authRouter.get("/auth/google/callback", async (c) => {
+  const code = c.req.query("code");
+
+  if (!code) {
+    return c.json({ ok: false, message: "Missing code" }, 400);
+  }
+
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code,
+      client_id: c.env.GOOGLE_CLIENT_ID,
+      client_secret: c.env.GOOGLE_CLIENT_SECRET,
+      redirect_uri: c.env.GOOGLE_REDIRECT_URI,
+      grant_type: "authorization_code"
+    })
+  });
+
+  const tokenData = await tokenRes.json();
+
+  if (!tokenData.access_token) {
+    return c.json({ ok: false, message: "Failed to get token", tokenData }, 400);
+  }
+
+  const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`
+    }
+  });
+
+  const googleUser = await userRes.json();
+
+  const email = googleUser.email;
+  const googleId = googleUser.id;
+  const name = googleUser.name;
+  const avatar = googleUser.picture;
+
+  if (!email) {
+    return c.json({ ok: false, message: "No email from Google" }, 400);
+  }
+
+  // check user
+  let user = await c.env.DB.prepare(
+    `select * from users where email = ? limit 1`
+  )
+    .bind(email)
+    .first();
+
+  if (!user) {
+    const id = crypto.randomUUID();
+
+    await c.env.DB.prepare(
+      `insert into users (
+        id,
+        email,
+        full_name,
+        google_id,
+        auth_provider,
+        avatar_url
+      ) values (?, ?, ?, ?, 'google', ?)`
+    )
+      .bind(id, email, name, googleId, avatar)
+      .run();
+
+    user = { id, email };
+  } else {
+    await c.env.DB.prepare(
+      `update users
+       set google_id = ?, auth_provider = 'google', avatar_url = ?
+       where id = ?`
+    )
+      .bind(googleId, avatar, user.id)
+      .run();
+  }
+
+  // create session
+  const sessionId = crypto.randomUUID();
+
+  await c.env.DB.prepare(
+    `insert into sessions (id, user_id)
+     values (?, ?)`
+  )
+    .bind(sessionId, user.id)
+    .run();
+
+  // redirect to frontend
+  return c.redirect(`https://rahba.site?session=${sessionId}`);
+});
+
