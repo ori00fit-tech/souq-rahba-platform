@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
@@ -13,8 +13,8 @@ export default function CheckoutPage() {
   } = useApp();
 
   const [form, setForm] = useState({
-    buyer_name: currentUser?.full_name || "",
-    buyer_phone: currentUser?.phone || "",
+    buyer_name: "",
+    buyer_phone: "",
     buyer_city: "",
     buyer_address: "",
     notes: "",
@@ -23,6 +23,14 @@ export default function CheckoutPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      buyer_name: currentUser?.full_name || prev.buyer_name,
+      buyer_phone: currentUser?.phone || prev.buyer_phone
+    }));
+  }, [currentUser]);
 
   const groupedBySeller = useMemo(() => {
     const groups = new Map();
@@ -37,7 +45,7 @@ export default function CheckoutPage() {
 
       existing.items.push({
         ...item,
-        quantity: Number(item.quantity || 1)
+        quantity: Number(item.quantity || item.qty || 1)
       });
 
       groups.set(sellerId, existing);
@@ -112,7 +120,7 @@ export default function CheckoutPage() {
           notes: form.notes.trim() || null,
           items: sellerGroup.items.map((item) => ({
             product_id: item.id,
-            quantity: Number(item.quantity || 1),
+            quantity: Number(item.quantity || item.qty || 1),
             unit_price_mad: Number(item.price || item.price_mad || 0)
           }))
         };
@@ -259,7 +267,7 @@ export default function CheckoutPage() {
 
           <div style={s.totalBox}>
             <div style={s.totalRow}>
-              <span>الإجمالي</span>
+              <span>المجموع</span>
               <strong>{totals.total.toFixed(0)} MAD</strong>
             </div>
           </div>
@@ -285,13 +293,12 @@ const s = {
     gap: "20px"
   },
   card: {
-    background: "#ffffff",
-    border: "1px solid #e6dccf",
+    background: "#fff",
+    border: "1px solid #e5e7eb",
     borderRadius: "20px",
     padding: "20px",
     display: "grid",
-    gap: "16px",
-    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
+    gap: "16px"
   },
   head: {
     display: "grid",
@@ -300,77 +307,79 @@ const s = {
   title: {
     margin: 0,
     fontSize: "28px",
-    color: "#1b3a6b"
+    fontWeight: 800,
+    color: "#1f3b73"
   },
   sideTitle: {
     margin: 0,
     fontSize: "22px",
-    color: "#1b3a6b"
+    fontWeight: 800,
+    color: "#1f3b73"
   },
   muted: {
     margin: 0,
-    color: "#6e6357",
-    lineHeight: 1.7
+    color: "#64748b"
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "14px"
   },
   field: {
     display: "grid",
-    gap: "8px"
+    gap: "6px"
   },
   label: {
     fontWeight: 700,
-    color: "#221d16"
+    fontSize: "14px",
+    color: "#111827"
   },
   input: {
     width: "100%",
-    border: "1px solid #e6dccf",
-    background: "#ffffff",
     padding: "12px 14px",
-    borderRadius: "14px"
+    borderRadius: "12px",
+    border: "1px solid #d1d5db",
+    background: "#fff"
   },
   textarea: {
     width: "100%",
-    border: "1px solid #e6dccf",
-    background: "#ffffff",
-    padding: "12px 14px",
-    borderRadius: "14px",
     minHeight: "110px",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1px solid #d1d5db",
+    background: "#fff",
     resize: "vertical"
   },
   message: {
     padding: "12px 14px",
-    borderRadius: "14px",
-    background: "#fff",
-    border: "1px solid #e6dccf"
+    borderRadius: "12px",
+    border: "1px solid #e5e7eb",
+    background: "#f8fafc"
   },
   submitBtn: {
-    border: "none",
-    borderRadius: "14px",
     padding: "14px 18px",
-    background: "#1b3a6b",
+    borderRadius: "14px",
+    border: "none",
+    background: "#1f3b73",
     color: "#fff",
     fontWeight: 800,
     cursor: "pointer"
   },
   summaryList: {
     display: "grid",
-    gap: "14px"
+    gap: "12px"
   },
   groupCard: {
-    border: "1px solid #e6dccf",
-    borderRadius: "16px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
     padding: "14px",
     display: "grid",
     gap: "12px",
-    background: "#fffdfa"
+    background: "#f8fafc"
   },
   groupSeller: {
     fontWeight: 800,
-    color: "#1b3a6b"
+    color: "#1f3b73"
   },
   itemsList: {
     display: "grid",
@@ -380,26 +389,22 @@ const s = {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    alignItems: "start",
-    borderBottom: "1px solid #f0e7dc",
-    paddingBottom: "10px"
+    alignItems: "center"
   },
   itemTitle: {
     fontWeight: 700
   },
   itemMeta: {
-    color: "#6e6357",
-    fontSize: "14px",
-    marginTop: "4px"
+    fontSize: "13px",
+    color: "#64748b"
   },
   itemPrice: {
     fontWeight: 800,
-    color: "#1b3a6b",
-    whiteSpace: "nowrap"
+    color: "#111827"
   },
   totalBox: {
-    borderTop: "1px solid #e6dccf",
-    paddingTop: "12px"
+    borderTop: "1px solid #e5e7eb",
+    paddingTop: "14px"
   },
   totalRow: {
     display: "flex",
