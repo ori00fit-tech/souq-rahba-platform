@@ -6,3 +6,18 @@ export type Bindings = {
   JWT_ISSUER: string;
   JWT_SECRET: string;
 };
+
+export type AuthUser = {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  phone?: string | null;
+  role: "buyer" | "seller" | "admin";
+};
+
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: {
+    authUser: AuthUser;
+  };
+};

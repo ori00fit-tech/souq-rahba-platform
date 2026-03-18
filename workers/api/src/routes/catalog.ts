@@ -3,7 +3,7 @@ import { listProducts, getProductBySlug } from "../repositories/catalog.reposito
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
 
-export const catalogRouter = new Hono<{ Bindings: import("../types").Bindings }>();
+export const catalogRouter = new Hono<import("../types").AppEnv>();
 
 catalogRouter.get("/products", async (c) => {
   const sellerId = c.req.query("seller_id");
@@ -240,7 +240,7 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
     );
   }
 
-  const sellerId = authUser.role === "admin" && body.seller_id ? body.seller_id : seller.id;
+  const sellerId = authUser.role === "admin" && body.seller_id ? body.seller_id : seller!.id;
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(

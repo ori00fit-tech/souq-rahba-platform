@@ -1,15 +1,16 @@
 import { Hono } from "hono";
 
-const mediaRouter = new Hono();
+export const mediaRouter = new Hono<import("../types").AppEnv>();
 
-mediaRouter.get("/media/*", async (c) => {
-
-  const key = c.req.path.replace("/media/", "");
-
+mediaRouter.get("/:key", async (c) => {
+  const key = c.req.param("key");
   const object = await c.env.MEDIA.get(key);
 
   if (!object) {
-    return c.text("Not found", 404);
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Media not found" },
+      404
+    );
   }
 
   const headers = new Headers();
@@ -19,7 +20,4 @@ mediaRouter.get("/media/*", async (c) => {
   return new Response(object.body, {
     headers
   });
-
 });
-
-export { mediaRouter };
