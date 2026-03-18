@@ -40,7 +40,7 @@ export default function CheckoutPage() {
 
       existing.items.push({
         ...item,
-        quantity: Number(item.qty || item.quantity || 1)
+        quantity: Number(item.quantity || item.qty || 1)
       });
 
       groups.set(sellerId, existing);
@@ -294,7 +294,7 @@ const s = {
   card: {
     background: "#fff",
     border: "1px solid #e6dccf",
-    borderRadius: "20px",
+    borderRadius: "18px",
     padding: "18px",
     display: "grid",
     gap: "16px",
@@ -314,7 +314,8 @@ const s = {
   },
   muted: {
     margin: 0,
-    color: "#6e6357"
+    color: "#6e6357",
+    lineHeight: 1.7
   },
   grid: {
     display: "grid",
@@ -333,7 +334,7 @@ const s = {
     width: "100%",
     padding: "12px 14px",
     borderRadius: "14px",
-    border: "1px solid #d9d2c7",
+    border: "1px solid #e6dccf",
     background: "#fff"
   },
   textarea: {
@@ -341,7 +342,7 @@ const s = {
     minHeight: "110px",
     padding: "12px 14px",
     borderRadius: "14px",
-    border: "1px solid #d9d2c7",
+    border: "1px solid #e6dccf",
     background: "#fff",
     resize: "vertical"
   },
@@ -352,9 +353,9 @@ const s = {
     background: "#fffdfa"
   },
   submitBtn: {
-    padding: "14px 18px",
-    borderRadius: "14px",
     border: "none",
+    borderRadius: "14px",
+    padding: "14px 18px",
     background: "#1b3a6b",
     color: "#fff",
     fontWeight: 800,
@@ -362,14 +363,14 @@ const s = {
   },
   summaryList: {
     display: "grid",
-    gap: "14px"
+    gap: "12px"
   },
   groupCard: {
-    border: "1px solid #ede3d5",
+    border: "1px solid #eee4d8",
     borderRadius: "16px",
     padding: "14px",
     display: "grid",
-    gap: "12px",
+    gap: "10px",
     background: "#fffdfa"
   },
   groupSeller: {
@@ -399,13 +400,15 @@ const s = {
     color: "#221d16"
   },
   totalBox: {
-    borderTop: "1px solid #eee4d8",
-    paddingTop: "10px"
+    paddingTop: "8px",
+    borderTop: "1px solid #eee4d8"
   },
   totalRow: {
     display: "flex",
     justifyContent: "space-between",
+    gap: "12px",
     alignItems: "center",
-    fontSize: "18px"
+    fontSize: "18px",
+    color: "#1b3a6b"
   }
 };
