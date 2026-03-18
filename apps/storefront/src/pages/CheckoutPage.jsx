@@ -1,414 +1,160 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
+import { apiPost } from "../lib/api";
+import { formatMoney } from "../lib/utils";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, clearCart, currentUser, authLoading } = useApp();
+  const { cart, total, currency, clearCart } = useApp();
 
   const [form, setForm] = useState({
-    buyer_name: "",
-    buyer_phone: "",
-    buyer_city: "",
-    buyer_address: "",
-    notes: "",
-    payment_method: "cash_on_delivery"
+    full_name: "",
+    phone: "",
+    city: "",
+    address: ""
   });
 
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  function handleChange(e) {
     setForm((prev) => ({
       ...prev,
-      buyer_name: currentUser?.full_name || prev.buyer_name,
-      buyer_phone: currentUser?.phone || prev.buyer_phone
+      [e.target.name]: e.target.value
     }));
-  }, [currentUser]);
-
-  const groupedBySeller = useMemo(() => {
-    const groups = new Map();
-
-    for (const item of Array.isArray(cart) ? cart : []) {
-      const sellerId = item?.seller_id || "unknown";
-      const existing = groups.get(sellerId) || {
-        seller_id: sellerId,
-        seller_name: item?.seller || "RAHBA Seller",
-        items: []
-      };
-
-      existing.items.push({
-        ...item,
-        quantity: Number(item.quantity || item.qty || 1)
-      });
-
-      groups.set(sellerId, existing);
-    }
-
-    return Array.from(groups.values());
-  }, [cart]);
-
-  const totals = useMemo(() => {
-    let subtotal = 0;
-
-    for (const sellerGroup of groupedBySeller) {
-      for (const item of sellerGroup.items) {
-        subtotal += Number(item.price || item.price_mad || 0) * Number(item.quantity || 1);
-      }
-    }
-
-    return {
-      subtotal,
-      total: subtotal
-    };
-  }, [groupedBySeller]);
-
-  function updateField(name, value) {
-    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (authLoading) {
-      setMessage("جاري التحقق من الجلسة...");
-      return;
-    }
-
-    if (!currentUser) {
-      setMessage("يجب تسجيل الدخول أولاً");
-      navigate("/auth");
-      return;
-    }
-
-    if (currentUser.role !== "buyer") {
-      setMessage("هذه الصفحة مخصصة لحسابات المشترين فقط");
-      return;
-    }
-
-    if (!groupedBySeller.length) {
-      setMessage("السلة فارغة");
-      return;
-    }
-
-    if (
-      !form.buyer_name.trim() ||
-      !form.buyer_phone.trim() ||
-      !form.buyer_city.trim() ||
-      !form.buyer_address.trim()
-    ) {
-      setMessage("يرجى ملء الاسم والهاتف والمدينة والعنوان");
+    if (!form.full_name || !form.phone || !form.city || !form.address) {
+      setMessage("يرجى ملء جميع الحقول");
       return;
     }
 
     try {
-      setSubmitting(true);
+      setLoading(true);
       setMessage("");
 
-      const createdOrders = [];
+      const res = await apiPost("/commerce/orders", {
+        customer: form,
+        items: cart.map((item) => ({
+          product_id: item.id,
+          quantity: item.qty || item.quantity || 1
+        }))
+      });
 
-      for (const sellerGroup of groupedBySeller) {
-        const payload = {
-          buyer_user_id: currentUser.id,
-          seller_id: sellerGroup.seller_id,
-          payment_method: form.payment_method,
-          buyer_name: form.buyer_name.trim(),
-          buyer_phone: form.buyer_phone.trim(),
-          buyer_city: form.buyer_city.trim(),
-          buyer_address: form.buyer_address.trim(),
-          notes: form.notes.trim() || null,
-          items: sellerGroup.items.map((item) => ({
-            product_id: item.id,
-            quantity: Number(item.quantity || 1),
-            unit_price_mad: Number(item.price || item.price_mad || 0)
-          }))
-        };
-
-        const res = await apiPost("/commerce/orders", payload);
-
-        if (!res?.ok) {
-          throw new Error(res?.message || "تعذر إنشاء الطلب");
-        }
-
-        createdOrders.push(res.data);
+      if (!res.ok) {
+        setMessage(res.message || "فشل إنشاء الطلب");
+        return;
       }
 
       clearCart();
+      navigate("/my-orders");
 
-      const firstOrder = createdOrders[0];
-      setMessage(
-        firstOrder?.order_number
-          ? `تم إنشاء الطلب بنجاح. رقم الطلب: ${firstOrder.order_number}`
-          : "تم إنشاء الطلب بنجاح"
-      );
-
-      setTimeout(() => {
-        navigate("/my-orders");
-      }, 900);
     } catch (err) {
       console.error(err);
-      setMessage(err.message || "حدث خطأ أثناء إنشاء الطلب");
+      setMessage("حدث خطأ أثناء الطلب");
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
-  }
-
-  if (!Array.isArray(cart) || cart.length === 0) {
-    return (
-      <section className="container section-space" dir="rtl">
-        <div style={s.card}>
-          <h1 style={s.title}>إتمام الطلب</h1>
-          <p style={s.muted}>السلة فارغة حالياً</p>
-        </div>
-      </section>
-    );
   }
 
   return (
     <section className="container section-space" dir="rtl">
-      <div style={s.layout}>
-        <form onSubmit={handleSubmit} style={s.card}>
-          <div style={s.head}>
-            <h1 style={s.title}>إتمام الطلب</h1>
-            <p style={s.muted}>أدخل بيانات التوصيل لإرسال الطلب بشكل صحيح</p>
-          </div>
+      <div className="checkout-shell">
 
-          <div style={s.grid}>
-            <Field label="الاسم الكامل">
+        <div className="checkout-head">
+          <h1>إتمام الطلب</h1>
+          <p>أدخل معلوماتك لإكمال عملية الشراء</p>
+        </div>
+
+        <div className="checkout-grid-modern">
+
+          {/* FORM */}
+          <form onSubmit={handleSubmit} className="panel-card checkout-form">
+
+            <div className="checkout-group">
+              <label>الاسم الكامل</label>
               <input
-                value={form.buyer_name}
-                onChange={(e) => updateField("buyer_name", e.target.value)}
-                style={s.input}
+                name="full_name"
+                value={form.full_name}
+                onChange={handleChange}
+                className="ui-input"
               />
-            </Field>
-
-            <Field label="رقم الهاتف">
-              <input
-                value={form.buyer_phone}
-                onChange={(e) => updateField("buyer_phone", e.target.value)}
-                style={s.input}
-              />
-            </Field>
-
-            <Field label="المدينة">
-              <input
-                value={form.buyer_city}
-                onChange={(e) => updateField("buyer_city", e.target.value)}
-                style={s.input}
-              />
-            </Field>
-
-            <Field label="طريقة الدفع">
-              <select
-                value={form.payment_method}
-                onChange={(e) => updateField("payment_method", e.target.value)}
-                style={s.input}
-              >
-                <option value="cash_on_delivery">الدفع عند الاستلام</option>
-              </select>
-            </Field>
-          </div>
-
-          <Field label="العنوان الكامل">
-            <textarea
-              value={form.buyer_address}
-              onChange={(e) => updateField("buyer_address", e.target.value)}
-              style={s.textarea}
-              placeholder="الحي، الشارع، رقم المنزل، معلومات إضافية..."
-            />
-          </Field>
-
-          <Field label="ملاحظات للطلب (اختياري)">
-            <textarea
-              value={form.notes}
-              onChange={(e) => updateField("notes", e.target.value)}
-              style={s.textarea}
-              placeholder="مثلاً: اتصل بي قبل التوصيل"
-            />
-          </Field>
-
-          {message ? <div style={s.message}>{message}</div> : null}
-
-          <button type="submit" disabled={submitting} style={s.submitBtn}>
-            {submitting ? "جاري تأكيد الطلب..." : "تأكيد الطلب"}
-          </button>
-        </form>
-
-        <aside style={s.card}>
-          <div style={s.head}>
-            <h2 style={s.sideTitle}>ملخص الطلب</h2>
-            <p style={s.muted}>سيتم إنشاء طلب منفصل لكل بائع داخل السلة</p>
-          </div>
-
-          <div style={s.summaryList}>
-            {groupedBySeller.map((group) => (
-              <div key={group.seller_id} style={s.groupCard}>
-                <div style={s.groupSeller}>{group.seller_name}</div>
-
-                <div style={s.itemsList}>
-                  {group.items.map((item) => (
-                    <div key={item.id} style={s.itemRow}>
-                      <div>
-                        <div style={s.itemTitle}>{item.name || item.title_ar}</div>
-                        <div style={s.itemMeta}>الكمية: {item.quantity || 1}</div>
-                      </div>
-                      <div style={s.itemPrice}>
-                        {(Number(item.price || item.price_mad || 0) * Number(item.quantity || 1)).toFixed(0)} MAD
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={s.totalBox}>
-            <div style={s.totalRow}>
-              <span>المجموع</span>
-              <strong>{totals.total.toFixed(0)} MAD</strong>
             </div>
-          </div>
-        </aside>
+
+            <div className="checkout-group">
+              <label>رقم الهاتف</label>
+              <input
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                className="ui-input"
+              />
+            </div>
+
+            <div className="checkout-group">
+              <label>المدينة</label>
+              <input
+                name="city"
+                value={form.city}
+                onChange={handleChange}
+                className="ui-input"
+              />
+            </div>
+
+            <div className="checkout-group">
+              <label>العنوان</label>
+              <textarea
+                name="address"
+                value={form.address}
+                onChange={handleChange}
+                className="ui-textarea"
+              />
+            </div>
+
+            {message && <div className="product-info-box">{message}</div>}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary full-width"
+            >
+              {loading ? "جاري المعالجة..." : "تأكيد الطلب"}
+            </button>
+
+          </form>
+
+          {/* SUMMARY */}
+          <aside className="panel-card checkout-summary">
+
+            <h3>ملخص الطلب</h3>
+
+            <div className="checkout-items">
+              {cart.map((item) => (
+                <div key={item.id} className="checkout-item">
+                  <span>{item.name}</span>
+                  <strong>
+                    {formatMoney(
+                      (item.price || 0) * (item.qty || 1),
+                      currency
+                    )}
+                  </strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="checkout-total">
+              <span>الإجمالي</span>
+              <strong>{formatMoney(total, currency)}</strong>
+            </div>
+
+          </aside>
+
+        </div>
       </div>
     </section>
   );
 }
-
-function Field({ label, children }) {
-  return (
-    <label style={s.field}>
-      <span style={s.label}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const s = {
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "1.2fr 0.8fr",
-    gap: "18px",
-    alignItems: "start"
-  },
-  card: {
-    background: "#fff",
-    border: "1px solid #e6dccf",
-    borderRadius: "18px",
-    padding: "18px",
-    display: "grid",
-    gap: "16px",
-    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
-  },
-  head: {
-    display: "grid",
-    gap: "6px"
-  },
-  title: {
-    margin: 0,
-    color: "#1b3a6b"
-  },
-  sideTitle: {
-    margin: 0,
-    color: "#1b3a6b"
-  },
-  muted: {
-    margin: 0,
-    color: "#6e6357",
-    lineHeight: 1.7
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "14px"
-  },
-  field: {
-    display: "grid",
-    gap: "6px"
-  },
-  label: {
-    fontWeight: 700,
-    color: "#221d16"
-  },
-  input: {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid #e6dccf",
-    background: "#fff"
-  },
-  textarea: {
-    width: "100%",
-    minHeight: "110px",
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid #e6dccf",
-    background: "#fff",
-    resize: "vertical"
-  },
-  message: {
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid #e6dccf",
-    background: "#fffdfa"
-  },
-  submitBtn: {
-    border: "none",
-    borderRadius: "14px",
-    padding: "14px 18px",
-    background: "#1b3a6b",
-    color: "#fff",
-    fontWeight: 800,
-    cursor: "pointer"
-  },
-  summaryList: {
-    display: "grid",
-    gap: "12px"
-  },
-  groupCard: {
-    border: "1px solid #eee4d8",
-    borderRadius: "16px",
-    padding: "14px",
-    display: "grid",
-    gap: "10px",
-    background: "#fffdfa"
-  },
-  groupSeller: {
-    fontWeight: 800,
-    color: "#1b3a6b"
-  },
-  itemsList: {
-    display: "grid",
-    gap: "10px"
-  },
-  itemRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center"
-  },
-  itemTitle: {
-    fontWeight: 700,
-    color: "#221d16"
-  },
-  itemMeta: {
-    color: "#6e6357",
-    fontSize: "14px"
-  },
-  itemPrice: {
-    fontWeight: 800,
-    color: "#221d16"
-  },
-  totalBox: {
-    paddingTop: "8px",
-    borderTop: "1px solid #eee4d8"
-  },
-  totalRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-    fontSize: "18px",
-    color: "#1b3a6b"
-  }
-};
