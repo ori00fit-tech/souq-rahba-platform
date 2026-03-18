@@ -21,3 +21,16 @@ export type AppEnv = {
     authUser: AuthUser;
   };
 };
+
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: {
+    authUser: {
+      user_id: string;
+      email: string;
+      full_name: string | null;
+      role: string;
+    };
+  };
+};
+
