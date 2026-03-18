@@ -19,6 +19,14 @@ function badgeStyle(status) {
   return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
 }
 
+function statusText(order) {
+  if (order.order_status === "delivered") return "تم تسليم الطلب بنجاح";
+  if (order.order_status === "shipped") return "الطلب في الطريق إليك";
+  if (order.order_status === "confirmed") return "تم تأكيد الطلب من البائع";
+  if (order.order_status === "cancelled") return "تم إلغاء الطلب";
+  return "الطلب قيد المعالجة";
+}
+
 export default function BuyerOrderDetailsPage() {
   const { id } = useParams();
   const { currentUser, authLoading } = useApp();
@@ -51,7 +59,7 @@ export default function BuyerOrderDetailsPage() {
   if (loading || authLoading) {
     return (
       <section className="container section-space" dir="rtl">
-        <p>جاري تحميل تفاصيل الطلب...</p>
+        <div style={s.card}>جاري تحميل تفاصيل الطلب...</div>
       </section>
     );
   }
@@ -59,7 +67,7 @@ export default function BuyerOrderDetailsPage() {
   if (!order) {
     return (
       <section className="container section-space" dir="rtl">
-        <p>الطلب غير موجود</p>
+        <div style={s.card}>الطلب غير موجود</div>
       </section>
     );
   }
@@ -78,14 +86,24 @@ export default function BuyerOrderDetailsPage() {
           </Link>
         </div>
 
-        <div style={s.card}>
-          <div style={s.row}>
-            <span>حالة الطلب</span>
-            <span style={{ ...s.badge, ...badgeStyle(order.order_status) }}>
+        <div style={s.heroCard}>
+          <div style={s.heroHead}>
+            <div style={{ ...s.badge, ...badgeStyle(order.order_status) }}>
               {order.order_status}
-            </span>
+            </div>
+            <div style={s.heroStatusText}>{statusText(order)}</div>
           </div>
 
+          <div style={s.trackingBox}>
+            <div style={s.trackingTitle}>التتبع</div>
+            <div style={s.trackingValue}>
+              {order.tracking_number || "لم يتم إضافة رقم تتبع بعد"}
+            </div>
+          </div>
+        </div>
+
+        <div style={s.card}>
+          <h2 style={s.sectionTitle}>معلومات الطلب</h2>
           <div style={s.infoGrid}>
             <div><strong>المتجر:</strong> {order.seller_name || order.seller_id}</div>
             <div><strong>الإجمالي:</strong> {order.total_mad} {order.currency}</div>
@@ -132,6 +150,9 @@ export default function BuyerOrderDetailsPage() {
                   <div style={s.itemTitle}>{item.title_ar || item.product_id}</div>
                   <div style={s.itemMeta}>الكمية: {item.quantity}</div>
                   <div style={s.itemMeta}>السعر الفردي: {item.unit_price_mad} MAD</div>
+                  <div style={s.itemTotal}>
+                    المجموع: {(Number(item.unit_price_mad || 0) * Number(item.quantity || 0)).toFixed(0)} MAD
+                  </div>
                 </div>
               </div>
             ))}
@@ -161,6 +182,41 @@ const s = {
     textDecoration: "none",
     fontWeight: 800
   },
+  heroCard: {
+    background: "linear-gradient(135deg, #fffdfa 0%, #f8f4ec 100%)",
+    border: "1px solid #e6dccf",
+    borderRadius: "20px",
+    padding: "18px",
+    display: "grid",
+    gap: "14px",
+    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
+  },
+  heroHead: {
+    display: "grid",
+    gap: "10px"
+  },
+  heroStatusText: {
+    fontWeight: 800,
+    color: "#1b3a6b",
+    fontSize: "18px"
+  },
+  trackingBox: {
+    padding: "14px",
+    borderRadius: "16px",
+    background: "#fff",
+    border: "1px solid #eee4d8",
+    display: "grid",
+    gap: "6px"
+  },
+  trackingTitle: {
+    fontSize: "13px",
+    color: "#6e6357",
+    fontWeight: 700
+  },
+  trackingValue: {
+    color: "#221d16",
+    fontWeight: 800
+  },
   card: {
     background: "#fff",
     border: "1px solid #e6dccf",
@@ -174,29 +230,24 @@ const s = {
     margin: 0,
     color: "#1b3a6b"
   },
-  row: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-    flexWrap: "wrap"
-  },
   badge: {
     padding: "8px 12px",
     borderRadius: "999px",
     fontSize: "13px",
-    fontWeight: 800
+    fontWeight: 800,
+    width: "fit-content"
   },
   infoGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "12px"
   },
   addressBox: {
     padding: "12px 14px",
     borderRadius: "14px",
     background: "#fffdfa",
-    border: "1px solid #f0e7dc"
+    border: "1px solid #f0e7dc",
+    lineHeight: 1.8
   },
   itemsList: {
     display: "grid",
@@ -238,5 +289,9 @@ const s = {
   },
   itemMeta: {
     color: "#6e6357"
+  },
+  itemTotal: {
+    color: "#1b3a6b",
+    fontWeight: 800
   }
 };
