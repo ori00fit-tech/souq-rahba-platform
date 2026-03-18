@@ -36,7 +36,8 @@ export default function ProductDetailsPage() {
         const productRes = await apiGet(`/catalog/products/${slug}`);
         if (productRes.ok) {
           setProduct(productRes.data);
-          const firstMedia = productRes.data?.media?.[0]?.url || productRes.data?.image_url || "";
+          const firstMedia =
+            productRes.data?.media?.[0]?.url || productRes.data?.image_url || "";
           setSelectedImage(firstMedia);
         } else {
           setMessage("تعذر تحميل المنتج");
@@ -91,8 +92,8 @@ export default function ProductDetailsPage() {
       .map((x) => x.trim())
       .filter(Boolean);
 
-    const bullets = lines.filter((line) =>
-      line.startsWith("-") || line.startsWith("•") || line.startsWith("*")
+    const bullets = lines.filter(
+      (line) => line.startsWith("-") || line.startsWith("•") || line.startsWith("*")
     );
 
     if (bullets.length) {
@@ -160,7 +161,8 @@ export default function ProductDetailsPage() {
       stock: p.stock || 0,
       badge: p.status || "",
       description: p.description_ar || "",
-      image_url: p.image_url || ""
+      image_url: p.image_url || "",
+      quantity: 1
     };
   }
 
@@ -244,7 +246,7 @@ export default function ProductDetailsPage() {
 
   if (loading) {
     return (
-      <section className="container section-space">
+      <section className="container section-space" dir="rtl">
         <p>جاري تحميل المنتج...</p>
       </section>
     );
@@ -252,7 +254,7 @@ export default function ProductDetailsPage() {
 
   if (!product) {
     return (
-      <section className="container section-space">
+      <section className="container section-space" dir="rtl">
         <p>المنتج غير موجود</p>
       </section>
     );
@@ -260,26 +262,26 @@ export default function ProductDetailsPage() {
 
   return (
     <section className="container section-space product-page" dir="rtl">
+      <div className="product-breadcrumb-row">
+        <button
+          type="button"
+          className="product-back-link"
+          onClick={() => navigate("/products")}
+        >
+          ← الرجوع إلى المنتجات
+        </button>
+      </div>
+
       <div className="product-hero-card">
-        <div className="product-hero-grid">
-          <div className="product-gallery">
-            <div className="product-brand-line">
-              {product.brand || product.seller_name || "RAHBA"}
-            </div>
-
-            <h1 className="product-title-main">{product.title_ar}</h1>
-
-            <div className="product-rating-line">
-              <span className="product-stars">
-                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-              </span>
-              <span>{ratingSummary.avg || 0}</span>
-              <span>({ratingSummary.count || 0})</span>
-            </div>
-
+        <div className="product-hero-grid-3">
+          <div className="product-gallery-col">
             <div className="product-main-image-card">
               {selectedImage ? (
-                <img src={selectedImage} alt={product.title_ar} className="product-main-image" />
+                <img
+                  src={selectedImage}
+                  alt={product.title_ar}
+                  className="product-main-image"
+                />
               ) : (
                 <div className="product-no-image">No image</div>
               )}
@@ -301,16 +303,53 @@ export default function ProductDetailsPage() {
             ) : null}
           </div>
 
-          <aside className="product-buy-card">
-            <div className="product-price-main">{product.price_mad} MAD</div>
-
-            <div className={`product-stock ${product.stock > 0 ? "in-stock" : "out-stock"}`}>
-              {product.stock > 0 ? `متوفر في المخزون: ${product.stock}` : "غير متوفر حالياً"}
+          <div className="product-info-col">
+            <div className="product-brand-line">
+              {product.brand || product.seller_name || "RAHBA"}
             </div>
+
+            <h1 className="product-title-main">{product.title_ar}</h1>
+
+            <div className="product-rating-line">
+              <span className="product-stars">
+                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+              </span>
+              <span>{ratingSummary.avg || 0}</span>
+              <span>({ratingSummary.count || 0} تقييم)</span>
+            </div>
+
+            <div className="product-price-inline">{product.price_mad} MAD</div>
 
             <p className="product-short-desc">
               {product.description_ar || "بدون وصف مختصر"}
             </p>
+
+            <div className="product-feature-pills">
+              <span className="product-feature-pill">دفع آمن</span>
+              <span className="product-feature-pill">دعم عبر المنصة</span>
+              <span className="product-feature-pill">واجهة شراء واضحة</span>
+            </div>
+
+            <div className="product-mini-details">
+              <div><strong>المتجر:</strong> {product.seller_name || "RAHBA"}</div>
+              <div><strong>SKU:</strong> {product.sku || "—"}</div>
+              <div><strong>الحالة:</strong> {product.status || "active"}</div>
+            </div>
+          </div>
+
+          <aside className="product-buy-card">
+            <div className="product-buy-card-head">
+              <div className="product-buy-price">{product.price_mad} MAD</div>
+              <div className={`product-stock ${product.stock > 0 ? "in-stock" : "out-stock"}`}>
+                {product.stock > 0 ? `متوفر في المخزون: ${product.stock}` : "غير متوفر حالياً"}
+              </div>
+            </div>
+
+            <div className="product-buy-box-list">
+              <div>✔️ شراء مباشر عبر المنصة</div>
+              <div>✔️ طلباتك محفوظة في الحساب</div>
+              <div>✔️ مراجعات بعد الشراء فقط</div>
+            </div>
 
             <div className="product-buy-actions">
               <button
@@ -362,30 +401,32 @@ export default function ProductDetailsPage() {
         </div>
       </section>
 
-      <section className="product-section-card">
-        <h2 className="product-section-title">أهم المميزات</h2>
-        <div className="product-highlight-grid">
-          {highlights.map((item, idx) => (
-            <div key={`${item}-${idx}`} className="product-highlight-card">
-              <div className="product-highlight-icon">✓</div>
-              <div className="product-highlight-text">{item}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="product-two-col-sections">
+        <section className="product-section-card">
+          <h2 className="product-section-title">أهم المميزات</h2>
+          <div className="product-highlight-grid">
+            {highlights.map((item, idx) => (
+              <div key={`${item}-${idx}`} className="product-highlight-card">
+                <div className="product-highlight-icon">✓</div>
+                <div className="product-highlight-text">{item}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      <section className="product-section-card">
-        <h2 className="product-section-title">تفاصيل المنتج</h2>
-        <div className="product-details-grid">
-          {specs.map((row, idx) => (
-            <DetailRow
-              key={row.id || `${row.label_ar}-${idx}`}
-              label={row.label_ar}
-              value={row.value_ar}
-            />
-          ))}
-        </div>
-      </section>
+        <section className="product-section-card">
+          <h2 className="product-section-title">تفاصيل المنتج</h2>
+          <div className="product-details-grid">
+            {specs.map((row, idx) => (
+              <DetailRow
+                key={row.id || `${row.label_ar}-${idx}`}
+                label={row.label_ar}
+                value={row.value_ar}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
 
       <section className="product-section-card">
         <h2 className="product-section-title">أسئلة شائعة</h2>
@@ -413,112 +454,114 @@ export default function ProductDetailsPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmitReview} className="product-review-form">
-          <div className="product-form-group">
-            <label>التقييم</label>
-            <select
-              value={reviewForm.rating}
-              onChange={(e) =>
-                setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
-              }
-              className="ui-select"
+        <div className="product-review-layout">
+          <form onSubmit={handleSubmitReview} className="product-review-form">
+            <div className="product-form-group">
+              <label>التقييم</label>
+              <select
+                value={reviewForm.rating}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
+                }
+                className="ui-select"
+              >
+                <option value={5}>5 - ممتاز</option>
+                <option value={4}>4 - جيد جدًا</option>
+                <option value={3}>3 - جيد</option>
+                <option value={2}>2 - مقبول</option>
+                <option value={1}>1 - ضعيف</option>
+              </select>
+            </div>
+
+            <div className="product-form-group">
+              <label>عنوان المراجعة</label>
+              <input
+                type="text"
+                value={reviewForm.title}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                placeholder="مثلاً: منتج ممتاز"
+                className="ui-input"
+              />
+            </div>
+
+            <div className="product-form-group">
+              <label>التعليق</label>
+              <textarea
+                value={reviewForm.comment}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
+                }
+                placeholder="اكتب تجربتك بعد الشراء"
+                className="ui-textarea"
+              />
+            </div>
+
+            <div className="product-form-group">
+              <label>رابط صورة المراجعة</label>
+              <input
+                type="url"
+                value={reviewForm.review_image_url}
+                onChange={(e) =>
+                  setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
+                }
+                placeholder="https://..."
+                className="ui-input"
+              />
+            </div>
+
+            <div className="product-review-hint">
+              التقييم وإرفاق الصورة متاحان فقط بعد شراء المنتج.
+            </div>
+
+            {reviewMessage ? <div className="product-info-box">{reviewMessage}</div> : null}
+
+            <button
+              type="submit"
+              disabled={submittingReview}
+              className="btn btn-secondary"
             >
-              <option value={5}>5 - ممتاز</option>
-              <option value={4}>4 - جيد جدًا</option>
-              <option value={3}>3 - جيد</option>
-              <option value={2}>2 - مقبول</option>
-              <option value={1}>1 - ضعيف</option>
-            </select>
-          </div>
+              {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
+            </button>
+          </form>
 
-          <div className="product-form-group">
-            <label>عنوان المراجعة</label>
-            <input
-              type="text"
-              value={reviewForm.title}
-              onChange={(e) =>
-                setReviewForm((prev) => ({ ...prev, title: e.target.value }))
-              }
-              placeholder="مثلاً: منتج ممتاز"
-              className="ui-input"
-            />
-          </div>
-
-          <div className="product-form-group">
-            <label>التعليق</label>
-            <textarea
-              value={reviewForm.comment}
-              onChange={(e) =>
-                setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
-              }
-              placeholder="اكتب تجربتك بعد الشراء"
-              className="ui-textarea"
-            />
-          </div>
-
-          <div className="product-form-group">
-            <label>رابط صورة المراجعة</label>
-            <input
-              type="url"
-              value={reviewForm.review_image_url}
-              onChange={(e) =>
-                setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
-              }
-              placeholder="https://..."
-              className="ui-input"
-            />
-          </div>
-
-          <div className="product-review-hint">
-            التقييم وإرفاق الصورة متاحان فقط بعد شراء المنتج.
-          </div>
-
-          {reviewMessage ? <div className="product-info-box">{reviewMessage}</div> : null}
-
-          <button
-            type="submit"
-            disabled={submittingReview}
-            className="btn btn-secondary"
-          >
-            {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
-          </button>
-        </form>
-
-        <div className="product-reviews-list">
-          {reviewsLoading ? (
-            <p className="ui-muted">جاري تحميل المراجعات...</p>
-          ) : reviews.length === 0 ? (
-            <div className="ui-empty">لا توجد مراجعات بعد</div>
-          ) : (
-            reviews.map((review) => (
-              <article key={review.id} className="product-review-card">
-                <div className="product-review-card-top">
-                  <div className="product-review-card-stars">
-                    {"★".repeat(review.rating)}
+          <div className="product-reviews-list">
+            {reviewsLoading ? (
+              <p className="ui-muted">جاري تحميل المراجعات...</p>
+            ) : reviews.length === 0 ? (
+              <div className="ui-empty">لا توجد مراجعات بعد</div>
+            ) : (
+              reviews.map((review) => (
+                <article key={review.id} className="product-review-card">
+                  <div className="product-review-card-top">
+                    <div className="product-review-card-stars">
+                      {"★".repeat(review.rating)}
+                    </div>
+                    <div className="ui-muted">{review.created_at}</div>
                   </div>
-                  <div className="ui-muted">{review.created_at}</div>
-                </div>
 
-                {review.buyer_name ? (
-                  <div className="product-reviewer-name">{review.buyer_name}</div>
-                ) : null}
+                  {review.buyer_name ? (
+                    <div className="product-reviewer-name">{review.buyer_name}</div>
+                  ) : null}
 
-                {review.title ? (
-                  <strong className="product-review-title">{review.title}</strong>
-                ) : null}
+                  {review.title ? (
+                    <strong className="product-review-title">{review.title}</strong>
+                  ) : null}
 
-                <p className="product-review-text">{review.comment}</p>
+                  <p className="product-review-text">{review.comment}</p>
 
-                {review.review_image_url ? (
-                  <img
-                    src={review.review_image_url}
-                    alt="صورة المراجعة"
-                    className="product-review-image"
-                  />
-                ) : null}
-              </article>
-            ))
-          )}
+                  {review.review_image_url ? (
+                    <img
+                      src={review.review_image_url}
+                      alt="صورة المراجعة"
+                      className="product-review-image"
+                    />
+                  ) : null}
+                </article>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
