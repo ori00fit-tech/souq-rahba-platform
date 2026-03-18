@@ -17,7 +17,7 @@ app.use("*", cors());
 app.use("*", requestId);
 
 app.route("/", healthRouter);
-app.route("/auth", authRouter);
+app.route("/", authRouter);
 app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/admin", adminRouter);
