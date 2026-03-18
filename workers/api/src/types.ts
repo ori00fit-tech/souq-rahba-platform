@@ -5,6 +5,9 @@ export type Bindings = {
   APP_ENV: string;
   JWT_ISSUER: string;
   JWT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  GOOGLE_REDIRECT_URI: string;
 };
 
 export type AuthUser = {
@@ -21,16 +24,3 @@ export type AppEnv = {
     authUser: AuthUser;
   };
 };
-
-export type AppEnv = {
-  Bindings: Bindings;
-  Variables: {
-    authUser: {
-      user_id: string;
-      email: string;
-      full_name: string | null;
-      role: string;
-    };
-  };
-};
-
