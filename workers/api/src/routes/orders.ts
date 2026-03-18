@@ -7,14 +7,8 @@ export const orderRouter = new Hono<import("../types").AppEnv>();
 function makeOrderNumber() {
   const now = new Date();
   const year = now.getUTCFullYear();
-  const short = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+  const short = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
   return `RB-${year}-${short}`;
-}
-
-function cleanText(value: unknown) {
-  if (typeof value !== "string") return null;
-  const v = value.trim();
-  return v ? v : null;
 }
 
 orderRouter.get("/orders", authMiddleware, async (c) => {
@@ -281,44 +275,28 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
 
     if (!product) {
       return c.json(
-        {
-          ok: false,
-          code: "PRODUCT_NOT_FOUND",
-          message: `Product not found: ${item.product_id}`
-        },
+        { ok: false, code: "PRODUCT_NOT_FOUND", message: `Product not found: ${item.product_id}` },
         404
       );
     }
 
     if (product.seller_id !== body.seller_id) {
       return c.json(
-        {
-          ok: false,
-          code: "SELLER_MISMATCH",
-          message: "All items must belong to the same seller"
-        },
+        { ok: false, code: "SELLER_MISMATCH", message: "All items must belong to the same seller" },
         400
       );
     }
 
     if (product.status !== "active") {
       return c.json(
-        {
-          ok: false,
-          code: "PRODUCT_INACTIVE",
-          message: `Product is not active: ${item.product_id}`
-        },
+        { ok: false, code: "PRODUCT_INACTIVE", message: `Product is not active: ${item.product_id}` },
         400
       );
     }
 
     if (Number(product.stock || 0) < quantity) {
       return c.json(
-        {
-          ok: false,
-          code: "INSUFFICIENT_STOCK",
-          message: `Insufficient stock for product: ${item.product_id}`
-        },
+        { ok: false, code: "INSUFFICIENT_STOCK", message: `Insufficient stock for product: ${item.product_id}` },
         400
       );
     }
@@ -335,6 +313,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
 
   const orderId = crypto.randomUUID();
   const orderNumber = makeOrderNumber();
+
   const buyerUserId =
     authUser.role === "admin" && body.buyer_user_id
       ? body.buyer_user_id
@@ -345,11 +324,12 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
   const shippingStatus = body.shipping_status || "pending";
   const orderStatus = body.order_status || "pending";
 
-  const buyerName = cleanText(body.buyer_name);
-  const buyerPhone = cleanText(body.buyer_phone);
-  const buyerCity = cleanText(body.buyer_city);
-  const buyerAddress = cleanText(body.buyer_address);
-  const notes = cleanText(body.notes);
+  const buyerName = body.buyer_name?.trim() || null;
+  const buyerPhone = body.buyer_phone?.trim() || null;
+  const buyerCity = body.buyer_city?.trim() || null;
+  const buyerAddress = body.buyer_address?.trim() || null;
+  const notes = body.notes?.trim() || null;
+  const trackingNumber = body.tracking_number?.trim() || null;
 
   await c.env.DB.prepare(
     `insert into orders (
@@ -386,7 +366,7 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       buyerCity,
       buyerAddress,
       notes,
-      null
+      trackingNumber
     )
     .run();
 
@@ -418,27 +398,35 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       .run();
   }
 
-  return c.json(
-    {
-      ok: true,
-      data: {
-        id: orderId,
-        order_number: orderNumber,
-        total_mad: totalMad,
-        currency: "MAD"
-      }
-    },
-    201
-  );
+  return c.json({
+    ok: true,
+    data: {
+      id: orderId,
+      order_number: orderNumber,
+      buyer_user_id: buyerUserId,
+      seller_id: body.seller_id,
+      order_status: orderStatus,
+      payment_method: paymentMethod,
+      payment_status: paymentStatus,
+      shipping_status: shippingStatus,
+      total_mad: totalMad,
+      currency: "MAD",
+      buyer_name: buyerName,
+      buyer_phone: buyerPhone,
+      buyer_city: buyerCity,
+      buyer_address: buyerAddress,
+      notes,
+      tracking_number: trackingNumber
+    }
+  });
 });
 
 orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
   const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
-  const orderStatus = cleanText(body?.order_status);
 
-  if (!orderStatus) {
+  if (!body?.order_status) {
     return c.json(
       { ok: false, code: "INVALID_BODY", message: "order_status is required" },
       400
@@ -448,7 +436,7 @@ orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "a
   const order = await c.env.DB.prepare(
     `select
       o.id,
-      o.order_status
+      o.seller_id
     from orders o
     left join sellers s on s.id = o.seller_id
     where o.id = ?
@@ -465,36 +453,26 @@ orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "a
     );
   }
 
-  let shippingStatus = null;
-  if (orderStatus === "shipped") shippingStatus = "shipped";
-  if (orderStatus === "delivered") shippingStatus = "delivered";
-  if (orderStatus === "cancelled") shippingStatus = "cancelled";
-  if (orderStatus === "confirmed") shippingStatus = "pending";
-
   await c.env.DB.prepare(
     `update orders
-     set order_status = ?,
-         shipping_status = coalesce(?, shipping_status)
+     set order_status = ?
      where id = ?`
   )
-    .bind(orderStatus, shippingStatus, id)
+    .bind(body.order_status, id)
     .run();
 
-  return c.json({
-    ok: true,
-    message: "Order status updated"
-  });
+  return c.json({ ok: true });
 });
 
 orderRouter.patch("/orders/:id/tracking", authMiddleware, requireRole("seller", "admin"), async (c) => {
   const id = c.req.param("id");
   const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
-  const trackingNumber = cleanText(body?.tracking_number);
 
   const order = await c.env.DB.prepare(
     `select
-      o.id
+      o.id,
+      o.seller_id
     from orders o
     left join sellers s on s.id = o.seller_id
     where o.id = ?
@@ -516,11 +494,8 @@ orderRouter.patch("/orders/:id/tracking", authMiddleware, requireRole("seller", 
      set tracking_number = ?
      where id = ?`
   )
-    .bind(trackingNumber, id)
+    .bind(body?.tracking_number?.trim() || null, id)
     .run();
 
-  return c.json({
-    ok: true,
-    message: "Tracking number updated"
-  });
+  return c.json({ ok: true });
 });
