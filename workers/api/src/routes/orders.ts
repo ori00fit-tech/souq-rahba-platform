@@ -43,6 +43,11 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.buyer_address,
         o.notes,
         o.tracking_number,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count,
         s.display_name as seller_name
       from orders o
       left join sellers s on s.id = o.seller_id
@@ -83,6 +88,11 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.buyer_address,
         o.notes,
         o.tracking_number,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count,
         s.display_name as seller_name
       from orders o
       left join sellers s on s.id = o.seller_id
@@ -116,6 +126,11 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.buyer_address,
         o.notes,
         o.tracking_number,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count,
         s.display_name as seller_name
       from orders o
       left join sellers s on s.id = o.seller_id
