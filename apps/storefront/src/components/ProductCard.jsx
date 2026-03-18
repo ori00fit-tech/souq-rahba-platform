@@ -10,9 +10,7 @@ export default function ProductCard({ product }) {
     id: product.id,
     slug: product.slug,
     name: product.title_ar || product.name || "",
-    title_ar: product.title_ar || product.name || "",
     price: Number(product.price_mad ?? product.price ?? 0),
-    price_mad: Number(product.price_mad ?? product.price ?? 0),
     seller_id: product.seller_id || null,
     seller: product.seller || product.seller_name || product.seller_id || "Souq Rahba",
     city: product.city || "",
@@ -22,13 +20,12 @@ export default function ProductCard({ product }) {
     badge: product.badge || product.status || "",
     description: product.description_ar || product.description || "",
     image_url: product.image_url || "",
-    qty: 1,
     quantity: 1
   };
 
   return (
     <article className="product-card">
-      <div className="product-badge">{normalized.badge}</div>
+      <div className="product-badge">{normalized.badge || "متوفر"}</div>
 
       <div className="product-thumb" style={{ overflow: "hidden" }}>
         {normalized.image_url ? (
@@ -49,16 +46,16 @@ export default function ProductCard({ product }) {
         </p>
 
         <h3>{normalized.name}</h3>
-        <p>{normalized.description}</p>
+        <p>{normalized.description || "منتج داخل سوق رحبة."}</p>
 
         <div className="price-row">
           <strong>{formatMoney(normalized.price, currency, locale)}</strong>
         </div>
 
         <div className="rating-row">
-          {normalized.rating
-            ? `⭐ ${normalized.rating} • ${normalized.reviews} reviews`
-            : `Stock: ${normalized.stock}`}
+          {normalized.rating > 0
+            ? `⭐ ${normalized.rating} • ${normalized.reviews} تقييم`
+            : `المخزون: ${normalized.stock}`}
         </div>
 
         <div className="card-actions">
@@ -71,7 +68,7 @@ export default function ProductCard({ product }) {
           </button>
 
           <Link className="btn btn-secondary" to={`/products/${normalized.slug}`}>
-            {t.buyNow}
+            عرض التفاصيل
           </Link>
         </div>
       </div>
