@@ -11,7 +11,10 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
 
   if (sellerId) {
     if (!["seller", "admin"].includes(authUser.role)) {
-      return c.json({ ok: false, code: "FORBIDDEN", message: "Insufficient permissions" }, 403);
+      return c.json(
+        { ok: false, code: "FORBIDDEN", message: "Insufficient permissions" },
+        403
+      );
     }
 
     const rows = await c.env.DB.prepare(
@@ -25,9 +28,19 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.shipping_status,
         o.total_mad,
         o.currency,
-        o.created_at
+        o.created_at,
+        u.full_name as buyer_name,
+        u.phone as buyer_phone,
+        u.city as buyer_city,
+        u.address as buyer_address,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count
       from orders o
       left join sellers s on s.id = o.seller_id
+      left join users u on u.id = o.buyer_user_id
       where o.seller_id = ?
         and (? = 'admin' or s.owner_user_id = ?)
       order by o.created_at desc`
@@ -40,7 +53,10 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
 
   if (buyerUserId) {
     if (authUser.role !== "buyer" && authUser.role !== "admin") {
-      return c.json({ ok: false, code: "FORBIDDEN", message: "Insufficient permissions" }, 403);
+      return c.json(
+        { ok: false, code: "FORBIDDEN", message: "Insufficient permissions" },
+        403
+      );
     }
 
     const rows = await c.env.DB.prepare(
@@ -54,8 +70,18 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.shipping_status,
         o.total_mad,
         o.currency,
-        o.created_at
+        o.created_at,
+        u.full_name as buyer_name,
+        u.phone as buyer_phone,
+        u.city as buyer_city,
+        u.address as buyer_address,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count
       from orders o
+      left join users u on u.id = o.buyer_user_id
       where o.buyer_user_id = ?
         and (? = 'admin' or o.buyer_user_id = ?)
       order by o.created_at desc`
@@ -78,8 +104,18 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         o.shipping_status,
         o.total_mad,
         o.currency,
-        o.created_at
+        o.created_at,
+        u.full_name as buyer_name,
+        u.phone as buyer_phone,
+        u.city as buyer_city,
+        u.address as buyer_address,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count
       from orders o
+      left join users u on u.id = o.buyer_user_id
       order by o.created_at desc`
     ).all();
 
@@ -104,9 +140,15 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
       o.shipping_status,
       o.total_mad,
       o.currency,
-      o.created_at
+      o.created_at,
+      u.full_name as buyer_name,
+      u.phone as buyer_phone,
+      u.city as buyer_city,
+      u.address as buyer_address,
+      s.display_name as seller_name
     from orders o
     left join sellers s on s.id = o.seller_id
+    left join users u on u.id = o.buyer_user_id
     where o.id = ?
       and (
         ? = 'admin'
@@ -133,7 +175,14 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
       oi.quantity,
       oi.unit_price_mad,
       p.slug,
-      p.title_ar
+      p.title_ar,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
+        order by pm.sort_order asc
+        limit 1
+      ) as image_url
     from order_items oi
     left join products p on p.id = oi.product_id
     where oi.order_id = ?
@@ -322,9 +371,14 @@ orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async
       ok: true,
       data: {
         id: orderId,
+        buyer_user_id: buyerUserId,
         seller_id: body.seller_id,
+        order_status: orderStatus,
+        payment_method: paymentMethod,
+        payment_status: paymentStatus,
+        shipping_status: shippingStatus,
         total_mad: totalMad,
-        order_status: orderStatus
+        currency: "MAD"
       }
     },
     201
@@ -335,9 +389,19 @@ orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "a
   const id = c.req.param("id");
   const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
+
   const nextStatus = body?.order_status;
 
-  if (!nextStatus || !["pending", "confirmed", "shipped", "delivered", "cancelled"].includes(nextStatus)) {
+  if (!nextStatus) {
+    return c.json(
+      { ok: false, code: "INVALID_BODY", message: "order_status is required" },
+      400
+    );
+  }
+
+  const allowedStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+
+  if (!allowedStatuses.includes(nextStatus)) {
     return c.json(
       { ok: false, code: "INVALID_STATUS", message: "Invalid order status" },
       400
@@ -345,12 +409,14 @@ orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "a
   }
 
   const existing = await c.env.DB.prepare(
-    `select o.id
-     from orders o
-     left join sellers s on s.id = o.seller_id
-     where o.id = ?
-       and (? = 'admin' or s.owner_user_id = ?)
-     limit 1`
+    `select
+      o.id,
+      o.order_status
+    from orders o
+    left join sellers s on s.id = o.seller_id
+    where o.id = ?
+      and (? = 'admin' or s.owner_user_id = ?)
+    limit 1`
   )
     .bind(id, authUser.role, authUser.user_id)
     .first();
@@ -362,26 +428,28 @@ orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "a
     );
   }
 
+  let shippingStatus = undefined;
+  if (nextStatus === "pending") shippingStatus = "pending";
+  if (nextStatus === "confirmed") shippingStatus = "pending";
+  if (nextStatus === "shipped") shippingStatus = "shipped";
+  if (nextStatus === "delivered") shippingStatus = "delivered";
+  if (nextStatus === "cancelled") shippingStatus = "cancelled";
+
   await c.env.DB.prepare(
     `update orders
-     set order_status = ?
+     set
+       order_status = ?,
+       shipping_status = ?
      where id = ?`
   )
-    .bind(nextStatus, id)
+    .bind(nextStatus, shippingStatus, id)
     .run();
 
   const updated = await c.env.DB.prepare(
     `select
       id,
-      buyer_user_id,
-      seller_id,
       order_status,
-      payment_method,
-      payment_status,
-      shipping_status,
-      total_mad,
-      currency,
-      created_at
+      shipping_status
     from orders
     where id = ?
     limit 1`
