@@ -38,12 +38,19 @@ export default function CheckoutPage() {
       setMessage("");
 
       const res = await apiPost("/commerce/orders", {
-        customer: form,
-        items: cart.map((item) => ({
-          product_id: item.id,
-          quantity: item.qty || item.quantity || 1
-        }))
-      });
+  seller_id: cart[0]?.seller_id,
+  payment_method: "cod",
+
+  buyer_name: form.full_name,
+  buyer_phone: form.phone,
+  buyer_city: form.city,
+  buyer_address: form.address,
+
+  items: cart.map((item) => ({
+    product_id: item.id,
+    quantity: item.qty || item.quantity || 1
+  }))
+});
 
       if (!res.ok) {
         setMessage(res.message || "فشل إنشاء الطلب");

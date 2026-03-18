@@ -3,7 +3,7 @@ import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
 import { getSellerByOwnerUserId } from "../repositories/access.repository";
 
-export const sellerRouter = new Hono<{ Bindings: import("../types").Bindings }>();
+export const sellerRouter = new Hono<import("../types").AppEnv>();
 
 function slugify(text: string) {
   return String(text || "")

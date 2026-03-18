@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 
-export const authRouter = new Hono<{ Bindings: import("../types").Bindings }>();
+export const authRouter = new Hono<import("../types").AppEnv>();
 
 function hashPassword(password: string) {
   return btoa(password);

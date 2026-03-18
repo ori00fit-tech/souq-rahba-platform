@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
 
-export const orderRouter = new Hono<{ Bindings: import("../types").Bindings }>();
+export const orderRouter = new Hono<import("../types").AppEnv>();
 
 function makeOrderNumber() {
   const now = new Date();
