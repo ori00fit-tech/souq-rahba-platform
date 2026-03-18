@@ -514,3 +514,30 @@ orderRouter.patch("/orders/:id/tracking", authMiddleware, requireRole("seller", 
 
   return c.json({ ok: true });
 });
+
+orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async (c) => {
+  const authUser = c.get("authUser");
+
+  const stats = await c.env.DB.prepare(
+    `select
+      count(o.id) as total_orders,
+      round(sum(case when o.order_status = 'delivered' then o.total_mad else 0 end), 2) as total_revenue,
+      count(case when o.order_status = 'pending' then 1 end) as pending_orders,
+      count(case when o.order_status = 'confirmed' then 1 end) as confirmed_orders
+    from orders o
+    left join sellers s on s.id = o.seller_id
+    where (? = 'admin' or s.owner_user_id = ?)`
+  )
+    .bind(authUser.role, authUser.user_id)
+    .first();
+
+  return c.json({
+    ok: true,
+    data: {
+      total_orders: Number(stats?.total_orders || 0),
+      total_revenue: Number(stats?.total_revenue || 0),
+      pending_orders: Number(stats?.pending_orders || 0),
+      confirmed_orders: Number(stats?.confirmed_orders || 0)
+    }
+  });
+});
