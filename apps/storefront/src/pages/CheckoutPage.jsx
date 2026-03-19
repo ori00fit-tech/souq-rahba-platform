@@ -4,6 +4,22 @@ import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 
+function saveGuestOrder(entry) {
+  try {
+    const raw = localStorage.getItem("guest_orders");
+    const existing = raw ? JSON.parse(raw) : [];
+    const next = [entry, ...existing]
+      .filter((item, index, arr) =>
+        index === arr.findIndex((x) => x.order_number === item.order_number)
+      )
+      .slice(0, 20);
+
+    localStorage.setItem("guest_orders", JSON.stringify(next));
+  } catch (error) {
+    console.error("Failed to save guest order", error);
+  }
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, total, currency, language, currentUser, removeFromCart } = useApp();
@@ -115,12 +131,25 @@ export default function CheckoutPage() {
         const res = await apiPost("/commerce/orders", payload);
 
         if (res?.ok) {
+          const orderNumber = res.data?.order_number || "—";
+          const totalMad = Number(res.data?.total_mad ?? group.subtotal);
+
           newResults.push({
             ok: true,
             seller: group.seller_name,
-            order_number: res.data?.order_number || "—",
-            total_mad: group.subtotal
+            order_number: orderNumber,
+            total_mad: totalMad
           });
+
+          if (!currentUser) {
+            saveGuestOrder({
+              order_number: orderNumber,
+              phone: form.buyer_phone.trim(),
+              seller: group.seller_name,
+              total_mad: totalMad,
+              created_at: new Date().toISOString()
+            });
+          }
 
           group.items.forEach((item) => removeFromCart(item.id));
         } else {
@@ -172,6 +201,15 @@ export default function CheckoutPage() {
                 : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."}
             </p>
 
+            {!currentUser && successCount > 0 ? (
+              <div className="ui-card-soft" style={s.guestSavedBox}>
+                <strong style={s.guestSavedTitle}>تم حفظ طلباتك على هذا الجهاز</strong>
+                <span style={s.guestSavedText}>
+                  يمكنك الرجوع لاحقاً إلى صفحة "طلباتي" من نفس المتصفح ونفس الهاتف.
+                </span>
+              </div>
+            ) : null}
+
             <div style={s.resultsStats}>
               <div className="ui-card-soft" style={s.statCard}>
                 <span style={s.statLabel}>الطلبات الناجحة</span>
@@ -218,15 +256,13 @@ export default function CheckoutPage() {
             </div>
 
             <div style={s.successActions}>
-              {successCount > 0 ? (
-                <button
-                  type="button"
-                  className="btn btn-primary full-width"
-                  onClick={() => navigate("/my-orders")}
-                >
-                  عرض طلباتي
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="btn btn-primary full-width"
+                onClick={() => navigate("/my-orders")}
+              >
+                عرض طلباتي
+              </button>
 
               <button
                 type="button"
@@ -452,6 +488,20 @@ const s = {
   },
   guestText: {
     color: "#6b7280",
+    lineHeight: 1.8
+  },
+  guestSavedBox: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px",
+    background: "#eefbf3",
+    border: "1px solid #b7ebc6"
+  },
+  guestSavedTitle: {
+    color: "#166534"
+  },
+  guestSavedText: {
+    color: "#4b5563",
     lineHeight: 1.8
   },
   layout: {

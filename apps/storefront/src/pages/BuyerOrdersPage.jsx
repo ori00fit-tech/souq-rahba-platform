@@ -4,11 +4,23 @@ import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 
+function loadGuestOrders() {
+  try {
+    const raw = localStorage.getItem("guest_orders");
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to read guest orders", error);
+    return [];
+  }
+}
+
 export default function BuyerOrdersPage() {
   const navigate = useNavigate();
   const { currentUser, authLoading, currency, language } = useApp();
 
   const [orders, setOrders] = useState([]);
+  const [guestOrders, setGuestOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -22,21 +34,15 @@ export default function BuyerOrdersPage() {
   }, [currentUser]);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!currentUser) {
+      setGuestOrders(loadGuestOrders());
+      setLoading(false);
+      return;
+    }
+
     async function loadOrders() {
-      if (authLoading) return;
-
-      if (!currentUser) {
-        setLoading(false);
-        setMessage("يجب تسجيل الدخول أولاً لعرض الطلبات");
-        return;
-      }
-
-      if (!buyerId) {
-        setLoading(false);
-        setMessage("تعذر تحديد حساب المشتري");
-        return;
-      }
-
       try {
         setLoading(true);
         setMessage("");
@@ -59,8 +65,19 @@ export default function BuyerOrdersPage() {
       }
     }
 
-    loadOrders();
+    if (buyerId) {
+      loadOrders();
+    } else {
+      setLoading(false);
+      setMessage("تعذر تحديد حساب المشتري");
+    }
   }, [authLoading, currentUser, buyerId]);
+
+  function copyText(value) {
+    navigator.clipboard?.writeText(value).catch((err) => {
+      console.error("copy failed", err);
+    });
+  }
 
   function getStatusMeta(status) {
     switch (status) {
@@ -90,7 +107,6 @@ export default function BuyerOrdersPage() {
             <h1 className="page-title">طلباتي</h1>
             <p className="page-subtitle">جاري تحميل الطلبات...</p>
           </div>
-
           <div className="loading-state">جاري تحميل الطلبات...</div>
         </div>
       </section>
@@ -103,19 +119,73 @@ export default function BuyerOrdersPage() {
         <div className="page-stack">
           <div className="ui-card" style={s.heroCard}>
             <div className="ui-chip">RAHBA ORDERS</div>
-            <h1 className="page-title">طلباتي</h1>
-            <p className="page-subtitle">قم بتسجيل الدخول أولاً للوصول إلى طلباتك.</p>
+            <h1 className="page-title">طلباتك الأخيرة</h1>
+            <p className="page-subtitle">
+              هذه الطلبات محفوظة محلياً على هذا الجهاز فقط.
+            </p>
           </div>
 
-          <div className="empty-state" style={s.emptyCard}>
-            <div style={s.emptyIcon}>🔐</div>
-            <h3 style={s.emptyTitle}>تسجيل الدخول مطلوب</h3>
-            <p style={s.emptyText}>لا يمكن عرض الطلبات بدون تسجيل الدخول.</p>
+          {guestOrders.length === 0 ? (
+            <div className="empty-state" style={s.emptyCard}>
+              <div style={s.emptyIcon}>📦</div>
+              <h3 style={s.emptyTitle}>لا توجد طلبات محفوظة على هذا الجهاز</h3>
+              <p style={s.emptyText}>
+                عند إتمام طلب كزائر، سيتم حفظه هنا تلقائياً لتتمكن من الرجوع إليه لاحقاً.
+              </p>
 
-            <Link to="/auth" className="btn btn-primary full-width">
-              تسجيل الدخول
-            </Link>
-          </div>
+              <Link to="/products" className="btn btn-primary full-width">
+                تصفح المنتجات
+              </Link>
+            </div>
+          ) : (
+            <div style={s.list}>
+              {guestOrders.map((order, idx) => (
+                <article key={`${order.order_number}-${idx}`} className="ui-card" style={s.orderCard}>
+                  <div style={s.orderHead}>
+                    <div style={s.orderTopInfo}>
+                      <div style={s.orderNumber}>{order.order_number || "—"}</div>
+                      <div style={s.orderDate}>
+                        {order.created_at
+                          ? new Date(order.created_at).toLocaleString(locale)
+                          : "—"}
+                      </div>
+                    </div>
+
+                    <div style={s.guestPill}>طلب زائر</div>
+                  </div>
+
+                  <div style={s.orderBody}>
+                    <div style={s.infoRow}>
+                      <span style={s.infoLabel}>البائع</span>
+                      <strong style={s.infoValue}>{order.seller || "RAHBA"}</strong>
+                    </div>
+
+                    <div style={s.infoRow}>
+                      <span style={s.infoLabel}>الهاتف</span>
+                      <strong style={s.infoValue}>{order.phone || "—"}</strong>
+                    </div>
+
+                    <div style={s.infoRow}>
+                      <span style={s.infoLabel}>الإجمالي</span>
+                      <strong style={s.priceValue}>
+                        {formatMoney(Number(order.total_mad || 0), currency, locale)}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={s.actions}>
+                    <button
+                      type="button"
+                      className="btn btn-primary full-width"
+                      onClick={() => copyText(order.order_number || "")}
+                    >
+                      نسخ رقم الطلب
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
     );
@@ -130,10 +200,6 @@ export default function BuyerOrdersPage() {
           <p className="page-subtitle">
             تتبع حالة طلباتك، واطلع على التفاصيل وأرقام التتبع إن وجدت.
           </p>
-
-          <div style={s.metaRow}>
-            <span className="ui-chip">{orders.length} طلب</span>
-          </div>
         </div>
 
         {message ? <div className="message-box">{message}</div> : null}
@@ -143,7 +209,7 @@ export default function BuyerOrdersPage() {
             <div style={s.emptyIcon}>📦</div>
             <h3 style={s.emptyTitle}>لا توجد طلبات بعد</h3>
             <p style={s.emptyText}>
-              بعد إتمام أول عملية شراء، ستظهر طلباتك هنا.
+              بعد إتمام أول عملية شراء من حسابك، ستظهر طلباتك هنا.
             </p>
 
             <Link to="/products" className="btn btn-primary full-width">
@@ -192,13 +258,6 @@ export default function BuyerOrdersPage() {
                         {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
                       </strong>
                     </div>
-
-                    {order.tracking_number ? (
-                      <div style={s.infoRow}>
-                        <span style={s.infoLabel}>رقم التتبع</span>
-                        <strong style={s.infoValue}>{order.tracking_number}</strong>
-                      </div>
-                    ) : null}
                   </div>
 
                   <div style={s.actions}>
@@ -225,11 +284,6 @@ const s = {
     padding: "18px",
     display: "grid",
     gap: "10px"
-  },
-  metaRow: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap"
   },
   list: {
     display: "grid",
@@ -260,6 +314,19 @@ const s = {
     color: "#7a6f63",
     fontSize: "13px",
     fontWeight: 700
+  },
+  guestPill: {
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: "999px",
+    background: "#eef6ff",
+    color: "#173b74",
+    border: "1px solid #d3e4f8",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: 900
   },
   statusPill: {
     minHeight: "34px",
