@@ -9,3 +9,4 @@ coverage
 .wrangler
 .DS_Store
 *.log
+workers/api/.dev.vars

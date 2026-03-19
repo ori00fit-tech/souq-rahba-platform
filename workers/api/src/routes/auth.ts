@@ -341,3 +341,13 @@ authRouter.get("/auth/google/callback", async (c) => {
     `https://rahba.site/auth?google=success&token=${encodeURIComponent(sessionId)}`
   );
 });
+
+authRouter.get("/auth/debug-google-env", async (c) => {
+  return c.json({
+    ok: true,
+    has_client_id: !!c.env.GOOGLE_CLIENT_ID,
+    has_client_secret: !!c.env.GOOGLE_CLIENT_SECRET,
+    has_redirect_uri: !!c.env.GOOGLE_REDIRECT_URI
+  });
+});
+
