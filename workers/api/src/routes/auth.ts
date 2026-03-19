@@ -1,18 +1,8 @@
 import { Hono } from "hono";
-import type { Bindings } from "../types";
+import { authMiddleware } from "../middleware/auth";
+import type { AppEnv } from "../types";
 
-type AppEnv = {
-  Bindings: Bindings;
-  Variables: {
-    authUser?: {
-      user_id: string;
-      email: string;
-      full_name: string | null;
-      phone?: string | null;
-      role: "buyer" | "seller" | "admin";
-    };
-  };
-};
+export const authRouter = new Hono<AppEnv>();
 
 type UserRow = {
   id: string;
@@ -23,7 +13,9 @@ type UserRow = {
   password_hash: string | null;
 };
 
-const authRouter = new Hono<AppEnv>();
+function hashPassword(password: string) {
+  return btoa(password);
+}
 
 function jsonError(message: string, code: string, status = 400, details?: unknown) {
   return {
@@ -34,61 +26,6 @@ function jsonError(message: string, code: string, status = 400, details?: unknow
   };
 }
 
-async function sha256(input: string) {
-  const data = new TextEncoder().encode(input);
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function getBearerToken(c: Parameters<typeof authRouter.get>[1] extends never ? never : any) {
-  const auth = c.req.header("Authorization") || "";
-  if (!auth.startsWith("Bearer ")) return null;
-  return auth.slice(7).trim();
-}
-
-async function findUserBySessionToken(env: Bindings, token: string) {
-  const row = await env.DB.prepare(
-    `select
-      u.id as user_id,
-      u.email,
-      u.full_name,
-      u.phone,
-      u.role,
-      s.id as session_id,
-      s.expires_at
-     from sessions s
-     join users u on u.id = s.user_id
-     where s.token = ?
-     limit 1`
-  )
-    .bind(token)
-    .first<{
-      user_id: string;
-      email: string;
-      full_name: string | null;
-      phone: string | null;
-      role: "buyer" | "seller" | "admin";
-      session_id: string;
-      expires_at: string | null;
-    }>();
-
-  if (!row) return null;
-
-  if (row.expires_at && new Date(row.expires_at).getTime() < Date.now()) {
-    return null;
-  }
-
-  return row;
-}
-
-async function requireAuth(c: any) {
-  const token = getBearerToken(c);
-  if (!token) return null;
-  return await findUserBySessionToken(c.env, token);
-}
-
 authRouter.get("/debug-google-env", async (c) => {
   return c.json({
     ok: true,
@@ -96,6 +33,178 @@ authRouter.get("/debug-google-env", async (c) => {
     has_client_secret: !!c.env.GOOGLE_CLIENT_SECRET,
     has_redirect_uri: !!c.env.GOOGLE_REDIRECT_URI
   });
+});
+
+authRouter.post("/register", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => null);
+
+    if (!body?.email || !body?.password) {
+      return c.json(
+        jsonError("Email and password are required", "INVALID_BODY", 400),
+        400
+      );
+    }
+
+    const email = String(body.email).trim().toLowerCase();
+
+    const existing = await c.env.DB.prepare(
+      `select id from users where email = ? limit 1`
+    )
+      .bind(email)
+      .first<{ id: string }>();
+
+    if (existing) {
+      return c.json(
+        jsonError("Email already exists", "EMAIL_EXISTS", 409),
+        409
+      );
+    }
+
+    const userId = crypto.randomUUID();
+
+    await c.env.DB.prepare(
+      `insert into users (
+        id,
+        email,
+        full_name,
+        phone,
+        role,
+        locale,
+        password_hash,
+        auth_provider
+      ) values (?, ?, ?, ?, ?, ?, ?, 'password')`
+    )
+      .bind(
+        userId,
+        email,
+        body.full_name || null,
+        body.phone || null,
+        body.role || "buyer",
+        body.locale || "ar",
+        hashPassword(String(body.password))
+      )
+      .run();
+
+    return c.json(
+      {
+        ok: true,
+        data: {
+          id: userId,
+          email,
+          role: body.role || "buyer"
+        }
+      },
+      201
+    );
+  } catch (err) {
+    return c.json(
+      jsonError(
+        "Registration failed",
+        "REGISTER_FAILED",
+        500,
+        err instanceof Error ? err.message : String(err)
+      ),
+      500
+    );
+  }
+});
+
+authRouter.post("/login", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => null);
+
+    if (!body?.email || !body?.password) {
+      return c.json(
+        jsonError("Email and password are required", "INVALID_BODY", 400),
+        400
+      );
+    }
+
+    const email = String(body.email).trim().toLowerCase();
+
+    const user = await c.env.DB.prepare(
+      `select id, email, full_name, phone, role, password_hash
+       from users
+       where email = ?
+       limit 1`
+    )
+      .bind(email)
+      .first<UserRow>();
+
+    if (!user || user.password_hash !== hashPassword(String(body.password))) {
+      return c.json(
+        jsonError("Invalid email or password", "INVALID_CREDENTIALS", 401),
+        401
+      );
+    }
+
+    const token = crypto.randomUUID();
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
+
+    await c.env.DB.prepare(
+      `insert into sessions (
+        id,
+        user_id,
+        token,
+        expires_at
+      ) values (?, ?, ?, ?)`
+    )
+      .bind(sessionId, user.id, token, expiresAt)
+      .run();
+
+    return c.json({
+      ok: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          phone: user.phone,
+          role: user.role
+        }
+      }
+    });
+  } catch (err) {
+    return c.json(
+      jsonError(
+        "Login failed",
+        "LOGIN_FAILED",
+        500,
+        err instanceof Error ? err.message : String(err)
+      ),
+      500
+    );
+  }
+});
+
+authRouter.get("/me", authMiddleware, async (c) => {
+  const authUser = c.get("authUser");
+
+  return c.json({
+    ok: true,
+    data: {
+      id: authUser.user_id,
+      email: authUser.email,
+      full_name: authUser.full_name,
+      role: authUser.role
+    }
+  });
+});
+
+authRouter.post("/logout", authMiddleware, async (c) => {
+  const authHeader = c.req.header("Authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+
+  if (token) {
+    await c.env.DB.prepare(`delete from sessions where token = ?`)
+      .bind(token)
+      .run();
+  }
+
+  return c.json({ ok: true });
 });
 
 authRouter.get("/google/login", async (c) => {
@@ -263,19 +372,23 @@ authRouter.get("/google/callback", async (c) => {
 
     step = "create_session";
 
+    const token = crypto.randomUUID();
     const sessionId = crypto.randomUUID();
-    const sessionToken = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
 
     await c.env.DB.prepare(
-      `insert into sessions (id, user_id, token, expires_at)
-       values (?, ?, ?, ?)`
+      `insert into sessions (
+        id,
+        user_id,
+        token,
+        expires_at
+      ) values (?, ?, ?, ?)`
     )
-      .bind(sessionId, user.id, sessionToken, expiresAt)
+      .bind(sessionId, user.id, token, expiresAt)
       .run();
 
     const redirectUrl = new URL("https://souq-rahba-platform.pages.dev/auth");
-    redirectUrl.searchParams.set("token", sessionToken);
+    redirectUrl.searchParams.set("token", token);
     redirectUrl.searchParams.set("provider", "google");
 
     return c.redirect(redirectUrl.toString(), 302);
@@ -292,193 +405,3 @@ authRouter.get("/google/callback", async (c) => {
     );
   }
 });
-
-authRouter.post("/register", async (c) => {
-  try {
-    const body = await c.req.json().catch(() => null);
-
-    if (!body?.email || !body?.password || !body?.full_name) {
-      return c.json(
-        jsonError("Missing required fields", "INVALID_BODY", 400),
-        400
-      );
-    }
-
-    const email = String(body.email).trim().toLowerCase();
-    const password = String(body.password);
-    const fullName = String(body.full_name).trim();
-    const phone = body.phone ? String(body.phone).trim() : null;
-
-    const existing = await c.env.DB.prepare(
-      `select id from users where email = ? limit 1`
-    )
-      .bind(email)
-      .first<{ id: string }>();
-
-    if (existing) {
-      return c.json(
-        jsonError("Email already exists", "EMAIL_EXISTS", 409),
-        409
-      );
-    }
-
-    const userId = crypto.randomUUID();
-    const passwordHash = await sha256(password);
-
-    await c.env.DB.prepare(
-      `insert into users (
-        id,
-        email,
-        full_name,
-        phone,
-        role,
-        locale,
-        password_hash,
-        auth_provider
-      ) values (?, ?, ?, ?, 'buyer', 'ar', ?, 'password')`
-    )
-      .bind(userId, email, fullName, phone, passwordHash)
-      .run();
-
-    const sessionId = crypto.randomUUID();
-    const sessionToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
-
-    await c.env.DB.prepare(
-      `insert into sessions (id, user_id, token, expires_at)
-       values (?, ?, ?, ?)`
-    )
-      .bind(sessionId, userId, sessionToken, expiresAt)
-      .run();
-
-    return c.json({
-      ok: true,
-      data: {
-        token: sessionToken,
-        user: {
-          id: userId,
-          email,
-          full_name: fullName,
-          phone,
-          role: "buyer"
-        }
-      }
-    });
-  } catch (err) {
-    return c.json(
-      jsonError(
-        "Registration failed",
-        "REGISTER_FAILED",
-        500,
-        err instanceof Error ? err.message : String(err)
-      ),
-      500
-    );
-  }
-});
-
-authRouter.post("/login", async (c) => {
-  try {
-    const body = await c.req.json().catch(() => null);
-
-    if (!body?.email || !body?.password) {
-      return c.json(
-        jsonError("Email and password are required", "INVALID_BODY", 400),
-        400
-      );
-    }
-
-    const email = String(body.email).trim().toLowerCase();
-    const password = String(body.password);
-    const passwordHash = await sha256(password);
-
-    const user = await c.env.DB.prepare(
-      `select id, email, full_name, phone, role, password_hash
-       from users
-       where email = ?
-       limit 1`
-    )
-      .bind(email)
-      .first<UserRow>();
-
-    if (!user || !user.password_hash || user.password_hash !== passwordHash) {
-      return c.json(
-        jsonError("Invalid credentials", "INVALID_CREDENTIALS", 401),
-        401
-      );
-    }
-
-    const sessionId = crypto.randomUUID();
-    const sessionToken = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
-
-    await c.env.DB.prepare(
-      `insert into sessions (id, user_id, token, expires_at)
-       values (?, ?, ?, ?)`
-    )
-      .bind(sessionId, user.id, sessionToken, expiresAt)
-      .run();
-
-    return c.json({
-      ok: true,
-      data: {
-        token: sessionToken,
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          phone: user.phone,
-          role: user.role
-        }
-      }
-    });
-  } catch (err) {
-    return c.json(
-      jsonError(
-        "Login failed",
-        "LOGIN_FAILED",
-        500,
-        err instanceof Error ? err.message : String(err)
-      ),
-      500
-    );
-  }
-});
-
-authRouter.get("/me", async (c) => {
-  const auth = await requireAuth(c);
-
-  if (!auth) {
-    return c.json(
-      jsonError("Unauthorized", "UNAUTHORIZED", 401),
-      401
-    );
-  }
-
-  return c.json({
-    ok: true,
-    data: {
-      id: auth.user_id,
-      email: auth.email,
-      full_name: auth.full_name,
-      phone: auth.phone,
-      role: auth.role
-    }
-  });
-});
-
-authRouter.post("/logout", async (c) => {
-  const token = getBearerToken(c);
-
-  if (!token) {
-    return c.json({ ok: true });
-  }
-
-  await c.env.DB.prepare(`delete from sessions where token = ?`)
-    .bind(token)
-    .run();
-
-  return c.json({ ok: true });
-});
-
-export { authRouter };
