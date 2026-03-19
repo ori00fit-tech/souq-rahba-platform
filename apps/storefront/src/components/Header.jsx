@@ -1,76 +1,100 @@
-import { Link, NavLink } from "react-router-dom";
-import { useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { SELLER_PORTAL_URL } from "../lib/config";
 
 const T = {
-  navy: "#16356b",
-  blue: "#1d4ed8",
-  teal: "#0f766e",
-  gold: "#b08d3c",
+  navy: "#173b74",
+  blue: "#1d5fa8",
+  teal: "#0f8b84",
+  tealSoft: "#eaf8f6",
   sand: "#f5f1e8",
-  border: "#ddd5c2",
+  cream: "#fcfaf6",
   white: "#ffffff",
-  shadow: "rgba(22,53,107,0.10)"
+  border: "#ddd2c2",
+  borderSoft: "#ebe2d7",
+  text: "#1f2937",
+  muted: "#7b6f63",
+  shadow: "0 12px 30px rgba(23,59,116,0.08)"
 };
 
-const navIcons = {
-  "/": "🏠",
-  "/products": "🛍️",
-  "/sellers": "🏪",
-  "/my-orders": "📦",
-  "/auth": "👤",
-  "/help": "💬"
-};
-
-const navLabels = {
-  "/": "الرئيسية",
-  "/products": "المنتجات",
-  "/sellers": "الباعة",
-  "/my-orders": "طلباتي",
-  "/auth": "الحساب",
-  "/help": "المساعدة"
-};
+const navItems = [
+  { path: "/", label: "الرئيسية", icon: "⌂" },
+  { path: "/products", label: "المنتجات", icon: "◫" },
+  { path: "/sellers", label: "الباعة", icon: "▣" },
+  { path: "/my-orders", label: "طلباتي", icon: "◌" },
+  { path: "/auth", label: "الحساب", icon: "◎" },
+  { path: "/help", label: "المساعدة", icon: "?" }
+];
 
 export default function Header() {
-  const { cartCount = 0, query, setQuery } = useApp();
+  const location = useLocation();
+  const { cart, cartCount, query, setQuery } = useApp();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
 
+  const count = useMemo(() => {
+    if (typeof cartCount === "number") return cartCount;
+    if (Array.isArray(cart)) {
+      return cart.reduce((sum, item) => sum + Number(item.qty || item.quantity || 1), 0);
+    }
+    return 0;
+  }, [cart, cartCount]);
+
+  const isProductsPage = location.pathname === "/products";
+
   return (
     <>
-      <header style={s.header}>
-        <div style={s.colorBar} />
+      <header style={s.header} className="sticky-top-mobile">
+        <div style={s.topGradient} />
 
-        <div style={s.inner}>
-          <div style={s.row}>
-            <button type="button" onClick={() => setMenuOpen(true)} style={s.iconBtn}>
+        <div className="container" style={s.container}>
+          <div style={s.topRow}>
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              style={s.iconBtn}
+              aria-label="فتح القائمة"
+            >
               <HamburgerIcon />
             </button>
 
             <Link to="/" style={s.logo}>
-              <img src="/brand/logo-icon.png" alt="RAHBA" style={s.logoImg} />
-              <div style={s.logoText}>
+              <div style={s.logoMark}>
+                <img src="/brand/logo-icon.png" alt="RAHBA" style={s.logoImg} />
+              </div>
+
+              <div style={s.logoTextWrap}>
                 <span style={s.logoName}>RAHBA</span>
                 <span style={s.logoSub}>Marketplace</span>
               </div>
             </Link>
 
-            <NavLink to="/cart" style={s.cartBtn}>
-              <span>🛒</span>
-              <span style={s.cartLabel}>السلة</span>
-              {cartCount > 0 ? <span style={s.cartBadge}>{cartCount}</span> : null}
+            <NavLink to="/cart" style={s.cartBtn} aria-label="السلة">
+              <span style={s.cartIcon}>🛒</span>
+              <span style={s.cartText}>السلة</span>
+              {count > 0 ? <span style={s.cartBadge}>{count}</span> : null}
             </NavLink>
           </div>
 
-          <div style={{ ...s.searchWrap, ...(searchFocused ? s.searchWrapFocus : {}) }}>
-            <SearchIcon color={searchFocused ? T.navy : "#9e9080"} />
+          <div
+            style={{
+              ...s.searchWrap,
+              ...(searchFocused ? s.searchWrapFocused : {})
+            }}
+          >
+            <SearchIcon color={searchFocused ? T.navy : "#9b8f82"} />
+
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              placeholder="ابحث عن منتجات..."
+              placeholder={
+                isProductsPage
+                  ? "ابحث داخل المنتجات..."
+                  : "ابحث عن منتج، فئة، أو بائع..."
+              }
               style={s.searchInput}
             />
           </div>
@@ -79,33 +103,44 @@ export default function Header() {
 
       {menuOpen ? (
         <>
-          <div onClick={() => setMenuOpen(false)} style={s.overlay} />
+          <div style={s.overlay} onClick={() => setMenuOpen(false)} />
 
           <aside style={s.drawer}>
             <div style={s.drawerHeader}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <img src="/brand/logo-icon.png" alt="RAHBA" style={s.drawerLogo} />
+              <div style={s.drawerBrand}>
+                <div style={s.drawerLogoWrap}>
+                  <img src="/brand/logo-icon.png" alt="RAHBA" style={s.drawerLogo} />
+                </div>
+
                 <div>
-                  <div style={{ fontWeight: 900 }}>RAHBA</div>
-                  <div style={{ fontSize: "11px", opacity: 0.8 }}>Marketplace</div>
+                  <div style={s.drawerTitle}>RAHBA</div>
+                  <div style={s.drawerSubtitle}>Marketplace</div>
                 </div>
               </div>
 
-              <button type="button" onClick={() => setMenuOpen(false)} style={s.closeBtn}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                style={s.closeBtn}
+                aria-label="إغلاق القائمة"
+              >
                 ✕
               </button>
             </div>
 
             <nav style={s.drawerNav}>
-              {Object.entries(navLabels).map(([path, label]) => (
+              {navItems.map((item) => (
                 <NavLink
-                  key={path}
-                  to={path}
+                  key={item.path}
+                  to={item.path}
                   onClick={() => setMenuOpen(false)}
-                  style={s.drawerLink}
+                  style={({ isActive }) => ({
+                    ...s.drawerLink,
+                    ...(isActive ? s.drawerLinkActive : {})
+                  })}
                 >
-                  <span style={s.drawerIcon}>{navIcons[path]}</span>
-                  <span>{label}</span>
+                  <span style={s.drawerIcon}>{item.icon}</span>
+                  <span>{item.label}</span>
                 </NavLink>
               ))}
 
@@ -113,16 +148,21 @@ export default function Header() {
                 href={SELLER_PORTAL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={s.sellerLink}
+                style={s.sellerPortalLink}
               >
-                🏷️ لوحة البائع ↗
+                <span style={s.drawerIcon}>↗</span>
+                <span>لوحة البائع</span>
               </a>
             </nav>
 
             <div style={s.drawerFooter}>
-              <NavLink to="/cart" onClick={() => setMenuOpen(false)} style={s.drawerCartBtn}>
-                <span>🛒 السلة</span>
-                <span style={s.drawerCartBadge}>{cartCount}</span>
+              <NavLink
+                to="/cart"
+                onClick={() => setMenuOpen(false)}
+                style={s.drawerCart}
+              >
+                <span>الانتقال إلى السلة</span>
+                <span style={s.drawerCartBadge}>{count}</span>
               </NavLink>
             </div>
           </aside>
@@ -134,18 +174,18 @@ export default function Header() {
 
 function HamburgerIcon() {
   return (
-    <svg width="20" height="16" viewBox="0 0 20 16" aria-hidden="true">
-      <rect width="20" height="2.5" rx="1.25" fill="#16356b" />
-      <rect y="6.75" width="14" height="2.5" rx="1.25" fill="#16356b" />
-      <rect y="13.5" width="20" height="2.5" rx="1.25" fill="#16356b" />
+    <svg width="20" height="16" viewBox="0 0 20 16" fill="none" aria-hidden="true">
+      <rect width="20" height="2.5" rx="1.25" fill="#173b74" />
+      <rect y="6.75" width="14" height="2.5" rx="1.25" fill="#173b74" />
+      <rect y="13.5" width="20" height="2.5" rx="1.25" fill="#173b74" />
     </svg>
   );
 }
 
 function SearchIcon({ color }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-      <circle cx="7.5" cy="7.5" r="5.5" stroke={color} strokeWidth="1.8" fill="none" />
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <circle cx="7.5" cy="7.5" r="5.5" stroke={color} strokeWidth="1.8" />
       <path d="M12 12L16 16" stroke={color} strokeWidth="1.8" />
     </svg>
   );
@@ -156,204 +196,267 @@ const s = {
     position: "sticky",
     top: 0,
     zIndex: 60,
-    background: T.sand,
-    borderBottom: `1px solid ${T.border}`,
-    boxShadow: `0 2px 16px ${T.shadow}`
+    background: "rgba(245,241,232,0.92)",
+    backdropFilter: "blur(14px)",
+    borderBottom: `1px solid ${T.borderSoft}`,
+    boxShadow: T.shadow
   },
-  colorBar: {
+  topGradient: {
     height: "4px",
-    background: "linear-gradient(90deg,#16356b,#1d4ed8,#0ea5e9,#0f766e,#16a34a)"
+    background: "linear-gradient(90deg, #173b74 0%, #1d5fa8 38%, #0f8b84 72%, #22c5a5 100%)"
   },
-  inner: {
-    maxWidth: "1200px",
-    margin: "0 auto",
-    padding: "12px 16px",
+  container: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    paddingTop: "12px",
+    paddingBottom: "12px"
   },
-  row: {
+  topRow: {
     display: "grid",
     gridTemplateColumns: "48px 1fr auto",
-    alignItems: "center",
-    gap: "12px"
+    gap: "12px",
+    alignItems: "center"
   },
   iconBtn: {
     width: "48px",
     height: "48px",
-    borderRadius: "14px",
-    border: `1.5px solid ${T.border}`,
+    borderRadius: "16px",
+    border: `1px solid ${T.border}`,
     background: T.white,
     display: "grid",
     placeItems: "center",
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
   },
   logo: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    textDecoration: "none",
-    justifySelf: "center"
+    minWidth: 0
+  },
+  logoMark: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "14px",
+    background: T.white,
+    border: `1px solid ${T.border}`,
+    display: "grid",
+    placeItems: "center",
+    flexShrink: 0
   },
   logoImg: {
-    width: "40px",
-    height: "40px"
+    width: "28px",
+    height: "28px",
+    objectFit: "contain"
   },
-  logoText: {
+  logoTextWrap: {
     display: "grid",
-    lineHeight: 1
+    lineHeight: 1,
+    minWidth: 0
   },
   logoName: {
+    color: T.navy,
     fontSize: "22px",
     fontWeight: 900,
-    color: T.navy
+    letterSpacing: "0.02em"
   },
   logoSub: {
+    marginTop: "4px",
+    color: T.teal,
     fontSize: "11px",
-    color: T.teal
+    fontWeight: 700
   },
   cartBtn: {
+    position: "relative",
+    minWidth: "84px",
+    height: "48px",
+    borderRadius: "16px",
+    border: `1px solid ${T.border}`,
+    background: T.white,
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "6px",
-    padding: "10px 14px",
-    borderRadius: "14px",
-    border: `1.5px solid ${T.border}`,
-    background: T.white,
-    textDecoration: "none",
+    padding: "0 12px",
+    fontWeight: 900,
     color: T.navy,
-    fontWeight: 800,
-    position: "relative"
+    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
   },
-  cartLabel: {
+  cartIcon: {
+    fontSize: "16px"
+  },
+  cartText: {
     fontSize: "13px"
   },
   cartBadge: {
+    position: "absolute",
+    top: "-6px",
+    left: "-4px",
+    minWidth: "22px",
+    height: "22px",
+    padding: "0 6px",
+    borderRadius: "999px",
     background: T.navy,
     color: "#fff",
-    borderRadius: "999px",
-    padding: "2px 7px",
+    display: "grid",
+    placeItems: "center",
     fontSize: "11px",
-    minWidth: "20px",
-    textAlign: "center"
+    fontWeight: 900,
+    border: "2px solid #fff"
   },
   searchWrap: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    padding: "0 14px",
-    height: "52px",
-    borderRadius: "16px",
     background: T.white,
-    border: `1.5px solid ${T.border}`,
-    transition: "0.2s ease"
+    border: `1px solid ${T.border}`,
+    borderRadius: "18px",
+    padding: "0 14px",
+    minHeight: "52px",
+    boxShadow: "0 8px 18px rgba(23,59,116,0.04)"
   },
-  searchWrapFocus: {
-    border: `1.5px solid ${T.blue}`,
-    boxShadow: "0 0 0 4px rgba(29,78,216,0.08)"
+  searchWrapFocused: {
+    border: "1px solid #8fb1d7",
+    boxShadow: "0 0 0 4px rgba(30,95,168,0.10)"
   },
   searchInput: {
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     border: "none",
     outline: "none",
     background: "transparent",
     fontSize: "15px",
-    color: "#1f2937"
+    color: T.text,
+    padding: "14px 0"
   },
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15,23,42,0.34)",
-    zIndex: 69
+    background: "rgba(15, 23, 42, 0.32)",
+    zIndex: 80
   },
   drawer: {
     position: "fixed",
     top: 0,
     right: 0,
-    width: "320px",
-    maxWidth: "88vw",
-    height: "100vh",
-    background: "#fffefb",
-    borderLeft: `1px solid ${T.border}`,
-    zIndex: 70,
+    bottom: 0,
+    width: "86%",
+    maxWidth: "360px",
+    background: T.cream,
+    zIndex: 90,
+    padding: "18px 16px 16px",
+    boxShadow: "-10px 0 40px rgba(15,23,42,0.18)",
     display: "grid",
     gridTemplateRows: "auto 1fr auto",
-    boxShadow: "-10px 0 30px rgba(0,0,0,0.12)"
+    gap: "18px"
   },
   drawerHeader: {
-    padding: "18px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px"
+  },
+  drawerBrand: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderBottom: `1px solid ${T.border}`
+    gap: "12px"
+  },
+  drawerLogoWrap: {
+    width: "48px",
+    height: "48px",
+    borderRadius: "16px",
+    background: T.white,
+    border: `1px solid ${T.border}`,
+    display: "grid",
+    placeItems: "center"
   },
   drawerLogo: {
-    width: "36px",
-    height: "36px"
+    width: "30px",
+    height: "30px",
+    objectFit: "contain"
+  },
+  drawerTitle: {
+    color: T.navy,
+    fontWeight: 900,
+    fontSize: "18px"
+  },
+  drawerSubtitle: {
+    color: T.teal,
+    fontSize: "12px",
+    fontWeight: 700
   },
   closeBtn: {
-    width: "40px",
-    height: "40px",
+    width: "42px",
+    height: "42px",
+    borderRadius: "14px",
     border: `1px solid ${T.border}`,
-    background: "#fff",
-    borderRadius: "12px",
+    background: T.white,
     cursor: "pointer",
-    fontSize: "18px"
+    color: T.text,
+    fontWeight: 900
   },
   drawerNav: {
     display: "grid",
     gap: "10px",
-    padding: "16px"
+    alignContent: "start"
   },
   drawerLink: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "14px",
-    borderRadius: "14px",
-    textDecoration: "none",
-    color: "#1f2937",
-    background: "#fff",
+    minHeight: "50px",
+    borderRadius: "16px",
+    padding: "0 14px",
+    background: T.white,
     border: `1px solid ${T.border}`,
-    fontWeight: 700
-  },
-  drawerIcon: {
-    width: "24px",
-    textAlign: "center"
-  },
-  sellerLink: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    padding: "14px",
-    borderRadius: "14px",
-    textDecoration: "none",
-    color: "#fff",
-    background: "linear-gradient(135deg,#16356b,#0f766e)",
+    color: T.text,
     fontWeight: 800
   },
-  drawerFooter: {
-    padding: "16px",
-    borderTop: `1px solid ${T.border}`
+  drawerLinkActive: {
+    color: T.navy,
+    border: "1px solid #bfd5ea",
+    background: "#f8fbff"
   },
-  drawerCartBtn: {
+  drawerIcon: {
+    width: "28px",
+    textAlign: "center",
+    color: T.navy,
+    fontWeight: 900
+  },
+  sellerPortalLink: {
+    minHeight: "50px",
+    borderRadius: "16px",
+    padding: "0 14px",
+    background: T.tealSoft,
+    border: "1px solid #c9ece7",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: T.teal,
+    fontWeight: 900
+  },
+  drawerFooter: {
+    paddingTop: "8px"
+  },
+  drawerCart: {
+    minHeight: "54px",
+    borderRadius: "18px",
+    padding: "0 16px",
+    background: "linear-gradient(135deg, #173b74 0%, #1d5c97 55%, #0f8b84 100%)",
+    color: "#fff",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px",
-    borderRadius: "14px",
-    textDecoration: "none",
-    background: "#16356b",
-    color: "#fff",
-    fontWeight: 800
+    fontWeight: 900,
+    boxShadow: "0 14px 24px rgba(23,59,116,0.14)"
   },
   drawerCartBadge: {
-    minWidth: "24px",
-    height: "24px",
+    minWidth: "28px",
+    height: "28px",
     borderRadius: "999px",
+    background: "rgba(255,255,255,0.18)",
     display: "grid",
     placeItems: "center",
-    background: "#fff",
-    color: "#16356b",
     fontSize: "12px",
     fontWeight: 900
   }
