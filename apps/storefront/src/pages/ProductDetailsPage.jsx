@@ -111,7 +111,7 @@ export default function ProductDetailsPage() {
     return [
       "جودة موثوقة للاستخدام اليومي",
       "تصميم عملي ومريح",
-      "تجربة شراء آمنة داخل رحبة",
+      "شراء آمن داخل رحبة",
       "قيمة جيدة مقابل السعر"
     ];
   }, [product]);
@@ -137,12 +137,12 @@ export default function ProductDetailsPage() {
 
     return [
       {
-        question_ar: "هل المنتج مناسب للاستعمال اليومي؟",
-        answer_ar: "نعم، تم تقديم هذا المنتج داخل المنصة ليكون مناسبًا للاستعمال العملي واليومي."
+        question_ar: "هل المنتج متوفر حالياً؟",
+        answer_ar: "يمكنك التأكد من التوفر من خلال خانة المخزون الظاهرة أعلى الصفحة."
       },
       {
-        question_ar: "هل يمكن الشراء مباشرة عبر Checkout؟",
-        answer_ar: "نعم، يمكنك إضافته إلى السلة ثم إتمام الطلب عبر صفحة Checkout."
+        question_ar: "كيف أشتري هذا المنتج؟",
+        answer_ar: "يمكنك إضافته إلى السلة أو الضغط على Checkout لإتمام الطلب بسرعة."
       }
     ];
   }, [product]);
@@ -152,17 +152,16 @@ export default function ProductDetailsPage() {
       id: p.id,
       slug: p.slug,
       name: p.title_ar || "",
-      price: p.price_mad || 0,
+      price: Number(p.price_mad || 0),
       seller_id: p.seller_id || null,
       seller: p.seller_name || p.brand || "RAHBA",
       city: "",
-      rating: p.rating_avg || 0,
-      reviews: p.reviews_count || 0,
-      stock: p.stock || 0,
+      rating: Number(p.rating_avg || 0),
+      reviews: Number(p.reviews_count || 0),
+      stock: Number(p.stock || 0),
       badge: p.status || "",
       description: p.description_ar || "",
-      image_url: p.image_url || "",
-      quantity: 1
+      image_url: p.image_url || ""
     };
   }
 
@@ -247,7 +246,7 @@ export default function ProductDetailsPage() {
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <p>جاري تحميل المنتج...</p>
+        <div className="loading-state">جاري تحميل المنتج...</div>
       </section>
     );
   }
@@ -255,362 +254,591 @@ export default function ProductDetailsPage() {
   if (!product) {
     return (
       <section className="container section-space" dir="rtl">
-        <p>المنتج غير موجود</p>
+        <div className="empty-state">المنتج غير موجود</div>
       </section>
     );
   }
 
   return (
-    <section className="container section-space product-page" dir="rtl">
-      <div className="product-breadcrumb-row">
-        <button
-          type="button"
-          className="product-back-link"
-          onClick={() => navigate("/products")}
-        >
-          ← الرجوع إلى المنتجات
-        </button>
-      </div>
+    <>
+      <section className="container section-space" dir="rtl">
+        <div className="page-stack">
+          <div className="ui-card" style={styles.heroCard}>
+            <div style={styles.brandRow}>
+              <span className="ui-chip">{product.brand || product.seller_name || "RAHBA"}</span>
+              <span className="ui-chip">{product.category_slug || "منتج"}</span>
+            </div>
 
-      <div className="product-hero-card">
-        <div className="product-hero-grid-3">
-          <div className="product-gallery-col">
-            <div className="product-main-image-card">
+            <h1 className="page-title">{product.title_ar}</h1>
+
+            <div style={styles.ratingLine}>
+              <span style={styles.stars}>
+                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+              </span>
+              <span>{ratingSummary.avg || 0}</span>
+              <span>({ratingSummary.count || 0})</span>
+            </div>
+
+            <div style={styles.galleryCard}>
               {selectedImage ? (
-                <img
-                  src={selectedImage}
-                  alt={product.title_ar}
-                  className="product-main-image"
-                />
+                <img src={selectedImage} alt={product.title_ar} style={styles.mainImage} />
               ) : (
-                <div className="product-no-image">No image</div>
+                <div style={styles.noImage}>No image</div>
               )}
             </div>
 
             {galleryImages.length > 1 ? (
-              <div className="product-thumbs-row">
+              <div style={styles.thumbsRow}>
                 {galleryImages.map((img, idx) => (
                   <button
                     key={`${img}-${idx}`}
                     type="button"
                     onClick={() => setSelectedImage(img)}
-                    className={`product-thumb-btn ${selectedImage === img ? "is-active" : ""}`}
+                    style={{
+                      ...styles.thumbBtn,
+                      ...(selectedImage === img ? styles.thumbBtnActive : {})
+                    }}
                   >
-                    <img src={img} alt={`thumb-${idx}`} className="product-thumb-img" />
+                    <img src={img} alt={`thumb-${idx}`} style={styles.thumbImg} />
                   </button>
                 ))}
               </div>
             ) : null}
-          </div>
 
-          <div className="product-info-col">
-            <div className="product-brand-line">
-              {product.brand || product.seller_name || "RAHBA"}
-            </div>
+            <div className="ui-card-soft" style={styles.summaryCard}>
+              <div style={styles.summaryTop}>
+                <div style={styles.priceBox}>{product.price_mad} MAD</div>
+                <div
+                  style={{
+                    ...styles.stockPill,
+                    color: product.stock > 0 ? "#166534" : "#b91c1c"
+                  }}
+                >
+                  {product.stock > 0 ? `متوفر: ${product.stock}` : "غير متوفر حالياً"}
+                </div>
+              </div>
 
-            <h1 className="product-title-main">{product.title_ar}</h1>
+              <p style={styles.shortDesc}>
+                {product.description_ar || "بدون وصف مختصر"}
+              </p>
 
-            <div className="product-rating-line">
-              <span className="product-stars">
-                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-              </span>
-              <span>{ratingSummary.avg || 0}</span>
-              <span>({ratingSummary.count || 0} تقييم)</span>
-            </div>
-
-            <div className="product-price-inline">{product.price_mad} MAD</div>
-
-            <p className="product-short-desc">
-              {product.description_ar || "بدون وصف مختصر"}
-            </p>
-
-            <div className="product-feature-pills">
-              <span className="product-feature-pill">دفع آمن</span>
-              <span className="product-feature-pill">دعم عبر المنصة</span>
-              <span className="product-feature-pill">واجهة شراء واضحة</span>
-            </div>
-
-            <div className="product-mini-details">
-              <div><strong>المتجر:</strong> {product.seller_name || "RAHBA"}</div>
-              <div><strong>SKU:</strong> {product.sku || "—"}</div>
-              <div><strong>الحالة:</strong> {product.status || "active"}</div>
+              <div style={styles.sellerBox}>
+                <div style={styles.sellerLabel}>البائع</div>
+                <div style={styles.sellerValue}>{product.seller_name || product.brand || "RAHBA"}</div>
+              </div>
             </div>
           </div>
 
-          <aside className="product-buy-card">
-            <div className="product-buy-card-head">
-              <div className="product-buy-price">{product.price_mad} MAD</div>
-              <div className={`product-stock ${product.stock > 0 ? "in-stock" : "out-stock"}`}>
-                {product.stock > 0 ? `متوفر في المخزون: ${product.stock}` : "غير متوفر حالياً"}
+          {message ? <div className="message-box">{message}</div> : null}
+
+          {product.landing_html_ar ? (
+            <section className="ui-card" style={styles.sectionCard}>
+              <h2 className="section-title">عرض تفصيلي للمنتج</h2>
+              <div
+                style={styles.htmlBlock}
+                dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
+              />
+            </section>
+          ) : null}
+
+          <section className="ui-card" style={styles.sectionCard}>
+            <h2 className="section-title">أهم المميزات</h2>
+            <div style={styles.highlightsGrid}>
+              {highlights.map((item, idx) => (
+                <div key={`${item}-${idx}`} className="ui-card-soft" style={styles.highlightCard}>
+                  <div style={styles.highlightIcon}>✓</div>
+                  <div style={styles.highlightText}>{item}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="ui-card" style={styles.sectionCard}>
+            <h2 className="section-title">تفاصيل المنتج</h2>
+            <div style={styles.detailsGrid}>
+              {specs.map((row, idx) => (
+                <DetailRow
+                  key={row.id || `${row.label_ar}-${idx}`}
+                  label={row.label_ar}
+                  value={row.value_ar}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="ui-card" style={styles.sectionCard}>
+            <h2 className="section-title">أسئلة شائعة</h2>
+            <div style={styles.faqList}>
+              {faqs.map((faq, idx) => (
+                <div key={faq.id || `${faq.question_ar}-${idx}`} className="ui-card-soft" style={styles.faqItem}>
+                  <div style={styles.faqQuestion}>{faq.question_ar}</div>
+                  <div style={styles.faqAnswer}>{faq.answer_ar}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="ui-card" style={styles.sectionCard}>
+            <div style={styles.reviewHead}>
+              <div>
+                <h2 className="section-title">مراجعات العملاء</h2>
+                <div style={styles.reviewSummary}>
+                  <span style={styles.stars}>
+                    {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
+                  </span>
+                  <span>{ratingSummary.avg || 0} من 5</span>
+                </div>
+                <div style={styles.reviewCount}>{ratingSummary.count || 0} تقييم</div>
               </div>
             </div>
 
-            <div className="product-buy-box-list">
-              <div>✔️ شراء مباشر عبر المنصة</div>
-              <div>✔️ طلباتك محفوظة في الحساب</div>
-              <div>✔️ مراجعات بعد الشراء فقط</div>
+            <form onSubmit={handleSubmitReview} style={styles.reviewForm}>
+              <label className="ui-label">
+                <span>التقييم</span>
+                <select
+                  value={reviewForm.rating}
+                  onChange={(e) =>
+                    setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
+                  }
+                  className="ui-select"
+                >
+                  <option value={5}>5 - ممتاز</option>
+                  <option value={4}>4 - جيد جدًا</option>
+                  <option value={3}>3 - جيد</option>
+                  <option value={2}>2 - مقبول</option>
+                  <option value={1}>1 - ضعيف</option>
+                </select>
+              </label>
+
+              <label className="ui-label">
+                <span>عنوان المراجعة</span>
+                <input
+                  type="text"
+                  value={reviewForm.title}
+                  onChange={(e) =>
+                    setReviewForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
+                  placeholder="مثلاً: منتج ممتاز"
+                  className="ui-input"
+                />
+              </label>
+
+              <label className="ui-label">
+                <span>التعليق</span>
+                <textarea
+                  value={reviewForm.comment}
+                  onChange={(e) =>
+                    setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
+                  }
+                  placeholder="اكتب تجربتك بعد الشراء"
+                  className="ui-textarea"
+                />
+              </label>
+
+              <label className="ui-label">
+                <span>رابط صورة المراجعة</span>
+                <input
+                  type="url"
+                  value={reviewForm.review_image_url}
+                  onChange={(e) =>
+                    setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
+                  }
+                  placeholder="https://..."
+                  className="ui-input"
+                />
+              </label>
+
+              <div className="ui-chip">التقييم متاح بعد شراء المنتج</div>
+
+              {reviewMessage ? <div className="message-box">{reviewMessage}</div> : null}
+
+              <button type="submit" disabled={submittingReview} className="btn btn-secondary full-width">
+                {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
+              </button>
+            </form>
+
+            <div style={styles.reviewsList}>
+              {reviewsLoading ? (
+                <div className="loading-state">جاري تحميل المراجعات...</div>
+              ) : reviews.length === 0 ? (
+                <div className="empty-state">لا توجد مراجعات بعد</div>
+              ) : (
+                reviews.map((review) => (
+                  <article key={review.id} className="ui-card-soft" style={styles.reviewCard}>
+                    <div style={styles.reviewCardTop}>
+                      <div style={styles.stars}>{"★".repeat(review.rating)}</div>
+                      <div style={styles.reviewDate}>{review.created_at}</div>
+                    </div>
+
+                    {review.buyer_name ? (
+                      <div style={styles.reviewerName}>{review.buyer_name}</div>
+                    ) : null}
+
+                    {review.title ? (
+                      <strong style={styles.reviewTitle}>{review.title}</strong>
+                    ) : null}
+
+                    <p style={styles.reviewText}>{review.comment}</p>
+
+                    {review.review_image_url ? (
+                      <img
+                        src={review.review_image_url}
+                        alt="صورة المراجعة"
+                        style={styles.reviewImage}
+                      />
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </section>
+
+          {similar.length > 0 ? (
+            <section className="ui-card" style={styles.sectionCard}>
+              <h2 className="section-title">منتجات مشابهة</h2>
+              <div className="product-list">
+                {similar.map((p) => (
+                  <div
+                    key={p.id}
+                    className="product-card"
+                    onClick={() => navigate(`/products/${p.slug}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.title_ar} className="product-card__image" />
+                    ) : (
+                      <div className="product-card__image" style={styles.noImage}>No image</div>
+                    )}
+
+                    <div className="product-card__body">
+                      <h3 className="product-card__title">{p.title_ar}</h3>
+                      <p className="product-card__desc">
+                        {p.description_ar || "منتج مشابه داخل نفس الفئة"}
+                      </p>
+                      <strong className="product-card__price">{p.price_mad} MAD</strong>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </section>
+
+      <div style={styles.stickyBarWrap}>
+        <div className="container">
+          <div style={styles.stickyBar}>
+            <div style={styles.stickyPrice}>
+              <strong>{product.price_mad} MAD</strong>
+              <span style={styles.stickyStock}>
+                {product.stock > 0 ? "متوفر" : "غير متوفر"}
+              </span>
             </div>
 
-            <div className="product-buy-actions">
+            <div style={styles.stickyActions}>
               <button
                 onClick={handleAddToCart}
                 disabled={product.stock <= 0}
-                className="btn btn-primary full-width"
+                className="btn btn-secondary"
               >
-                {product.stock <= 0 ? "غير متوفر" : "أضف إلى السلة"}
+                أضف إلى السلة
               </button>
 
               <button
                 onClick={handleGoToCheckout}
                 disabled={product.stock <= 0}
-                className="btn btn-secondary full-width"
+                className="btn btn-primary"
               >
-                اشتر الآن عبر Checkout
+                Checkout
               </button>
             </div>
-
-            {message ? <div className="product-info-box">{message}</div> : null}
-          </aside>
+          </div>
         </div>
       </div>
-
-      {product.landing_html_ar ? (
-        <section className="product-section-card">
-          <h2 className="product-section-title">عرض تفصيلي للمنتج</h2>
-          <div
-            className="product-html-landing"
-            dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
-          />
-        </section>
-      ) : null}
-
-      <section className="product-section-card manufacturer-block">
-        <div className="manufacturer-badge">منتج مميز</div>
-        <div className="manufacturer-small">جودة موثوقة داخل رحبة</div>
-        <h2 className="manufacturer-title">عرض أغنى للمحتوى والمواصفات والصور</h2>
-        <p className="manufacturer-text">
-          {product.description_long_ar ||
-            product.description_ar ||
-            "هذا المنتج مناسب للمستخدمين الذين يبحثون عن تجربة عملية، وصف واضح، وصور أكثر قبل الشراء."}
-        </p>
-
-        <div className="manufacturer-stats">
-          <HeroStat label="التقييم" value={`${ratingSummary.avg || 0} / 5`} />
-          <HeroStat label="المراجعات" value={`${ratingSummary.count || 0}`} />
-          <HeroStat label="المخزون" value={`${product.stock || 0}`} />
-        </div>
-      </section>
-
-      <div className="product-two-col-sections">
-        <section className="product-section-card">
-          <h2 className="product-section-title">أهم المميزات</h2>
-          <div className="product-highlight-grid">
-            {highlights.map((item, idx) => (
-              <div key={`${item}-${idx}`} className="product-highlight-card">
-                <div className="product-highlight-icon">✓</div>
-                <div className="product-highlight-text">{item}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="product-section-card">
-          <h2 className="product-section-title">تفاصيل المنتج</h2>
-          <div className="product-details-grid">
-            {specs.map((row, idx) => (
-              <DetailRow
-                key={row.id || `${row.label_ar}-${idx}`}
-                label={row.label_ar}
-                value={row.value_ar}
-              />
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <section className="product-section-card">
-        <h2 className="product-section-title">أسئلة شائعة</h2>
-        <div className="product-faq-list">
-          {faqs.map((faq, idx) => (
-            <div key={faq.id || `${faq.question_ar}-${idx}`} className="product-faq-item">
-              <div className="product-faq-question">{faq.question_ar}</div>
-              <div className="product-faq-answer">{faq.answer_ar}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="product-section-card">
-        <div className="product-review-head">
-          <div>
-            <h2 className="product-section-title">مراجعات العملاء</h2>
-            <div className="product-review-summary">
-              <span className="product-review-stars">
-                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-              </span>
-              <span>{ratingSummary.avg || 0} من 5</span>
-            </div>
-            <div className="product-review-count">{ratingSummary.count || 0} تقييم</div>
-          </div>
-        </div>
-
-        <div className="product-review-layout">
-          <form onSubmit={handleSubmitReview} className="product-review-form">
-            <div className="product-form-group">
-              <label>التقييم</label>
-              <select
-                value={reviewForm.rating}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
-                }
-                className="ui-select"
-              >
-                <option value={5}>5 - ممتاز</option>
-                <option value={4}>4 - جيد جدًا</option>
-                <option value={3}>3 - جيد</option>
-                <option value={2}>2 - مقبول</option>
-                <option value={1}>1 - ضعيف</option>
-              </select>
-            </div>
-
-            <div className="product-form-group">
-              <label>عنوان المراجعة</label>
-              <input
-                type="text"
-                value={reviewForm.title}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, title: e.target.value }))
-                }
-                placeholder="مثلاً: منتج ممتاز"
-                className="ui-input"
-              />
-            </div>
-
-            <div className="product-form-group">
-              <label>التعليق</label>
-              <textarea
-                value={reviewForm.comment}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
-                }
-                placeholder="اكتب تجربتك بعد الشراء"
-                className="ui-textarea"
-              />
-            </div>
-
-            <div className="product-form-group">
-              <label>رابط صورة المراجعة</label>
-              <input
-                type="url"
-                value={reviewForm.review_image_url}
-                onChange={(e) =>
-                  setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
-                }
-                placeholder="https://..."
-                className="ui-input"
-              />
-            </div>
-
-            <div className="product-review-hint">
-              التقييم وإرفاق الصورة متاحان فقط بعد شراء المنتج.
-            </div>
-
-            {reviewMessage ? <div className="product-info-box">{reviewMessage}</div> : null}
-
-            <button
-              type="submit"
-              disabled={submittingReview}
-              className="btn btn-secondary"
-            >
-              {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
-            </button>
-          </form>
-
-          <div className="product-reviews-list">
-            {reviewsLoading ? (
-              <p className="ui-muted">جاري تحميل المراجعات...</p>
-            ) : reviews.length === 0 ? (
-              <div className="ui-empty">لا توجد مراجعات بعد</div>
-            ) : (
-              reviews.map((review) => (
-                <article key={review.id} className="product-review-card">
-                  <div className="product-review-card-top">
-                    <div className="product-review-card-stars">
-                      {"★".repeat(review.rating)}
-                    </div>
-                    <div className="ui-muted">{review.created_at}</div>
-                  </div>
-
-                  {review.buyer_name ? (
-                    <div className="product-reviewer-name">{review.buyer_name}</div>
-                  ) : null}
-
-                  {review.title ? (
-                    <strong className="product-review-title">{review.title}</strong>
-                  ) : null}
-
-                  <p className="product-review-text">{review.comment}</p>
-
-                  {review.review_image_url ? (
-                    <img
-                      src={review.review_image_url}
-                      alt="صورة المراجعة"
-                      className="product-review-image"
-                    />
-                  ) : null}
-                </article>
-              ))
-            )}
-          </div>
-        </div>
-      </section>
-
-      {similar.length > 0 ? (
-        <section className="product-section-card">
-          <h2 className="product-section-title">منتجات مشابهة</h2>
-          <div className="product-similar-grid">
-            {similar.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => navigate(`/products/${p.slug}`)}
-                className="product-similar-card"
-              >
-                {p.image_url ? (
-                  <img src={p.image_url} alt={p.title_ar} className="product-similar-image" />
-                ) : (
-                  <div className="product-similar-noimage">No image</div>
-                )}
-
-                <div className="product-similar-body">
-                  <div className="product-similar-title">{p.title_ar}</div>
-                  <div className="product-similar-desc">
-                    {p.description_ar || "منتج مشابه داخل نفس الفئة"}
-                  </div>
-                  <div className="product-similar-price">{p.price_mad} MAD</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </section>
-  );
-}
-
-function HeroStat({ label, value }) {
-  return (
-    <div className="manufacturer-stat-card">
-      <div className="manufacturer-stat-value">{value}</div>
-      <div className="manufacturer-stat-label">{label}</div>
-    </div>
+    </>
   );
 }
 
 function DetailRow({ label, value }) {
   return (
-    <div className="product-detail-row">
-      <div className="product-detail-label">{label}</div>
-      <div className="product-detail-value">{value}</div>
+    <div className="ui-card-soft" style={styles.detailRow}>
+      <div style={styles.detailLabel}>{label}</div>
+      <div style={styles.detailValue}>{value}</div>
     </div>
   );
 }
+
+const styles = {
+  heroCard: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px"
+  },
+  brandRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+  ratingLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: "#6b6156",
+    fontWeight: 800
+  },
+  stars: {
+    color: "#f59e0b",
+    fontWeight: 900
+  },
+  galleryCard: {
+    overflow: "hidden",
+    borderRadius: "22px",
+    border: "1px solid #e7ddcf",
+    background: "#fff"
+  },
+  mainImage: {
+    width: "100%",
+    height: "360px",
+    objectFit: "cover",
+    display: "block"
+  },
+  noImage: {
+    display: "grid",
+    placeItems: "center",
+    color: "#94a3b8"
+  },
+  thumbsRow: {
+    display: "flex",
+    gap: "8px",
+    overflowX: "auto",
+    paddingBottom: "4px"
+  },
+  thumbBtn: {
+    minWidth: "78px",
+    width: "78px",
+    height: "78px",
+    borderRadius: "16px",
+    overflow: "hidden",
+    border: "1px solid #ddd2c2",
+    background: "#fff",
+    padding: 0,
+    cursor: "pointer",
+    flexShrink: 0
+  },
+  thumbBtnActive: {
+    border: "2px solid #173b74"
+  },
+  thumbImg: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover"
+  },
+  summaryCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "12px"
+  },
+  summaryTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+  priceBox: {
+    color: "#173b74",
+    fontSize: "28px",
+    fontWeight: 900
+  },
+  stockPill: {
+    fontSize: "13px",
+    fontWeight: 900
+  },
+  shortDesc: {
+    margin: 0,
+    color: "#64748b",
+    lineHeight: 1.8
+  },
+  sellerBox: {
+    display: "grid",
+    gap: "4px"
+  },
+  sellerLabel: {
+    color: "#8a8175",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  sellerValue: {
+    color: "#1f2937",
+    fontWeight: 900
+  },
+  sectionCard: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px"
+  },
+  htmlBlock: {
+    lineHeight: 1.9,
+    color: "#374151"
+  },
+  highlightsGrid: {
+    display: "grid",
+    gap: "10px"
+  },
+  highlightCard: {
+    padding: "14px",
+    display: "flex",
+    gap: "12px",
+    alignItems: "flex-start"
+  },
+  highlightIcon: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "999px",
+    background: "#eef6ff",
+    color: "#173b74",
+    display: "grid",
+    placeItems: "center",
+    fontWeight: 900,
+    flexShrink: 0
+  },
+  highlightText: {
+    color: "#374151",
+    lineHeight: 1.8,
+    fontWeight: 700
+  },
+  detailsGrid: {
+    display: "grid",
+    gap: "10px"
+  },
+  detailRow: {
+    padding: "14px"
+  },
+  detailLabel: {
+    color: "#8a8175",
+    fontSize: "13px",
+    fontWeight: 700,
+    marginBottom: "6px"
+  },
+  detailValue: {
+    color: "#1f2937",
+    fontWeight: 900
+  },
+  faqList: {
+    display: "grid",
+    gap: "10px"
+  },
+  faqItem: {
+    padding: "14px"
+  },
+  faqQuestion: {
+    color: "#173b74",
+    fontWeight: 900,
+    marginBottom: "8px"
+  },
+  faqAnswer: {
+    color: "#4b5563",
+    lineHeight: 1.8
+  },
+  reviewHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+  reviewSummary: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginTop: "6px",
+    color: "#6b6156",
+    fontWeight: 800
+  },
+  reviewCount: {
+    marginTop: "6px",
+    color: "#8a8175",
+    fontWeight: 700,
+    fontSize: "13px"
+  },
+  reviewForm: {
+    display: "grid",
+    gap: "12px"
+  },
+  reviewsList: {
+    display: "grid",
+    gap: "10px"
+  },
+  reviewCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "8px"
+  },
+  reviewCardTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+  reviewDate: {
+    color: "#8a8175",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  reviewerName: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  reviewTitle: {
+    color: "#1f2937"
+  },
+  reviewText: {
+    margin: 0,
+    color: "#4b5563",
+    lineHeight: 1.8
+  },
+  reviewImage: {
+    width: "100%",
+    maxHeight: "280px",
+    objectFit: "cover",
+    borderRadius: "16px",
+    border: "1px solid #e7ddcf"
+  },
+  stickyBarWrap: {
+    position: "sticky",
+    bottom: 0,
+    zIndex: 40,
+    paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+    background: "linear-gradient(180deg, rgba(245,241,232,0) 0%, rgba(245,241,232,0.96) 36%, rgba(245,241,232,1) 100%)"
+  },
+  stickyBar: {
+    marginTop: "10px",
+    background: "rgba(255,255,255,0.95)",
+    border: "1px solid #e7ddcf",
+    borderRadius: "20px",
+    boxShadow: "0 12px 30px rgba(23,59,116,0.08)",
+    padding: "12px",
+    display: "grid",
+    gap: "10px"
+  },
+  stickyPrice: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "center",
+    color: "#173b74",
+    fontSize: "20px"
+  },
+  stickyStock: {
+    color: "#6b6156",
+    fontSize: "13px",
+    fontWeight: 800
+  },
+  stickyActions: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px"
+  }
+};
