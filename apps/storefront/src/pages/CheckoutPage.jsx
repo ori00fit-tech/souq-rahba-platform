@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
+import { formatMoney } from "../lib/utils";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, clearCart, currentUser, authLoading } = useApp();
+  const {
+    cart,
+    total,
+    currency,
+    language,
+    currentUser,
+    clearCart,
+    removeFromCart
+  } = useApp();
+
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [successOrder, setSuccessOrder] = useState(null);
 
   const [form, setForm] = useState({
     buyer_name: "",
@@ -13,92 +26,89 @@ export default function CheckoutPage() {
     buyer_city: "",
     buyer_address: "",
     notes: "",
-    payment_method: "cash_on_delivery"
+    payment_method: "cod"
   });
 
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
+  const locale =
+    language === "ar" ? "ar-MA" :
+    language === "fr" ? "fr-MA" :
+    "en-US";
 
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
-      buyer_name: currentUser?.full_name || prev.buyer_name || "",
-      buyer_phone: currentUser?.phone || prev.buyer_phone || ""
+      buyer_name: prev.buyer_name || currentUser?.full_name || "",
+      buyer_phone: prev.buyer_phone || currentUser?.phone || ""
     }));
   }, [currentUser]);
 
-  const groupedBySeller = useMemo(() => {
-    const groups = new Map();
+  const normalizedCart = useMemo(() => {
+    if (!Array.isArray(cart)) return [];
 
-    for (const item of Array.isArray(cart) ? cart : []) {
-      const sellerId = item?.seller_id || "unknown";
-      const existing = groups.get(sellerId) || {
-        seller_id: sellerId,
-        seller_name: item?.seller || "RAHBA Seller",
-        items: []
-      };
-
-      existing.items.push({
-        ...item,
-        quantity: Number(item.quantity || item.qty || 1)
-      });
-
-      groups.set(sellerId, existing);
-    }
-
-    return Array.from(groups.values());
+    return cart.map((item) => ({
+      id: item.id,
+      product_id: item.id,
+      slug: item.slug,
+      name: item.name || "",
+      seller_id: item.seller_id || null,
+      seller: item.seller || "RAHBA",
+      price: Number(item.price ?? 0),
+      qty: Number(item.qty || item.quantity || 1),
+      image_url: item.image_url || ""
+    }));
   }, [cart]);
 
-  const totals = useMemo(() => {
-    let subtotal = 0;
+  const sellerIds = useMemo(() => {
+    return [...new Set(normalizedCart.map((item) => item.seller_id).filter(Boolean))];
+  }, [normalizedCart]);
 
-    for (const sellerGroup of groupedBySeller) {
-      for (const item of sellerGroup.items) {
-        subtotal += Number(item.price || item.price_mad || 0) * Number(item.quantity || 1);
-      }
+  const hasMixedSellers = sellerIds.length > 1;
+  const canCheckout = normalizedCart.length > 0 && !hasMixedSellers;
+
+  const shipping = total > 0 ? 0 : 0;
+  const grandTotal = total + shipping;
+
+  async function emptyCartSafely() {
+    if (typeof clearCart === "function") {
+      clearCart();
+      return;
     }
 
-    return {
-      subtotal,
-      total: subtotal
-    };
-  }, [groupedBySeller]);
-
-  function updateField(name, value) {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    if (typeof removeFromCart === "function") {
+      normalizedCart.forEach((item) => removeFromCart(item.id));
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (authLoading) {
-      setMessage("جاري التحقق من الجلسة...");
-      return;
-    }
-
-    if (!currentUser) {
-      setMessage("يجب تسجيل الدخول أولاً");
-      navigate("/auth");
-      return;
-    }
-
-    if (currentUser.role !== "buyer") {
-      setMessage("هذه الصفحة مخصصة لحسابات المشترين فقط");
-      return;
-    }
-
-    if (!groupedBySeller.length) {
+    if (!normalizedCart.length) {
       setMessage("السلة فارغة");
       return;
     }
 
-    if (
-      !form.buyer_name.trim() ||
-      !form.buyer_phone.trim() ||
-      !form.buyer_city.trim() ||
-      !form.buyer_address.trim()
-    ) {
-      setMessage("يرجى ملء الاسم والهاتف والمدينة والعنوان");
+    if (hasMixedSellers) {
+      setMessage("حالياً يجب أن تكون كل عناصر الطلب من نفس البائع");
+      return;
+    }
+
+    if (!form.buyer_name.trim()) {
+      setMessage("يرجى إدخال الاسم الكامل");
+      return;
+    }
+
+    if (!form.buyer_phone.trim()) {
+      setMessage("يرجى إدخال رقم الهاتف");
+      return;
+    }
+
+    if (!form.buyer_city.trim()) {
+      setMessage("يرجى إدخال المدينة");
+      return;
+    }
+
+    if (!form.buyer_address.trim()) {
+      setMessage("يرجى إدخال العنوان");
       return;
     }
 
@@ -106,59 +116,110 @@ export default function CheckoutPage() {
       setSubmitting(true);
       setMessage("");
 
-      const createdOrders = [];
+      const payload = {
+        seller_id: sellerIds[0],
+        payment_method: "cod",
+        buyer_name: form.buyer_name.trim(),
+        buyer_phone: form.buyer_phone.trim(),
+        buyer_city: form.buyer_city.trim(),
+        buyer_address: form.buyer_address.trim(),
+        notes: form.notes.trim() || null,
+        items: normalizedCart.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.qty
+        }))
+      };
 
-      for (const sellerGroup of groupedBySeller) {
-        const payload = {
-          buyer_user_id: currentUser.id,
-          seller_id: sellerGroup.seller_id,
-          payment_method: form.payment_method,
-          buyer_name: form.buyer_name.trim(),
-          buyer_phone: form.buyer_phone.trim(),
-          buyer_city: form.buyer_city.trim(),
-          buyer_address: form.buyer_address.trim(),
-          notes: form.notes.trim() || null,
-          items: sellerGroup.items.map((item) => ({
-            product_id: item.id,
-            quantity: Number(item.quantity || item.qty || 1)
-          }))
-        };
+      const result = await apiPost("/commerce/orders", payload);
 
-        const res = await apiPost("/commerce/orders", payload);
-
-        if (!res?.ok) {
-          throw new Error(res?.message || "تعذر إنشاء الطلب");
-        }
-
-        createdOrders.push(res.data);
+      if (!result?.ok) {
+        setMessage(result?.message || "تعذر إتمام الطلب");
+        return;
       }
 
-      clearCart();
-
-      const firstOrder = createdOrders[0];
-      setMessage(
-        firstOrder?.order_number
-          ? `تم إنشاء الطلب بنجاح. رقم الطلب: ${firstOrder.order_number}`
-          : "تم إنشاء الطلب بنجاح"
-      );
-
-      setTimeout(() => {
-        navigate("/my-orders");
-      }, 900);
+      await emptyCartSafely();
+      setSuccessOrder(result.data || null);
     } catch (err) {
       console.error(err);
-      setMessage(err?.message || "حدث خطأ أثناء إنشاء الطلب");
+      setMessage("حدث خطأ أثناء تأكيد الطلب");
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!Array.isArray(cart) || cart.length === 0) {
+  if (!normalizedCart.length && !successOrder) {
     return (
       <section className="container section-space" dir="rtl">
-        <div style={s.card}>
-          <h1 style={s.title}>إتمام الطلب</h1>
-          <p style={s.muted}>السلة فارغة حالياً</p>
+        <div className="page-stack">
+          <div className="ui-card" style={s.heroCard}>
+            <div className="ui-chip">RAHBA CHECKOUT</div>
+            <h1 className="page-title">إتمام الطلب</h1>
+            <p className="page-subtitle">
+              لا يمكن إتمام الطلب لأن السلة فارغة حالياً.
+            </p>
+          </div>
+
+          <div className="empty-state" style={s.emptyCard}>
+            <div style={s.emptyIcon}>🧺</div>
+            <h3 style={s.emptyTitle}>السلة فارغة</h3>
+            <p style={s.emptyText}>
+              أضف منتجات إلى السلة أولاً ثم ارجع لإتمام الطلب.
+            </p>
+
+            <Link to="/products" className="btn btn-primary full-width">
+              تصفح المنتجات
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (successOrder) {
+    return (
+      <section className="container section-space" dir="rtl">
+        <div className="page-stack">
+          <div className="ui-card" style={s.successCard}>
+            <div style={s.successIcon}>✅</div>
+            <div className="ui-chip">تم الطلب بنجاح</div>
+            <h1 className="page-title">تم تأكيد طلبك</h1>
+            <p className="page-subtitle">
+              توصلنا بطلبك بنجاح، وسيتم التواصل معك لتأكيد التفاصيل.
+            </p>
+
+            <div className="ui-card-soft" style={s.successInfo}>
+              <div style={s.successRow}>
+                <span>رقم الطلب</span>
+                <strong>{successOrder.order_number || "—"}</strong>
+              </div>
+              <div style={s.successRow}>
+                <span>طريقة الدفع</span>
+                <strong>الدفع عند الاستلام</strong>
+              </div>
+              <div style={s.successRow}>
+                <span>الإجمالي</span>
+                <strong>{formatMoney(successOrder.total_mad || grandTotal, currency, locale)}</strong>
+              </div>
+            </div>
+
+            <div style={s.successActions}>
+              <button
+                type="button"
+                className="btn btn-primary full-width"
+                onClick={() => navigate("/my-orders")}
+              >
+                عرض طلباتي
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary full-width"
+                onClick={() => navigate("/products")}
+              >
+                متابعة التسوق
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     );
@@ -166,91 +227,140 @@ export default function CheckoutPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div style={s.checkoutPage}>
-        <div style={s.checkoutHeader}>
-          <h1 style={s.title}>إتمام الطلب</h1>
-          <p style={s.muted}>أدخل معلوماتك لإكمال عملية الشراء</p>
+      <div className="page-stack">
+        <div className="ui-card" style={s.heroCard}>
+          <div className="ui-chip">RAHBA CHECKOUT</div>
+          <h1 className="page-title">إتمام الطلب</h1>
+          <p className="page-subtitle">
+            خطوة أخيرة فقط: أدخل بيانات التوصيل وأكد الطلب.
+          </p>
         </div>
 
-        <div style={s.checkoutGrid}>
-          <form onSubmit={handleSubmit} style={s.card}>
-            <div style={s.formGroup}>
-              <label style={s.label}>الاسم الكامل</label>
+        {hasMixedSellers ? (
+          <div className="message-box">
+            حالياً لا يمكن إتمام طلب واحد من عدة باعة. يرجى إتمام كل بائع بشكل منفصل.
+          </div>
+        ) : null}
+
+        {message ? <div className="message-box">{message}</div> : null}
+
+        <div style={s.layout}>
+          <form className="ui-card" style={s.formCard} onSubmit={handleSubmit}>
+            <h2 className="section-title">بيانات التوصيل</h2>
+
+            <label className="ui-label">
+              <span>الاسم الكامل</span>
               <input
+                className="ui-input"
                 value={form.buyer_name}
-                onChange={(e) => updateField("buyer_name", e.target.value)}
-                style={s.input}
+                onChange={(e) => setForm((prev) => ({ ...prev, buyer_name: e.target.value }))}
+                placeholder="الاسم الكامل"
               />
-            </div>
+            </label>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>رقم الهاتف</label>
+            <label className="ui-label">
+              <span>رقم الهاتف</span>
               <input
+                className="ui-input"
                 value={form.buyer_phone}
-                onChange={(e) => updateField("buyer_phone", e.target.value)}
-                style={s.input}
+                onChange={(e) => setForm((prev) => ({ ...prev, buyer_phone: e.target.value }))}
+                placeholder="06xxxxxxxx"
+                inputMode="tel"
               />
-            </div>
+            </label>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>المدينة</label>
+            <label className="ui-label">
+              <span>المدينة</span>
               <input
+                className="ui-input"
                 value={form.buyer_city}
-                onChange={(e) => updateField("buyer_city", e.target.value)}
-                style={s.input}
+                onChange={(e) => setForm((prev) => ({ ...prev, buyer_city: e.target.value }))}
+                placeholder="مثلاً: الدار البيضاء"
               />
-            </div>
+            </label>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>العنوان</label>
+            <label className="ui-label">
+              <span>العنوان</span>
               <textarea
+                className="ui-textarea"
                 value={form.buyer_address}
-                onChange={(e) => updateField("buyer_address", e.target.value)}
-                style={s.textarea}
+                onChange={(e) => setForm((prev) => ({ ...prev, buyer_address: e.target.value }))}
+                placeholder="الحي، الزنقة، رقم المنزل..."
               />
-            </div>
+            </label>
 
-            <div style={s.formGroup}>
-              <label style={s.label}>ملاحظات أثناء الطلب</label>
+            <label className="ui-label">
+              <span>ملاحظات إضافية</span>
               <textarea
+                className="ui-textarea"
                 value={form.notes}
-                onChange={(e) => updateField("notes", e.target.value)}
-                placeholder="مثلاً: اتصل بي قبل التسليم"
-                style={s.textareaSmall}
+                onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="ملاحظات اختيارية حول الطلب أو التوصيل"
               />
+            </label>
+
+            <div className="ui-card-soft" style={s.paymentCard}>
+              <div style={s.paymentTitle}>طريقة الدفع</div>
+              <label style={s.paymentMethod}>
+                <input
+                  type="radio"
+                  checked
+                  readOnly
+                />
+                <span>الدفع عند الاستلام (Cash on Delivery)</span>
+              </label>
             </div>
 
-            {message ? <div style={s.message}>{message}</div> : null}
-
-            <button type="submit" disabled={submitting} style={s.submitBtn}>
+            <button
+              type="submit"
+              disabled={submitting || !canCheckout}
+              className="btn btn-primary full-width"
+            >
               {submitting ? "جاري تأكيد الطلب..." : "تأكيد الطلب"}
             </button>
           </form>
 
-          <aside style={s.card}>
-            <h2 style={s.summaryTitle}>ملخص الطلب</h2>
+          <aside className="ui-card" style={s.summaryCard}>
+            <h2 className="section-title">ملخص الطلب</h2>
 
-            <div style={s.summaryList}>
-              {groupedBySeller.map((group) => (
-                <div key={group.seller_id} style={s.summaryBlock}>
-                  {group.items.map((item) => (
-                    <div key={item.id} style={s.summaryRow}>
-                      <div style={s.summaryPrice}>
-                        MAD {Number(item.price || item.price_mad || 0).toLocaleString()}
-                      </div>
-                      <div style={s.summaryName}>
-                        {item.name || item.title_ar}
-                      </div>
-                    </div>
-                  ))}
+            <div style={s.itemsList}>
+              {normalizedCart.map((item) => (
+                <div key={item.id} className="ui-card-soft" style={s.summaryItem}>
+                  <div style={s.summaryItemTop}>
+                    <div style={s.summaryItemName}>{item.name}</div>
+                    <div style={s.summaryItemQty}>× {item.qty}</div>
+                  </div>
+
+                  <div style={s.summaryItemMeta}>
+                    <span>{item.seller}</span>
+                    <strong>{formatMoney(item.price * item.qty, currency, locale)}</strong>
+                  </div>
                 </div>
               ))}
             </div>
 
-            <div style={s.totalRow}>
-              <strong>الإجمالي</strong>
-              <strong>MAD {totals.total.toLocaleString()}</strong>
+            <div style={s.totals}>
+              <div style={s.totalRow}>
+                <span>المجموع الفرعي</span>
+                <strong>{formatMoney(total, currency, locale)}</strong>
+              </div>
+
+              <div style={s.totalRow}>
+                <span>التوصيل</span>
+                <strong>{shipping === 0 ? "مجاني" : formatMoney(shipping, currency, locale)}</strong>
+              </div>
+
+              <div style={s.divider} />
+
+              <div style={s.totalRowGrand}>
+                <span>الإجمالي</span>
+                <strong>{formatMoney(grandTotal, currency, locale)}</strong>
+              </div>
             </div>
+
+            <Link to="/cart" className="btn btn-secondary full-width" style={s.backToCart}>
+              الرجوع إلى السلة
+            </Link>
           </aside>
         </div>
       </div>
@@ -259,132 +369,142 @@ export default function CheckoutPage() {
 }
 
 const s = {
-  checkoutPage: {
-    display: "grid",
-    gap: "24px"
-  },
-  checkoutHeader: {
-    display: "grid",
-    gap: "8px"
-  },
-  checkoutGrid: {
-    display: "grid",
-    gridTemplateColumns: "1.5fr 1fr",
-    gap: "20px"
-  },
-  card: {
-    background: "#fff",
-    border: "1px solid #e6dccf",
-    borderRadius: "24px",
+  heroCard: {
     padding: "18px",
-    boxShadow: "0 18px 40px rgba(27,58,107,0.08)",
     display: "grid",
-    gap: "16px"
+    gap: "10px"
   },
-  title: {
-    margin: 0,
-    color: "#1b3a6b",
-    fontSize: "22px",
-    fontWeight: 900
-  },
-  muted: {
-    margin: 0,
-    color: "#6e6357"
-  },
-  summaryTitle: {
-    margin: 0,
-    color: "#1b3a6b",
-    fontSize: "20px",
-    fontWeight: 900
-  },
-  formGroup: {
-    display: "grid",
-    gap: "8px"
-  },
-  label: {
-    color: "#1b3a6b",
-    fontWeight: 700
-  },
-  input: {
-    width: "100%",
-    border: "1px solid #d9cfbf",
-    borderRadius: "14px",
-    padding: "14px 16px",
-    background: "#f8fbff",
-    fontSize: "16px",
-    boxSizing: "border-box"
-  },
-  textarea: {
-    width: "100%",
-    minHeight: "72px",
-    border: "1px solid #d9cfbf",
-    borderRadius: "14px",
-    padding: "14px 16px",
-    background: "#f8fbff",
-    fontSize: "16px",
-    boxSizing: "border-box",
-    resize: "vertical"
-  },
-  textareaSmall: {
-    width: "100%",
-    minHeight: "56px",
-    border: "1px solid #d9cfbf",
-    borderRadius: "14px",
-    padding: "14px 16px",
-    background: "#fffdfa",
-    fontSize: "16px",
-    boxSizing: "border-box",
-    resize: "vertical"
-  },
-  message: {
-    border: "1px solid #e6dccf",
-    background: "#fffdfa",
-    borderRadius: "14px",
-    padding: "14px 16px",
-    color: "#7c2d12"
-  },
-  submitBtn: {
-    border: "none",
-    borderRadius: "16px",
-    padding: "16px 18px",
-    fontWeight: 800,
-    fontSize: "16px",
-    cursor: "pointer",
-    background: "#c8922a",
-    color: "#231a10"
-  },
-  summaryList: {
+  layout: {
     display: "grid",
     gap: "14px"
   },
-  summaryBlock: {
+  formCard: {
+    padding: "16px",
     display: "grid",
-    gap: "12px"
+    gap: "14px"
   },
-  summaryRow: {
+  paymentCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "10px"
+  },
+  paymentTitle: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  paymentMethod: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#374151",
+    fontWeight: 700
+  },
+  summaryCard: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px",
+    position: "sticky",
+    bottom: "12px"
+  },
+  itemsList: {
+    display: "grid",
+    gap: "10px"
+  },
+  summaryItem: {
+    padding: "12px"
+  },
+  summaryItemTop: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "12px",
-    paddingBottom: "12px",
-    borderBottom: "1px solid #efe5d8"
+    gap: "10px",
+    alignItems: "start"
   },
-  summaryPrice: {
-    fontWeight: 800,
-    color: "#221d16",
-    minWidth: "90px"
+  summaryItemName: {
+    color: "#1f2937",
+    fontWeight: 900,
+    lineHeight: 1.6
   },
-  summaryName: {
-    color: "#221d16",
-    textAlign: "right"
+  summaryItemQty: {
+    color: "#173b74",
+    fontWeight: 900,
+    whiteSpace: "nowrap"
+  },
+  summaryItemMeta: {
+    marginTop: "8px",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  totals: {
+    display: "grid",
+    gap: "12px"
   },
   totalRow: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: "8px",
-    borderTop: "1px solid #e6dccf",
-    color: "#1b3a6b",
+    gap: "12px",
+    color: "#4b5563",
+    fontWeight: 700
+  },
+  totalRowGrand: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    color: "#173b74",
+    fontWeight: 900,
     fontSize: "18px"
+  },
+  divider: {
+    height: "1px",
+    background: "#e9dfd2"
+  },
+  backToCart: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  emptyCard: {
+    display: "grid",
+    gap: "12px"
+  },
+  emptyIcon: {
+    fontSize: "40px"
+  },
+  emptyTitle: {
+    margin: 0,
+    color: "#173b74",
+    fontWeight: 900
+  },
+  emptyText: {
+    margin: 0,
+    color: "#7a6f63",
+    lineHeight: 1.8
+  },
+  successCard: {
+    padding: "22px",
+    display: "grid",
+    gap: "14px"
+  },
+  successIcon: {
+    fontSize: "42px"
+  },
+  successInfo: {
+    padding: "14px",
+    display: "grid",
+    gap: "10px"
+  },
+  successRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    color: "#374151",
+    fontWeight: 700
+  },
+  successActions: {
+    display: "grid",
+    gap: "10px"
   }
 };
