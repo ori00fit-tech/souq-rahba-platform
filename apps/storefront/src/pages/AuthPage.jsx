@@ -4,20 +4,18 @@ import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../lib/config";
 
-const TABS = {
-  login: "login",
-  register: "register"
-};
+const TAB_LOGIN = "login";
+const TAB_REGISTER = "register";
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, authLoading, loginUser } = useApp();
 
-  const [tab, setTab] = useState(TABS.login);
-  const [loadingGoogle, setLoadingGoogle] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [tab, setTab] = useState(TAB_LOGIN);
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -66,8 +64,26 @@ export default function AuthPage() {
     }
   }, [location.search, loginUser, navigate]);
 
+  function switchTab(nextTab) {
+    setTab(nextTab);
+    setMessage("");
+  }
+
+  function updateLoginField(name, value) {
+    setLoginForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function updateRegisterField(name, value) {
+    setRegisterForm((prev) => ({ ...prev, [name]: value }));
+  }
+
   async function handleLoginSubmit(e) {
     e.preventDefault();
+
+    if (!loginForm.email.trim() || !loginForm.password) {
+      setMessage("يرجى إدخال البريد الإلكتروني وكلمة السر");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -78,13 +94,7 @@ export default function AuthPage() {
         password: loginForm.password
       });
 
-      if (!result.ok) {
-        setMessage(result.message || "تعذر تسجيل الدخول");
-        return;
-      }
-
       const token = result?.data?.token;
-
       if (!token) {
         setMessage("لم يتم العثور على رمز الجلسة");
         return;
@@ -94,7 +104,7 @@ export default function AuthPage() {
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
-      setMessage("حدث خطأ أثناء تسجيل الدخول");
+      setMessage("تعذر تسجيل الدخول، تحقق من البيانات ثم حاول مرة أخرى");
     } finally {
       setSubmitting(false);
     }
@@ -132,7 +142,7 @@ export default function AuthPage() {
       setSubmitting(true);
       setMessage("");
 
-      const registerResult = await apiPost("/auth/register", {
+      await apiPost("/auth/register", {
         full_name: registerForm.full_name.trim(),
         email: registerForm.email.trim().toLowerCase(),
         phone: registerForm.phone.trim(),
@@ -141,27 +151,15 @@ export default function AuthPage() {
         locale: "ar"
       });
 
-      if (!registerResult.ok) {
-        setMessage(registerResult.message || "تعذر إنشاء الحساب");
-        return;
-      }
-
       const loginResult = await apiPost("/auth/login", {
         email: registerForm.email.trim().toLowerCase(),
         password: registerForm.password
       });
 
-      if (!loginResult.ok) {
-        setMessage("تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً");
-        setTab(TABS.login);
-        return;
-      }
-
       const token = loginResult?.data?.token;
-
       if (!token) {
-        setMessage("تم إنشاء الحساب، لكن لم يتم العثور على رمز الجلسة");
-        setTab(TABS.login);
+        setMessage("تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً");
+        setTab(TAB_LOGIN);
         return;
       }
 
@@ -169,7 +167,7 @@ export default function AuthPage() {
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
-      setMessage("حدث خطأ أثناء إنشاء الحساب");
+      setMessage("تعذر إنشاء الحساب، ربما البريد الإلكتروني مستعمل مسبقاً");
     } finally {
       setSubmitting(false);
     }
@@ -177,77 +175,64 @@ export default function AuthPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div style={s.shell}>
-        <div style={s.heroPanel}>
-          <div style={s.heroBadge}>RAHBA AUTH</div>
-          <h1 style={s.heroTitle}>دخول أنيق وآمن إلى رحبة</h1>
-          <p style={s.heroText}>
-            سجل الدخول أو أنشئ حسابك في ثوانٍ. تابع طلباتك، أكمل الشراء بسرعة،
-            وادخل إلى تجربة Marketplace مصممة بروح مغربية عصرية.
+      <div style={styles.page}>
+        <div style={styles.hero}>
+          <div style={styles.badge}>RAHBA</div>
+          <h1 style={styles.heroTitle}>دخول احترافي إلى رحبة</h1>
+          <p style={styles.heroText}>
+            سجل الدخول بسرعة عبر Google أو بالبريد الإلكتروني، واحفظ طلباتك
+            وتابع مشترياتك داخل منصة رحبة بشكل آمن وسلس.
           </p>
 
-          <div style={s.heroPoints}>
-            <div style={s.pointCard}>
-              <div style={s.pointIcon}>✓</div>
-              <div>
-                <div style={s.pointTitle}>دخول سريع</div>
-                <div style={s.pointText}>عبر Google أو البريد الإلكتروني</div>
-              </div>
+          <div style={styles.featureList}>
+            <div style={styles.featureItem}>
+              <span style={styles.featureIcon}>✓</span>
+              <span>دخول سريع وآمن</span>
             </div>
-
-            <div style={s.pointCard}>
-              <div style={s.pointIcon}>🔒</div>
-              <div>
-                <div style={s.pointTitle}>حماية أفضل</div>
-                <div style={s.pointText}>جلسات آمنة وتتبع أسهل للطلبات</div>
-              </div>
+            <div style={styles.featureItem}>
+              <span style={styles.featureIcon}>🛍️</span>
+              <span>متابعة الطلبات بسهولة</span>
             </div>
-
-            <div style={s.pointCard}>
-              <div style={s.pointIcon}>🛍️</div>
-              <div>
-                <div style={s.pointTitle}>شراء أسهل</div>
-                <div style={s.pointText}>احفظ بياناتك وواصل التسوق بسلاسة</div>
-              </div>
+            <div style={styles.featureItem}>
+              <span style={styles.featureIcon}>🔒</span>
+              <span>جلسة مستقرة ومحمية</span>
             </div>
           </div>
         </div>
 
-        <div style={s.formPanel}>
-          <div style={s.cardGlow} />
-
-          <div style={s.formCard}>
-            <div style={s.cardTop}>
-              <div style={s.cardBadge}>ابدأ الآن</div>
-              <h2 style={s.cardTitle}>مرحباً بك</h2>
-              <p style={s.cardSubtitle}>
-                ادخل إلى حسابك أو أنشئ حساباً جديداً للاستفادة الكاملة من المنصة.
+        <div style={styles.cardWrap}>
+          <div style={styles.card}>
+            <div style={styles.cardHeader}>
+              <h2 style={styles.cardTitle}>
+                {tab === TAB_LOGIN ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+              </h2>
+              <p style={styles.cardSubtitle}>
+                {tab === TAB_LOGIN
+                  ? "أدخل بياناتك للمتابعة"
+                  : "أنشئ حسابك وابدأ الشراء داخل رحبة"}
               </p>
             </div>
 
-            <a href={googleUrl} style={s.googleBtn}>
-              <span style={s.googleIcon}>G</span>
-              <span style={s.googleText}>
+            <a href={googleUrl} style={styles.googleBtn}>
+              <span style={styles.googleIcon}>G</span>
+              <span>
                 {loadingGoogle ? "جاري المتابعة عبر Google..." : "المتابعة عبر Google"}
               </span>
             </a>
 
-            <div style={s.divider}>
-              <span style={s.dividerLine} />
-              <span style={s.dividerText}>أو أكمل بالبريد الإلكتروني</span>
-              <span style={s.dividerLine} />
+            <div style={styles.divider}>
+              <span style={styles.dividerLine} />
+              <span style={styles.dividerText}>أو</span>
+              <span style={styles.dividerLine} />
             </div>
 
-            <div style={s.tabs}>
+            <div style={styles.tabs}>
               <button
                 type="button"
-                onClick={() => {
-                  setTab(TABS.register);
-                  setMessage("");
-                }}
+                onClick={() => switchTab(TAB_REGISTER)}
                 style={{
-                  ...s.tabBtn,
-                  ...(tab === TABS.register ? s.tabBtnActive : {})
+                  ...styles.tabBtn,
+                  ...(tab === TAB_REGISTER ? styles.tabBtnActive : {})
                 }}
               >
                 إنشاء حساب
@@ -255,32 +240,27 @@ export default function AuthPage() {
 
               <button
                 type="button"
-                onClick={() => {
-                  setTab(TABS.login);
-                  setMessage("");
-                }}
+                onClick={() => switchTab(TAB_LOGIN)}
                 style={{
-                  ...s.tabBtn,
-                  ...(tab === TABS.login ? s.tabBtnActive : {})
+                  ...styles.tabBtn,
+                  ...(tab === TAB_LOGIN ? styles.tabBtnActive : {})
                 }}
               >
                 تسجيل الدخول
               </button>
             </div>
 
-            {message ? <div style={s.messageBox}>{message}</div> : null}
+            {message ? <div style={styles.message}>{message}</div> : null}
 
-            {tab === TABS.login ? (
-              <form style={s.form} onSubmit={handleLoginSubmit}>
+            {tab === TAB_LOGIN ? (
+              <form style={styles.form} onSubmit={handleLoginSubmit}>
                 <Field label="البريد الإلكتروني">
                   <input
                     type="email"
                     value={loginForm.email}
-                    onChange={(e) =>
-                      setLoginForm((prev) => ({ ...prev, email: e.target.value }))
-                    }
+                    onChange={(e) => updateLoginField("email", e.target.value)}
                     placeholder="name@example.com"
-                    style={s.input}
+                    style={styles.input}
                     autoComplete="email"
                   />
                 </Field>
@@ -289,34 +269,30 @@ export default function AuthPage() {
                   <input
                     type="password"
                     value={loginForm.password}
-                    onChange={(e) =>
-                      setLoginForm((prev) => ({ ...prev, password: e.target.value }))
-                    }
+                    onChange={(e) => updateLoginField("password", e.target.value)}
                     placeholder="••••••••"
-                    style={s.input}
+                    style={styles.input}
                     autoComplete="current-password"
                   />
                 </Field>
 
                 <button
                   type="submit"
-                  style={s.primaryBtn}
-                  disabled={submitting || authLoading || loadingGoogle}
+                  disabled={submitting || loadingGoogle || authLoading}
+                  style={styles.primaryBtn}
                 >
                   {submitting ? "جاري تسجيل الدخول..." : "دخول"}
                 </button>
               </form>
             ) : (
-              <form style={s.form} onSubmit={handleRegisterSubmit}>
+              <form style={styles.form} onSubmit={handleRegisterSubmit}>
                 <Field label="الاسم الكامل">
                   <input
                     type="text"
                     value={registerForm.full_name}
-                    onChange={(e) =>
-                      setRegisterForm((prev) => ({ ...prev, full_name: e.target.value }))
-                    }
-                    placeholder="Talidi Chafik"
-                    style={s.input}
+                    onChange={(e) => updateRegisterField("full_name", e.target.value)}
+                    placeholder="الاسم الكامل"
+                    style={styles.input}
                     autoComplete="name"
                   />
                 </Field>
@@ -325,11 +301,9 @@ export default function AuthPage() {
                   <input
                     type="email"
                     value={registerForm.email}
-                    onChange={(e) =>
-                      setRegisterForm((prev) => ({ ...prev, email: e.target.value }))
-                    }
-                    placeholder="talidichafiq@gmail.com"
-                    style={s.input}
+                    onChange={(e) => updateRegisterField("email", e.target.value)}
+                    placeholder="name@example.com"
+                    style={styles.input}
                     autoComplete="email"
                   />
                 </Field>
@@ -338,11 +312,9 @@ export default function AuthPage() {
                   <input
                     type="tel"
                     value={registerForm.phone}
-                    onChange={(e) =>
-                      setRegisterForm((prev) => ({ ...prev, phone: e.target.value }))
-                    }
-                    placeholder="0612345678"
-                    style={s.input}
+                    onChange={(e) => updateRegisterField("phone", e.target.value)}
+                    placeholder="06xxxxxxxx"
+                    style={styles.input}
                     autoComplete="tel"
                   />
                 </Field>
@@ -351,11 +323,9 @@ export default function AuthPage() {
                   <input
                     type="password"
                     value={registerForm.password}
-                    onChange={(e) =>
-                      setRegisterForm((prev) => ({ ...prev, password: e.target.value }))
-                    }
+                    onChange={(e) => updateRegisterField("password", e.target.value)}
                     placeholder="••••••••"
-                    style={s.input}
+                    style={styles.input}
                     autoComplete="new-password"
                   />
                 </Field>
@@ -365,29 +335,26 @@ export default function AuthPage() {
                     type="password"
                     value={registerForm.confirm_password}
                     onChange={(e) =>
-                      setRegisterForm((prev) => ({
-                        ...prev,
-                        confirm_password: e.target.value
-                      }))
+                      updateRegisterField("confirm_password", e.target.value)
                     }
                     placeholder="••••••••"
-                    style={s.input}
+                    style={styles.input}
                     autoComplete="new-password"
                   />
                 </Field>
 
                 <button
                   type="submit"
-                  style={s.primaryBtn}
-                  disabled={submitting || authLoading || loadingGoogle}
+                  disabled={submitting || loadingGoogle || authLoading}
+                  style={styles.primaryBtn}
                 >
                   {submitting ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
                 </button>
               </form>
             )}
 
-            <div style={s.footerRow}>
-              <NavLink to="/" style={s.homeLink}>
+            <div style={styles.footer}>
+              <NavLink to="/" style={styles.backLink}>
                 العودة إلى الرئيسية
               </NavLink>
             </div>
@@ -400,126 +367,92 @@ export default function AuthPage() {
 
 function Field({ label, children }) {
   return (
-    <label style={s.field}>
-      <span style={s.label}>{label}</span>
+    <label style={styles.field}>
+      <span style={styles.label}>{label}</span>
       {children}
     </label>
   );
 }
 
-const s = {
-  shell: {
+const styles = {
+  page: {
     display: "grid",
     gridTemplateColumns: "1.05fr 0.95fr",
     gap: "28px",
     alignItems: "stretch"
   },
-  heroPanel: {
-    position: "relative",
-    overflow: "hidden",
+  hero: {
     background:
-      "linear-gradient(135deg, rgba(14,54,109,0.98) 0%, rgba(19,95,150,0.96) 45%, rgba(15,130,116,0.94) 100%)",
+      "linear-gradient(135deg, rgba(20,48,98,1) 0%, rgba(27,89,143,1) 52%, rgba(14,121,111,1) 100%)",
     color: "#fff",
-    borderRadius: "30px",
-    padding: "38px 32px",
-    boxShadow: "0 24px 60px rgba(16,42,84,0.22)",
-    minHeight: "680px",
+    borderRadius: "28px",
+    padding: "34px",
+    minHeight: "660px",
     display: "flex",
     flexDirection: "column",
-    justifyContent: "space-between"
+    justifyContent: "center",
+    boxShadow: "0 24px 60px rgba(20,48,98,0.18)"
   },
-  heroBadge: {
+  badge: {
     alignSelf: "flex-start",
     padding: "8px 14px",
     borderRadius: "999px",
     background: "rgba(255,255,255,0.14)",
     border: "1px solid rgba(255,255,255,0.18)",
-    fontSize: "12px",
     fontWeight: 800,
-    letterSpacing: "0.08em"
+    fontSize: "12px",
+    marginBottom: "18px"
   },
   heroTitle: {
-    margin: "18px 0 14px",
-    fontSize: "42px",
+    margin: 0,
+    fontSize: "40px",
     lineHeight: 1.15,
     fontWeight: 900
   },
   heroText: {
-    margin: 0,
-    maxWidth: "560px",
+    marginTop: "16px",
+    marginBottom: "24px",
     lineHeight: 1.9,
     color: "rgba(255,255,255,0.9)",
-    fontSize: "16px"
+    fontSize: "16px",
+    maxWidth: "560px"
   },
-  heroPoints: {
+  featureList: {
     display: "grid",
-    gap: "14px",
-    marginTop: "28px"
+    gap: "14px"
   },
-  pointCard: {
+  featureItem: {
     display: "flex",
-    gap: "14px",
     alignItems: "center",
-    padding: "16px 18px",
-    borderRadius: "18px",
+    gap: "12px",
+    padding: "14px 16px",
     background: "rgba(255,255,255,0.1)",
     border: "1px solid rgba(255,255,255,0.12)",
-    backdropFilter: "blur(8px)"
+    borderRadius: "16px"
   },
-  pointIcon: {
-    width: "44px",
-    height: "44px",
-    borderRadius: "14px",
+  featureIcon: {
+    width: "34px",
+    height: "34px",
     display: "grid",
     placeItems: "center",
-    background: "rgba(255,255,255,0.16)",
-    fontWeight: 900
+    borderRadius: "12px",
+    background: "rgba(255,255,255,0.14)"
   },
-  pointTitle: {
-    fontWeight: 800,
-    marginBottom: "4px"
-  },
-  pointText: {
-    color: "rgba(255,255,255,0.84)",
-    fontSize: "14px"
-  },
-  formPanel: {
-    position: "relative",
+  cardWrap: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
   },
-  cardGlow: {
-    position: "absolute",
-    inset: "14px 30px auto auto",
-    width: "160px",
-    height: "160px",
-    borderRadius: "999px",
-    background: "radial-gradient(circle, rgba(15,118,110,0.20) 0%, rgba(15,118,110,0) 70%)",
-    pointerEvents: "none"
-  },
-  formCard: {
-    position: "relative",
-    zIndex: 1,
+  card: {
     width: "100%",
     background: "#fff",
     borderRadius: "28px",
     padding: "30px",
-    border: "1px solid #e9dfd1",
-    boxShadow: "0 20px 50px rgba(28,47,80,0.12)"
+    border: "1px solid #eadfd3",
+    boxShadow: "0 18px 50px rgba(29,45,74,0.10)"
   },
-  cardTop: {
+  cardHeader: {
     marginBottom: "18px"
-  },
-  cardBadge: {
-    display: "inline-block",
-    padding: "7px 12px",
-    borderRadius: "999px",
-    background: "#eef6ff",
-    color: "#17407c",
-    fontSize: "12px",
-    fontWeight: 800,
-    marginBottom: "12px"
   },
   cardTitle: {
     margin: 0,
@@ -529,12 +462,10 @@ const s = {
   },
   cardSubtitle: {
     margin: "10px 0 0",
-    color: "#6d6255",
-    lineHeight: 1.8,
-    fontSize: "15px"
+    color: "#6b6156",
+    lineHeight: 1.8
   },
   googleBtn: {
-    marginTop: "20px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -542,25 +473,21 @@ const s = {
     textDecoration: "none",
     padding: "15px 18px",
     borderRadius: "18px",
-    border: "1px solid #d8e1ef",
+    border: "1px solid #d6e1ee",
     background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
     color: "#173b74",
-    fontWeight: 800,
-    transition: "all 0.2s ease"
+    fontWeight: 800
   },
   googleIcon: {
     width: "34px",
     height: "34px",
     borderRadius: "999px",
-    background: "#fff",
-    border: "1px solid #e6e6e6",
     display: "grid",
     placeItems: "center",
+    border: "1px solid #e5e5e5",
+    background: "#fff",
     color: "#ea4335",
     fontWeight: 900
-  },
-  googleText: {
-    fontSize: "15px"
   },
   divider: {
     display: "flex",
@@ -571,19 +498,18 @@ const s = {
   dividerLine: {
     flex: 1,
     height: "1px",
-    background: "#ece3d8"
+    background: "#ece2d7"
   },
   dividerText: {
-    color: "#7f7468",
+    color: "#7d7368",
     fontSize: "13px",
-    fontWeight: 700,
-    whiteSpace: "nowrap"
+    fontWeight: 700
   },
   tabs: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "10px",
-    background: "#f7f4ee",
+    background: "#f7f3ee",
     padding: "8px",
     borderRadius: "18px",
     marginBottom: "18px"
@@ -595,21 +521,20 @@ const s = {
     borderRadius: "14px",
     cursor: "pointer",
     fontWeight: 800,
-    color: "#6f6459",
-    transition: "all 0.2s ease"
+    color: "#6d6257"
   },
   tabBtnActive: {
     background: "#fff",
     color: "#173b74",
     boxShadow: "0 8px 20px rgba(20,40,72,0.08)"
   },
-  messageBox: {
+  message: {
     marginBottom: "16px",
-    padding: "14px 16px",
-    borderRadius: "16px",
-    background: "#fff7ed",
-    color: "#9a4b0f",
-    border: "1px solid #fed7aa",
+    padding: "13px 15px",
+    borderRadius: "14px",
+    background: "#fff8ee",
+    color: "#9a4f18",
+    border: "1px solid #f8d7a8",
     fontWeight: 700,
     fontSize: "14px"
   },
@@ -622,7 +547,7 @@ const s = {
     gap: "8px"
   },
   label: {
-    color: "#2e241d",
+    color: "#2d241d",
     fontWeight: 800,
     fontSize: "14px"
   },
@@ -632,29 +557,29 @@ const s = {
     borderRadius: "16px",
     border: "1px solid #ddd2c5",
     outline: "none",
-    fontSize: "15px",
     background: "#fffdfa",
-    color: "#1f1b16"
+    fontSize: "15px",
+    color: "#1e1b16"
   },
   primaryBtn: {
     marginTop: "6px",
-    border: "none",
     width: "100%",
+    border: "none",
     padding: "15px 18px",
     borderRadius: "18px",
-    background: "linear-gradient(135deg, #173b74 0%, #1b5da0 55%, #0f766e 100%)",
+    background: "linear-gradient(135deg, #173b74 0%, #1d5c97 55%, #0f766e 100%)",
     color: "#fff",
     fontWeight: 900,
     fontSize: "15px",
     cursor: "pointer",
-    boxShadow: "0 18px 30px rgba(23,59,116,0.18)"
+    boxShadow: "0 16px 30px rgba(23,59,116,0.18)"
   },
-  footerRow: {
+  footer: {
     marginTop: "18px",
     display: "flex",
     justifyContent: "center"
   },
-  homeLink: {
+  backLink: {
     color: "#173b74",
     fontWeight: 800,
     textDecoration: "none"
