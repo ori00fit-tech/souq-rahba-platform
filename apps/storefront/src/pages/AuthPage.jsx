@@ -32,7 +32,7 @@ export default function AuthPage() {
     confirm_password: ""
   });
 
-  const googleUrl = useMemo(() => `${API_BASE_URL}/auth/google/start`, []);
+  const googleUrl = useMemo(() => `${API_BASE_URL}/auth/google/login`, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
