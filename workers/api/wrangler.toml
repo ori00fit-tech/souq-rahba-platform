@@ -18,3 +18,5 @@ id = "cda03bad354447538732e42f90d8bf4e"
 [vars]
 APP_ENV = "production"
 JWT_ISSUER = "souq-api"
+GOOGLE_CLIENT_ID = "559970457804-2sg19321avd81k3u8kp00som54q9kmeo.apps.googleusercontent.com"
+GOOGLE_REDIRECT_URI = "https://api.rahba.site/auth/google/callback"
