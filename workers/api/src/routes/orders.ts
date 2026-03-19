@@ -1,543 +1,668 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import type { AppEnv } from "../types";
 
-export const orderRouter = new Hono<import("../types").AppEnv>();
+export const orderRouter = new Hono<AppEnv>();
+
+type OptionalAuthUser = {
+  user_id: string;
+  role: "buyer" | "seller" | "admin";
+  email: string | null;
+  full_name: string | null;
+  phone: string | null;
+};
 
 function makeOrderNumber() {
   const now = new Date();
   const year = now.getUTCFullYear();
-  const short = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  const short = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
   return `RB-${year}-${short}`;
 }
 
+async function getOptionalAuthUser(c: any): Promise<OptionalAuthUser | null> {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+
+  const token = authHeader.slice(7).trim();
+  if (!token) return null;
+
+  const session = await c.env.DB.prepare(
+    `
+    select
+      s.user_id as user_id,
+      u.role as role,
+      u.email as email,
+      u.full_name as full_name,
+      u.phone as phone
+    from sessions s
+    join users u on u.id = s.user_id
+    where s.token = ?
+      and (s.expires_at is null or datetime(s.expires_at) > datetime('now'))
+    limit 1
+    `
+  )
+    .bind(token)
+    .first();
+
+  return (session as OptionalAuthUser | null) || null;
+}
+
+function normalizeStatusInput(value: string) {
+  const status = String(value || "").trim().toLowerCase();
+  const allowed = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+  return allowed.includes(status) ? status : null;
+}
+
+function normalizeShippingStatus(orderStatus: string) {
+  switch (orderStatus) {
+    case "pending":
+      return "pending";
+    case "confirmed":
+      return "pending";
+    case "processing":
+      return "processing";
+    case "shipped":
+      return "shipped";
+    case "delivered":
+      return "delivered";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "pending";
+  }
+}
+
+function normalizePaymentStatus(paymentMethod: string, orderStatus: string) {
+  if (orderStatus === "cancelled") return "cancelled";
+  if (paymentMethod === "cod") {
+    return orderStatus === "delivered" ? "paid" : "unpaid";
+  }
+  return "unpaid";
+}
+
+/**
+ * GET /orders
+ * - buyer: يقدر يشوف غير طلباته
+ * - seller: يقدر يشوف طلبات seller_id ديالو
+ * - admin: يقدر يشوف الكل أو حسب buyer/seller
+ */
 orderRouter.get("/orders", authMiddleware, async (c) => {
-  const authUser = c.get("authUser");
-  const sellerId = c.req.query("seller_id");
-  const buyerUserId = c.req.query("buyer_user_id");
+  try {
+    const authUser = c.get("authUser");
+    const sellerId = c.req.query("seller_id");
+    const buyerUserId = c.req.query("buyer_user_id");
 
-  if (sellerId) {
-    if (!["seller", "admin"].includes(authUser.role)) {
-      return c.json(
-        { ok: false, code: "FORBIDDEN", message: "Insufficient permissions" },
-        403
-      );
+    if (authUser.role === "buyer") {
+      const rows = await c.env.DB.prepare(
+        `
+        select
+          o.*,
+          s.display_name as seller_name
+        from orders o
+        left join sellers s on s.id = o.seller_id
+        where o.buyer_user_id = ?
+        order by datetime(o.created_at) desc
+        `
+      )
+        .bind(authUser.user_id)
+        .all();
+
+      return c.json({ ok: true, data: rows.results || [] });
+    }
+
+    if (authUser.role === "seller") {
+      if (!sellerId) {
+        return c.json(
+          { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+          400
+        );
+      }
+
+      const sellerAccess = await c.env.DB.prepare(
+        `select id from sellers where id = ? and owner_user_id = ? limit 1`
+      )
+        .bind(sellerId, authUser.user_id)
+        .first();
+
+      if (!sellerAccess) {
+        return c.json({ ok: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
+      }
+
+      const rows = await c.env.DB.prepare(
+        `
+        select
+          o.*,
+          s.display_name as seller_name
+        from orders o
+        left join sellers s on s.id = o.seller_id
+        where o.seller_id = ?
+        order by datetime(o.created_at) desc
+        `
+      )
+        .bind(sellerId)
+        .all();
+
+      return c.json({ ok: true, data: rows.results || [] });
+    }
+
+    // admin
+    if (sellerId) {
+      const rows = await c.env.DB.prepare(
+        `
+        select
+          o.*,
+          s.display_name as seller_name
+        from orders o
+        left join sellers s on s.id = o.seller_id
+        where o.seller_id = ?
+        order by datetime(o.created_at) desc
+        `
+      )
+        .bind(sellerId)
+        .all();
+
+      return c.json({ ok: true, data: rows.results || [] });
+    }
+
+    if (buyerUserId) {
+      const rows = await c.env.DB.prepare(
+        `
+        select
+          o.*,
+          s.display_name as seller_name
+        from orders o
+        left join sellers s on s.id = o.seller_id
+        where o.buyer_user_id = ?
+        order by datetime(o.created_at) desc
+        `
+      )
+        .bind(buyerUserId)
+        .all();
+
+      return c.json({ ok: true, data: rows.results || [] });
     }
 
     const rows = await c.env.DB.prepare(
-      `select
-        o.id,
-        o.order_number,
-        o.buyer_user_id,
-        o.seller_id,
-        o.order_status,
-        o.payment_method,
-        o.payment_status,
-        o.shipping_status,
-        o.total_mad,
-        o.currency,
-        o.created_at,
-        o.buyer_name,
-        o.buyer_phone,
-        o.buyer_city,
-        o.buyer_address,
-        o.notes,
-        o.tracking_number,
-        (
-          select count(*)
-          from order_items oi
-          where oi.order_id = o.id
-        ) as items_count,
+      `
+      select
+        o.*,
         s.display_name as seller_name
       from orders o
       left join sellers s on s.id = o.seller_id
-      where o.seller_id = ?
-        and (? = 'admin' or s.owner_user_id = ?)
-      order by o.created_at desc`
-    )
-      .bind(sellerId, authUser.role, authUser.user_id)
-      .all();
-
-    return c.json({ ok: true, data: rows.results || [] });
-  }
-
-  if (buyerUserId) {
-    if (authUser.role !== "buyer" && authUser.role !== "admin") {
-      return c.json(
-        { ok: false, code: "FORBIDDEN", message: "Insufficient permissions" },
-        403
-      );
-    }
-
-    const rows = await c.env.DB.prepare(
-      `select
-        o.id,
-        o.order_number,
-        o.buyer_user_id,
-        o.seller_id,
-        o.order_status,
-        o.payment_method,
-        o.payment_status,
-        o.shipping_status,
-        o.total_mad,
-        o.currency,
-        o.created_at,
-        o.buyer_name,
-        o.buyer_phone,
-        o.buyer_city,
-        o.buyer_address,
-        o.notes,
-        o.tracking_number,
-        (
-          select count(*)
-          from order_items oi
-          where oi.order_id = o.id
-        ) as items_count,
-        s.display_name as seller_name
-      from orders o
-      left join sellers s on s.id = o.seller_id
-      where o.buyer_user_id = ?
-        and (? = 'admin' or o.buyer_user_id = ?)
-      order by o.created_at desc`
-    )
-      .bind(buyerUserId, authUser.role, authUser.user_id)
-      .all();
-
-    return c.json({ ok: true, data: rows.results || [] });
-  }
-
-  if (authUser.role === "admin") {
-    const rows = await c.env.DB.prepare(
-      `select
-        o.id,
-        o.order_number,
-        o.buyer_user_id,
-        o.seller_id,
-        o.order_status,
-        o.payment_method,
-        o.payment_status,
-        o.shipping_status,
-        o.total_mad,
-        o.currency,
-        o.created_at,
-        o.buyer_name,
-        o.buyer_phone,
-        o.buyer_city,
-        o.buyer_address,
-        o.notes,
-        o.tracking_number,
-        (
-          select count(*)
-          from order_items oi
-          where oi.order_id = o.id
-        ) as items_count,
-        s.display_name as seller_name
-      from orders o
-      left join sellers s on s.id = o.seller_id
-      order by o.created_at desc`
+      order by datetime(o.created_at) desc
+      limit 100
+      `
     ).all();
 
     return c.json({ ok: true, data: rows.results || [] });
-  }
-
-  return c.json({ ok: true, data: [] });
-});
-
-orderRouter.get("/orders/:id", authMiddleware, async (c) => {
-  const id = c.req.param("id");
-  const authUser = c.get("authUser");
-
-  const order = await c.env.DB.prepare(
-    `select
-      o.id,
-      o.order_number,
-      o.buyer_user_id,
-      o.seller_id,
-      o.order_status,
-      o.payment_method,
-      o.payment_status,
-      o.shipping_status,
-      o.total_mad,
-      o.currency,
-      o.created_at,
-      o.buyer_name,
-      o.buyer_phone,
-      o.buyer_city,
-      o.buyer_address,
-      o.notes,
-      o.tracking_number,
-      s.display_name as seller_name
-    from orders o
-    left join sellers s on s.id = o.seller_id
-    where o.id = ?
-      and (
-        ? = 'admin'
-        or (? = 'buyer' and o.buyer_user_id = ?)
-        or (? = 'seller' and s.owner_user_id = ?)
-      )
-    limit 1`
-  )
-    .bind(id, authUser.role, authUser.role, authUser.user_id, authUser.role, authUser.user_id)
-    .first();
-
-  if (!order) {
+  } catch (error) {
+    console.error("GET /orders failed", error);
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Order not found" },
-      404
+      { ok: false, code: "ORDERS_LIST_FAILED", message: "Failed to load orders" },
+      500
     );
   }
+});
 
-  const items = await c.env.DB.prepare(
-    `select
-      oi.id,
-      oi.order_id,
-      oi.product_id,
-      oi.quantity,
-      oi.unit_price_mad,
-      p.slug,
-      p.title_ar,
-      (
-        select pm.url
-        from product_media pm
-        where pm.product_id = p.id
-        order by pm.sort_order asc
-        limit 1
-      ) as image_url
-    from order_items oi
-    left join products p on p.id = oi.product_id
-    where oi.order_id = ?
-    order by oi.id asc`
-  )
-    .bind(id)
-    .all();
+/**
+ * POST /orders
+ * هذا هو المسار المفتوح للضيف أو للمستخدم المسجل
+ */
+orderRouter.post("/orders", async (c) => {
+  try {
+    const authUser = await getOptionalAuthUser(c);
+    const body = await c.req.json().catch(() => null);
 
-  return c.json({
-    ok: true,
-    data: {
-      ...order,
-      items: items.results || []
+    if (!body) {
+      return c.json(
+        { ok: false, code: "INVALID_JSON", message: "Invalid request body" },
+        400
+      );
     }
-  });
-});
 
-orderRouter.post("/orders", authMiddleware, requireRole("buyer", "admin"), async (c) => {
-  const authUser = c.get("authUser");
-  const body = await c.req.json().catch(() => null);
+    const sellerId = String(body.seller_id || "").trim();
+    const items = Array.isArray(body.items) ? body.items : [];
 
-  if (
-    !body?.seller_id ||
-    !body?.payment_method ||
-    !Array.isArray(body?.items) ||
-    body.items.length === 0
-  ) {
-    return c.json(
-      { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
-      400
-    );
-  }
+    const buyerName = String(body.buyer_name || authUser?.full_name || "").trim();
+    const buyerPhone = String(body.buyer_phone || authUser?.phone || "").trim();
+    const buyerCity = String(body.buyer_city || "").trim();
+    const buyerAddress = String(body.buyer_address || "").trim();
+    const notes = body.notes ? String(body.notes).trim() : null;
+    const paymentMethod = String(body.payment_method || "cod").trim().toLowerCase();
 
-  const seller = await c.env.DB.prepare(
-    `select id from sellers where id = ? limit 1`
-  )
-    .bind(body.seller_id)
-    .first();
+    if (!sellerId) {
+      return c.json(
+        { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+        400
+      );
+    }
 
-  if (!seller) {
-    return c.json(
-      { ok: false, code: "SELLER_NOT_FOUND", message: "Seller not found" },
-      404
-    );
-  }
+    if (!items.length) {
+      return c.json(
+        { ok: false, code: "ITEMS_REQUIRED", message: "Order items are required" },
+        400
+      );
+    }
 
-  const validatedItems = [];
-  let totalMad = 0;
+    if (!buyerName) {
+      return c.json(
+        { ok: false, code: "BUYER_NAME_REQUIRED", message: "Buyer name is required" },
+        400
+      );
+    }
 
-  for (const item of body.items) {
-    if (!item?.product_id || !item?.quantity) {
+    if (!buyerPhone) {
+      return c.json(
+        { ok: false, code: "BUYER_PHONE_REQUIRED", message: "Buyer phone is required" },
+        400
+      );
+    }
+
+    if (!buyerCity) {
+      return c.json(
+        { ok: false, code: "BUYER_CITY_REQUIRED", message: "Buyer city is required" },
+        400
+      );
+    }
+
+    if (!buyerAddress) {
+      return c.json(
+        { ok: false, code: "BUYER_ADDRESS_REQUIRED", message: "Buyer address is required" },
+        400
+      );
+    }
+
+    if (paymentMethod !== "cod") {
       return c.json(
         {
           ok: false,
-          code: "INVALID_ITEM",
-          message: "Each item must include product_id and quantity"
+          code: "PAYMENT_METHOD_NOT_SUPPORTED",
+          message: "Only cash on delivery is supported حاليا"
         },
         400
       );
     }
 
-    const quantity = Number(item.quantity || 0);
-
-    if (!Number.isFinite(quantity) || quantity <= 0) {
-      return c.json(
-        { ok: false, code: "INVALID_QUANTITY", message: "Invalid quantity" },
-        400
-      );
-    }
-
-    const product = await c.env.DB.prepare(
-      `select
-        id,
-        seller_id,
-        title_ar,
-        price_mad,
-        stock,
-        status
-      from products
-      where id = ?
-      limit 1`
+    const seller = await c.env.DB.prepare(
+      `select id, display_name from sellers where id = ? limit 1`
     )
-      .bind(item.product_id)
-      .first();
+      .bind(sellerId)
+      .first<{ id: string; display_name: string | null }>();
 
-    if (!product) {
+    if (!seller) {
       return c.json(
-        { ok: false, code: "PRODUCT_NOT_FOUND", message: `Product not found: ${item.product_id}` },
+        { ok: false, code: "SELLER_NOT_FOUND", message: "Seller not found" },
         404
       );
     }
 
-    if (product.seller_id !== body.seller_id) {
-      return c.json(
-        { ok: false, code: "SELLER_MISMATCH", message: "All items must belong to the same seller" },
-        400
-      );
-    }
+    let subtotalMad = 0;
+    const validatedItems: Array<{
+      product_id: string;
+      quantity: number;
+      unit_price_mad: number;
+    }> = [];
 
-    if (product.status !== "active") {
-      return c.json(
-        { ok: false, code: "PRODUCT_INACTIVE", message: `Product is not active: ${item.product_id}` },
-        400
-      );
-    }
+    for (const item of items) {
+      const productId = String(item?.product_id || "").trim();
+      const quantity = Number(item?.quantity || 0);
 
-    if (Number(product.stock || 0) < quantity) {
-      return c.json(
-        { ok: false, code: "INSUFFICIENT_STOCK", message: `Insufficient stock for product: ${item.product_id}` },
-        400
-      );
-    }
+      if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+        return c.json(
+          { ok: false, code: "INVALID_ITEM", message: "Invalid order item" },
+          400
+        );
+      }
 
-    const unitPrice = Number(product.price_mad || 0);
-    totalMad += quantity * unitPrice;
+      const product = await c.env.DB.prepare(
+        `
+        select
+          id,
+          seller_id,
+          price_mad,
+          stock,
+          status
+        from products
+        where id = ?
+        limit 1
+        `
+      )
+        .bind(productId)
+        .first<{
+          id: string;
+          seller_id: string;
+          price_mad: number;
+          stock: number | null;
+          status: string | null;
+        }>();
 
-    validatedItems.push({
-      product_id: product.id,
-      quantity,
-      unit_price_mad: unitPrice
-    });
-  }
+      if (!product) {
+        return c.json(
+          { ok: false, code: "PRODUCT_NOT_FOUND", message: "Invalid product" },
+          404
+        );
+      }
 
-  const orderId = crypto.randomUUID();
-  const orderNumber = makeOrderNumber();
+      if (product.seller_id !== sellerId) {
+        return c.json(
+          {
+            ok: false,
+            code: "MIXED_SELLER_NOT_ALLOWED",
+            message: "All products must belong to the same seller"
+          },
+          400
+        );
+      }
 
-  const buyerUserId =
-    authUser.role === "admin" && body.buyer_user_id
-      ? body.buyer_user_id
-      : authUser.user_id;
+      if (product.status && product.status !== "active") {
+        return c.json(
+          {
+            ok: false,
+            code: "PRODUCT_NOT_ACTIVE",
+            message: "One or more products are not available"
+          },
+          400
+        );
+      }
 
-  const paymentMethod = body.payment_method;
-  const paymentStatus = body.payment_status || "pending";
-  const shippingStatus = body.shipping_status || "pending";
-  const orderStatus = body.order_status || "pending";
+      if (product.stock !== null && Number(product.stock) < quantity) {
+        return c.json(
+          {
+            ok: false,
+            code: "INSUFFICIENT_STOCK",
+            message: "Insufficient stock for one or more products"
+          },
+          400
+        );
+      }
 
-  const buyerName = body.buyer_name?.trim() || null;
-  const buyerPhone = body.buyer_phone?.trim() || null;
-  const buyerCity = body.buyer_city?.trim() || null;
-  const buyerAddress = body.buyer_address?.trim() || null;
-  const notes = body.notes?.trim() || null;
-  const trackingNumber = body.tracking_number?.trim() || null;
+      const unitPriceMad = Number(product.price_mad || 0);
+      subtotalMad += unitPriceMad * quantity;
 
-  await c.env.DB.prepare(
-    `insert into orders (
-      id,
-      order_number,
-      buyer_user_id,
-      seller_id,
-      order_status,
-      payment_method,
-      payment_status,
-      shipping_status,
-      total_mad,
-      currency,
-      buyer_name,
-      buyer_phone,
-      buyer_city,
-      buyer_address,
-      notes,
-      tracking_number
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, 'MAD', ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      orderId,
-      orderNumber,
-      buyerUserId,
-      body.seller_id,
-      orderStatus,
-      paymentMethod,
-      paymentStatus,
-      shippingStatus,
-      totalMad,
-      buyerName,
-      buyerPhone,
-      buyerCity,
-      buyerAddress,
-      notes,
-      trackingNumber
-    )
-    .run();
-
-  for (const item of validatedItems) {
-    await c.env.DB.prepare(
-      `insert into order_items (
-        id,
-        order_id,
-        product_id,
+      validatedItems.push({
+        product_id: product.id,
         quantity,
-        unit_price_mad
-      ) values (?, ?, ?, ?, ?)`
+        unit_price_mad: unitPriceMad
+      });
+    }
+
+    const shippingMad = 0;
+    const totalMad = subtotalMad + shippingMad;
+    const orderId = crypto.randomUUID();
+    const orderNumber = makeOrderNumber();
+    const buyerUserId = authUser?.user_id ?? null;
+    const orderStatus = "pending";
+    const paymentStatus = normalizePaymentStatus(paymentMethod, orderStatus);
+    const shippingStatus = normalizeShippingStatus(orderStatus);
+
+    await c.env.DB.prepare(
+      `
+      insert into orders (
+        id,
+        order_number,
+        buyer_user_id,
+        seller_id,
+        order_status,
+        payment_method,
+        payment_status,
+        shipping_status,
+        total_mad,
+        buyer_name,
+        buyer_phone,
+        buyer_city,
+        buyer_address,
+        notes
+      )
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `
     )
       .bind(
-        crypto.randomUUID(),
         orderId,
-        item.product_id,
-        item.quantity,
-        item.unit_price_mad
+        orderNumber,
+        buyerUserId,
+        sellerId,
+        orderStatus,
+        paymentMethod,
+        paymentStatus,
+        shippingStatus,
+        totalMad,
+        buyerName,
+        buyerPhone,
+        buyerCity,
+        buyerAddress,
+        notes
       )
       .run();
 
-    await c.env.DB.prepare(
-      `update products
-       set stock = stock - ?
-       where id = ?`
+    for (const item of validatedItems) {
+      await c.env.DB.prepare(
+        `
+        insert into order_items (
+          id,
+          order_id,
+          product_id,
+          quantity,
+          unit_price_mad
+        )
+        values (?, ?, ?, ?, ?)
+        `
+      )
+        .bind(
+          crypto.randomUUID(),
+          orderId,
+          item.product_id,
+          item.quantity,
+          item.unit_price_mad
+        )
+        .run();
+
+      await c.env.DB.prepare(
+        `
+        update products
+        set stock = case
+          when stock is null then null
+          else max(stock - ?, 0)
+        end
+        where id = ?
+        `
+      )
+        .bind(item.quantity, item.product_id)
+        .run();
+    }
+
+    return c.json({
+      ok: true,
+      data: {
+        id: orderId,
+        order_number: orderNumber,
+        total_mad: totalMad,
+        order_status: orderStatus,
+        payment_method: paymentMethod,
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        buyer_city: buyerCity,
+        buyer_address: buyerAddress
+      }
+    });
+  } catch (error) {
+    console.error("POST /orders failed", error);
+    return c.json(
+      { ok: false, code: "ORDER_CREATE_FAILED", message: "Failed to create order" },
+      500
+    );
+  }
+});
+
+/**
+ * GET /orders/:id
+ * route محمي
+ */
+orderRouter.get("/orders/:id", authMiddleware, async (c) => {
+  try {
+    const authUser = c.get("authUser");
+    const id = c.req.param("id");
+
+    const order = await c.env.DB.prepare(
+      `
+      select
+        o.*,
+        s.display_name as seller_name,
+        s.owner_user_id as seller_owner_user_id
+      from orders o
+      left join sellers s on s.id = o.seller_id
+      where o.id = ?
+      limit 1
+      `
     )
-      .bind(item.quantity, item.product_id)
-      .run();
-  }
+      .bind(id)
+      .first<any>();
 
-  return c.json({
-    ok: true,
-    data: {
-      id: orderId,
-      order_number: orderNumber,
-      buyer_user_id: buyerUserId,
-      seller_id: body.seller_id,
-      order_status: orderStatus,
-      payment_method: paymentMethod,
-      payment_status: paymentStatus,
-      shipping_status: shippingStatus,
-      total_mad: totalMad,
-      currency: "MAD",
-      buyer_name: buyerName,
-      buyer_phone: buyerPhone,
-      buyer_city: buyerCity,
-      buyer_address: buyerAddress,
-      notes,
-      tracking_number: trackingNumber
+    if (!order) {
+      return c.json(
+        { ok: false, code: "ORDER_NOT_FOUND", message: "Order not found" },
+        404
+      );
     }
-  });
-});
 
-orderRouter.patch("/orders/:id/status", authMiddleware, requireRole("seller", "admin"), async (c) => {
-  const id = c.req.param("id");
-  const authUser = c.get("authUser");
-  const body = await c.req.json().catch(() => null);
+    const isBuyerOwner =
+      authUser.role === "buyer" && order.buyer_user_id === authUser.user_id;
 
-  if (!body?.order_status) {
-    return c.json(
-      { ok: false, code: "INVALID_BODY", message: "order_status is required" },
-      400
-    );
-  }
+    const isSellerOwner =
+      authUser.role === "seller" && order.seller_owner_user_id === authUser.user_id;
 
-  const order = await c.env.DB.prepare(
-    `select
-      o.id,
-      o.seller_id
-    from orders o
-    left join sellers s on s.id = o.seller_id
-    where o.id = ?
-      and (? = 'admin' or s.owner_user_id = ?)
-    limit 1`
-  )
-    .bind(id, authUser.role, authUser.user_id)
-    .first();
+    const isAdmin = authUser.role === "admin";
 
-  if (!order) {
-    return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Order not found" },
-      404
-    );
-  }
-
-  await c.env.DB.prepare(
-    `update orders
-     set order_status = ?
-     where id = ?`
-  )
-    .bind(body.order_status, id)
-    .run();
-
-  return c.json({ ok: true });
-});
-
-orderRouter.patch("/orders/:id/tracking", authMiddleware, requireRole("seller", "admin"), async (c) => {
-  const id = c.req.param("id");
-  const authUser = c.get("authUser");
-  const body = await c.req.json().catch(() => null);
-
-  const order = await c.env.DB.prepare(
-    `select
-      o.id,
-      o.seller_id
-    from orders o
-    left join sellers s on s.id = o.seller_id
-    where o.id = ?
-      and (? = 'admin' or s.owner_user_id = ?)
-    limit 1`
-  )
-    .bind(id, authUser.role, authUser.user_id)
-    .first();
-
-  if (!order) {
-    return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Order not found" },
-      404
-    );
-  }
-
-  await c.env.DB.prepare(
-    `update orders
-     set tracking_number = ?
-     where id = ?`
-  )
-    .bind(body?.tracking_number?.trim() || null, id)
-    .run();
-
-  return c.json({ ok: true });
-});
-
-orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async (c) => {
-  const authUser = c.get("authUser");
-
-  const stats = await c.env.DB.prepare(
-    `select
-      count(o.id) as total_orders,
-      round(sum(case when o.order_status = 'delivered' then o.total_mad else 0 end), 2) as total_revenue,
-      count(case when o.order_status = 'pending' then 1 end) as pending_orders,
-      count(case when o.order_status = 'confirmed' then 1 end) as confirmed_orders
-    from orders o
-    left join sellers s on s.id = o.seller_id
-    where (? = 'admin' or s.owner_user_id = ?)`
-  )
-    .bind(authUser.role, authUser.user_id)
-    .first();
-
-  return c.json({
-    ok: true,
-    data: {
-      total_orders: Number(stats?.total_orders || 0),
-      total_revenue: Number(stats?.total_revenue || 0),
-      pending_orders: Number(stats?.pending_orders || 0),
-      confirmed_orders: Number(stats?.confirmed_orders || 0)
+    if (!isBuyerOwner && !isSellerOwner && !isAdmin) {
+      return c.json(
+        { ok: false, code: "FORBIDDEN", message: "Forbidden" },
+        403
+      );
     }
-  });
+
+    const itemsRes = await c.env.DB.prepare(
+      `
+      select
+        oi.*,
+        p.title_ar,
+        p.slug,
+        p.image_url
+      from order_items oi
+      left join products p on p.id = oi.product_id
+      where oi.order_id = ?
+      order by oi.rowid asc
+      `
+    )
+      .bind(id)
+      .all();
+
+    return c.json({
+      ok: true,
+      data: {
+        ...order,
+        items: itemsRes.results || []
+      }
+    });
+  } catch (error) {
+    console.error("GET /orders/:id failed", error);
+    return c.json(
+      { ok: false, code: "ORDER_DETAILS_FAILED", message: "Failed to load order details" },
+      500
+    );
+  }
 });
+
+/**
+ * PATCH /orders/:id/status
+ * محمي للبائع أو admin
+ */
+orderRouter.patch(
+  "/orders/:id/status",
+  authMiddleware,
+  requireRole("seller", "admin"),
+  async (c) => {
+    try {
+      const authUser = c.get("authUser");
+      const id = c.req.param("id");
+      const body = await c.req.json().catch(() => null);
+
+      const nextStatus = normalizeStatusInput(String(body?.order_status || ""));
+      const trackingNumber = body?.tracking_number
+        ? String(body.tracking_number).trim()
+        : null;
+
+      if (!nextStatus) {
+        return c.json(
+          { ok: false, code: "INVALID_STATUS", message: "Invalid order status" },
+          400
+        );
+      }
+
+      const order = await c.env.DB.prepare(
+        `
+        select
+          o.id,
+          o.seller_id,
+          s.owner_user_id as seller_owner_user_id,
+          o.payment_method
+        from orders o
+        left join sellers s on s.id = o.seller_id
+        where o.id = ?
+        limit 1
+        `
+      )
+        .bind(id)
+        .first<any>();
+
+      if (!order) {
+        return c.json(
+          { ok: false, code: "ORDER_NOT_FOUND", message: "Order not found" },
+          404
+        );
+      }
+
+      if (
+        authUser.role === "seller" &&
+        order.seller_owner_user_id !== authUser.user_id
+      ) {
+        return c.json(
+          { ok: false, code: "FORBIDDEN", message: "Forbidden" },
+          403
+        );
+      }
+
+      const shippingStatus = normalizeShippingStatus(nextStatus);
+      const paymentStatus = normalizePaymentStatus(order.payment_method || "cod", nextStatus);
+
+      await c.env.DB.prepare(
+        `
+        update orders
+        set
+          order_status = ?,
+          shipping_status = ?,
+          payment_status = ?,
+          tracking_number = coalesce(?, tracking_number)
+        where id = ?
+        `
+      )
+        .bind(nextStatus, shippingStatus, paymentStatus, trackingNumber, id)
+        .run();
+
+      const updated = await c.env.DB.prepare(
+        `select * from orders where id = ? limit 1`
+      )
+        .bind(id)
+        .first();
+
+      return c.json({ ok: true, data: updated });
+    } catch (error) {
+      console.error("PATCH /orders/:id/status failed", error);
+      return c.json(
+        { ok: false, code: "ORDER_STATUS_UPDATE_FAILED", message: "Failed to update order status" },
+        500
+      );
+    }
+  }
+);
+
+export default orderRouter;
