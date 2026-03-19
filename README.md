@@ -1,333 +1,510 @@
-# سوق رحبة | Souq Rahba Platform 🇲🇦
 
-<div align="center">
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Cloudflare Workers](https://img.shields.io/badge/Deployed%20on-Cloudflare%20Workers-green)](https://workers.cloudflare.com/)
-[![Cloudflare D1](https://img.shields.io/badge/Database-D1-yellow)](https://developers.cloudflare.com/d1/)
-[![React](https://img.shields.io/badge/Framework-React-purple)](https://react.dev/)
-[![Hono](https://img.shields.io/badge/Backend-Hono-orange)](https://hono.dev/)
+# Souq Rahba Platform | سوق رحبة
 
-**المنصة الرسمية:** [🌐 rahba.site](https://rahba.site)  
-**حالة المشروع:** ✅ نشط ومنشور بنجاح
+Monorepo for a modern marketplace platform built with React, Vite, Cloudflare Workers, Hono, and Cloudflare D1.
 
-</div>
+## Overview
 
----
+Souq Rahba is a marketplace platform structured as a scalable monorepo with:
 
-## 📖 نظرة عامة
+- **Storefront app** for customer-facing browsing and shopping
+- **Admin app** for back-office management
+- **API worker** running on Cloudflare Workers
+- **Shared packages** for contracts, UI, and common logic
+- **Infrastructure files** for D1 database setup and deployment
 
-**سوق رحبة** هي منصة Marketplace مغربية متكاملة تربط البائعين بالمشتريين في بيئة آمنة وسريعة. صممت خصيصاً للسوق المغربي مع دعم كامل للغة العربية وواجهة عصرية متجاوبة.
+## Repository Structure
 
-### 🎯 المزايا التنافسية
-
-| الميزة | التفاصيل |
-|--------|----------|
-| **اللغة العربية** | واجهة RTL كاملة ودعم خط عربي أنيق |
-| **سرعة عالية** | استضافة serverless على حافة Cloudflare |
-| **قابلية التوسع** | بنية قابلة للنمو مع D1 و Workers |
-| **أمان مضمون** | SSL مجاني + حماية DDoS تلقائية |
-
----
-
-## 🌐 الروابط الرئيسية
-
-| القسم | الرابط | الوصف |
-|-------|---------|-------|
-| 🏪 **المتجر الرئيسي** | [rahba.site](https://rahba.site) | تصفح المنتجات وشراءها |
-| 👨‍💼 **بوابة البائعين** | [seller.rahba.site](https://seller.rahba.site) | إدارة منتجاتك ومبيعاتك |
-| ⚙️ **لوحة الإدارة** | [admin.rahba.site](https://admin.rahba.site) | التحكم الشامل بالنظام |
-| ⚡ **واجهة API** | [api.rahba.site](https://api.rahba.site) | خدمات Backend & Webhooks |
-
----
-
-## ✨ المميزات الحالية
-
-### للمشتريين
-- [x] تصفح فئات متنوعة من المنتجات
-- [x] البحث المتقدم والفلاتر الذكية
-- [x] عرض تفاصيل المنتجات والصور
-- [x] تقييمات ومراجعات المستخدمين
-- [x] تصميم عربي متجاوب مع الجوال
-
-### للبائعين
-- [x] لوحة تحكم خاصة لإدارة المنتجات
-- [x] إضافة وتعديل وحذف المنتجات
-- [x] متابعة الطلبات والمبيعات
-- [x] إحصائيات الأداء الزمنية
-- [x] صور متعددة للمنتج الواحد
-
-### للإدارة
-- [x] مراقبة حالة النظام بشكل عام
-- [x] إدارة حسابات المستخدمين
-- [x] مراجعة واعتماد المحتوى
-- [x] تحليلات البيانات والأداء
-- [x] نظام تذاكر الدعم الفني
-
----
-
-## 🛠 التقنيات المستخدمة
-
-### Frontend Stack
-```yaml
-Framework: React 18 + Vite 5
-Language: TypeScript 5
-Styling: CSS Modules / Tailwind CSS
-State Management: Zustand / React Query
-Routing: React Router DOM v6
-```
-
-### Backend Stack
-```yaml
-Runtime: Cloudflare Workers
-Framework: Hono.js (Bun/Hono compatible)
-Database: Cloudflare D1 (SQLite)
-Authentication: JWT + HTTP-only cookies
-Deployment: Edge Network Worldwide
-```
-
-### DevOps & Tools
-```yaml
-Package Manager: pnpm 8+
-Version Control: Git + GitHub Actions
-Testing: Vitest + Playwright
-CI/CD: Auto-deploy via Push
-```
-
----
-
-## 📂 هيكل المشروع
-
-```
+```text
 souq-rahba-platform/
 ├── apps/
-│   ├── storefront          # واجهة المتجر للمشترين
-│   │   └── src/
-│   │       ├── components/ # المكونات المشتركة
-│   │       ├── pages/      # صفحات التطبيق
-│   │       └── hooks/      # Custom Hooks
-│   └── admin               # لوحة إدارة الإدارة
-│       └── src/
-│           ├── auth/       # تسجيل الدخول والإذن
-│           ├── users/      # إدارة المستخدمين
-│           └── analytics/  # الإحصائيات
+│   ├── storefront/   # Customer-facing React app
+│   └── admin/        # Admin React app
 ├── workers/
-│   ├── api                 # خدمات الـ API الخلفية
-│   │   ├── routes/         # مسارات RESTful
-│   │   ├── middleware/     # Middleware للتحقق
-│   │   └── utils/          # دوال مساعدة
-│   └── webhooks            # معالجة الأحداث الخارجية
+│   └── api/          # Cloudflare Worker API (Hono)
+├── packages/         # Shared workspace packages
 ├── infra/
-│   └── d1                  # مخطط وقاعدة البيانات
-│       ├── schema.sql      # تعريف الجداول
-│       └── seed.sql        # البيانات الأولية
-└── packages                # الحزم المشتركة
-    ├── ui-kit              # مكونات واجهة مشتركة
-    ├── utils               # دوال مساعدة
-    └── types               # تعريفات TypeScript
-```
+│   └── d1/           # Database schema and seed files
+├── .github/
+│   └── workflows/    # CI workflow
+├── package.json
+├── pnpm-workspace.yaml
+└── README.md
 
----
+Tech Stack
 
-## 🚀 الإعداد المحلي
+Frontend
 
-### المتطلبات المسبقة
-- Node.js 18 أو أحدث
-- pnpm (يوصى بشدة)
-- Docker (اختياري - لخدمات المساعدة)
+React 18
 
-### خطوات التثبيت
+Vite 6
 
-```bash
-# 1. Clone المستودع
+TypeScript 5
+
+React Router DOM
+
+
+Backend
+
+Cloudflare Workers
+
+Hono
+
+Zod
+
+Cloudflare D1
+
+
+Platform / Tooling
+
+pnpm workspaces
+
+Turbo
+
+Prettier
+
+GitHub Actions
+
+
+Workspace Packages
+
+Current workspace apps and services:
+
+@souq/storefront
+
+@souq/admin
+
+@souq/api
+
+
+Requirements
+
+Node.js 18+
+
+pnpm
+
+Cloudflare account
+
+Wrangler CLI configured for deployment
+
+
+Getting Started
+
+1) Clone the repository
+
 git clone https://github.com/ori00fit-tech/souq-rahba-platform.git
 cd souq-rahba-platform
 
-# 2. تثبيت جميع الاعتمادات
+2) Install dependencies
+
 pnpm install
 
-# 3. إعداد متغيرات البيئة
+3) Create environment file
+
 cp .env.example .env
-# عدل .env بإعدادات Cloudflare الخاصة بك
-```
 
-### تشغيل الخدمات
+Then update the values according to your local or Cloudflare environment.
 
-```bash
-# تطوير واجهة المتجر
-pnpm --filter storefront dev
+Environment Variables
 
-# تطوير بوابة البائعين
-pnpm --filter seller dev
+The example file currently includes the following keys:
 
-# تطوير API
-pnpm --filter api dev
+PUBLIC_API_BASE_URL=
+JWT_SECRET=
+R2_PUBLIC_BUCKET=
+D1_DB_NAME=
 
-# التطوير الشامل
+Add any additional secrets required by your Cloudflare setup through Wrangler or dashboard-based secret management.
+
+Development
+
+Run all main apps together
+
 pnpm dev
-```
 
-### البناء للنشر
+This runs the main workspace development processes in parallel.
 
-```bash
-# بناء جميع التطبيقات
+Run a specific app
+
+Storefront
+
+pnpm --filter @souq/storefront dev
+
+Admin
+
+pnpm --filter @souq/admin dev
+
+API Worker
+
+pnpm --filter @souq/api dev
+
+Build
+
+Build all workspace packages:
+
 pnpm build
 
-# اختبار سريع قبل النشر
-pnpm test
+Quality Checks
 
-# تشغيل اختبارات الوحدة
-pnpm test:unit
+pnpm lint
+pnpm typecheck
+pnpm format
 
-# تشغيل اختبارات التكامل
-pnpm test:e2e
-```
+API Overview
 
----
+The API worker is mounted with route groups under:
 
-## 🔐 ملفات البيئة (.env)
+/auth
 
-```env
-# Cloudflare Settings
-CLOUDFLARE_ACCOUNT_ID=your_account_id
-CLOUDFLARE_API_TOKEN=your_api_token
-CLOUDFLARE_D1_DATABASE_ID=your_d1_id
+/catalog
 
-# Application
-APP_NAME=Sourq Rahba
-APP_ENV=production
-API_URL=https://api.rahba.site
-FRONTEND_URL=https://rahba.site
+/marketplace
 
-# Database (D1)
-DATABASE_URL=d1://YOUR_DATABASE_ID
-```
+/admin
 
----
+/commerce
 
-## 📊 حالة التطوير
 
-### ✅ مكتمل (v1.0)
-| المكون | التاريخ | الحالة |
-|--------|---------|--------|
-| واجهة المتجر الرئيسية | فبراير 2026 | ✅ مكتمل |
-| قاعدة بيانات D1 الأساسية | مارس 2026 | ✅ مكتملة |
-| بوابة البائعين | مارس 2026 | ✅ مكتملة |
-| النشر الأولي | مارس 2026 | ✅ منشور |
+If you call an undefined route, the worker returns a JSON NOT_FOUND response.
 
-### 🔄 قيد التطوير (v1.1)
-| الميزة | الأولوية | تقدير الانتهاء |
-|--------|----------|----------------|
-| نظام المصادقة الكامل | 🔴 عالي | أبريل 2026 |
-| تكامل الدفع الإلكتروني | 🔴 عالي | مايو 2026 |
-| لوحة الإدارة المتقدمة | 🟡 متوسط | يونيو 2026 |
-| إشعارات البريد الإلكتروني | 🟢 منخفض | يوليو 2026 |
+Cloudflare Deployment
 
-### 📅 Roadmap المستقبلية
-- [ ] تطبيق هاتف ذكي (React Native)
-- [ ] بوابات دفع محلية مغربية (CMI, Wafacash)
-- [ ] توصيل ذكي ومتابعة شحن
-- [ ] نظام عروض وتخصيصات
-- [ ] ميزة الدردشة المباشرة بين البائع والمشترى
+The API worker is configured through workers/api/wrangler.toml and uses Cloudflare bindings for services such as:
 
----
+D1 database
 
-## 🤝 المساهمة في المشروع
+R2 bucket
 
-يسعدنا مساهمات الجميع! إليك كيفية البدء:
+KV namespace
 
-### الخطوات
-1. [Fork](https://github.com/ori00fit-tech/souq-rahba-platform/fork) هذا المستودع
-2. أنشئ فرعاً جديداً (`git checkout -b feature/amazing-feature`)
-3. قم بالتغييرات commit (`git commit -m 'add amazing feature'`)
-4. Push الفرع (`git push origin feature/amazing-feature`)
-5. افتح Pull Request
 
-### قواعد المساهمة
-- استخدم commits ذات رسائل واضحة وواضحة
-- اكتب tests جديدة لكل feature جديد
-- حدّث الوثائق عند الضرورة
-- راجع التعليمات البرمجية وفقاً لـ ESLint و Prettier
+Before deploying, make sure your Cloudflare resources exist and the bindings match your target environment.
 
----
+Deploy the API worker
 
-## 📄 الترخيص
+From the API worker directory:
 
-هذا المشروع مفتوح المصدر تحت رخصة [MIT](LICENSE).
+cd workers/api
+pnpm deploy
 
-```
-MIT License
+Or use your preferred Wrangler deployment flow if you manage environments separately.
 
-Copyright (c) 2026 Ori00Fit-Tech
+CI
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+A GitHub Actions workflow is included and runs the following on push / pull request:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+install dependencies
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+lint
 
----
+typecheck
 
-## 📮 الدعم والتواصل
+build
 
-| القناة | الرابط |
-|--------|---------|
-| 🐙 مستودع GitHub | [ori00fit-tech/souq-rahba-platform](https://github.com/ori00fit-tech/souq-rahba-platform) |
-| 📧 البريد الإلكتروني | *للإنشاء قريباً* |
-| 💬 Discord | *قادم قريباً* |
-| 🐦 Twitter/X | *قادم قريباً* |
 
----
+This helps keep the workspace healthy before deployment.
 
-## 📈 الإحصائيات
+Infrastructure
 
-```
-┌─────────────────────────────┬─────────────┐
-│ المعيار                    │ القيمة       │
-├─────────────────────────────┼─────────────┤
-│ إجمالي الملفات            │ ~150 ملف      │
-│ خطوط برمجية (SLOC)         │ ~2,500 سطر   │
-│ لغات البرمجة                │ JS: 87%     │
-│                             │ TS: 11%     │
-│                             │ CSS: 2%     │
-│ حجم مجلد src               │ ~85 MB       │
-│ سرعة الاستجابة (Edge)      │ <150ms       │
-│ نسبة توفر الخدمة             │ 99.9%        │
-│ عدد النطاقات الفرعية        │ 4 نطاقات     │
-└─────────────────────────────┴─────────────┘
-```
+Database-related files live under:
 
----
+infra/d1/
 
-## 🎨 المطور الرئيسي
+Typical contents include schema and seed files for initializing Cloudflare D1.
 
-<div align="center">
+Notes
 
-**Ori00Fit-Tech** — مطور برمجيات مغربي متخصص في بناء حلول الويب الحديثة والبنية التحتية السحابية.
+This repository is organized as a production-oriented monorepo.
 
-[![GitHub Profile](https://img.shields.io/badge/GitHub-or i00fit--tech-blue?style=social&logo=github)](https://github.com/ori00fit-tech)
+Keep README and route documentation in sync whenever API structure changes.
 
-<div align="center">
+Prefer documenting only verified features that exist in the codebase.
 
-**شكراً لاستخدام سوق رحبة**  
-*نسعى دائماً لتقديم الأفضل للمجتمع المغربي الرقمي 🇲🇦*
 
-</div>
-</div>
+Contributing
 
----
+1. Fork the repository
 
-<sub>*آخر تحديث: 14 مارس 2026*</sub>
+
+2. Create a feature branch
+
+
+3. Make your changes
+
+
+4. Run:
+
+pnpm lint
+pnpm typecheck
+pnpm build
+
+
+5. Open a pull request
+
+
+
+License
+
+MIT
+
+ولكي تكتبه مباشرة من Termux باستعمال `cat`:
+
+```bash
+cd ~/downloads/souq-rahba-platform
+
+cat > README.md <<'EOF'
+# Souq Rahba Platform | سوق رحبة
+
+Monorepo for a modern marketplace platform built with React, Vite, Cloudflare Workers, Hono, and Cloudflare D1.
+
+## Overview
+
+Souq Rahba is a marketplace platform structured as a scalable monorepo with:
+
+- **Storefront app** for customer-facing browsing and shopping
+- **Admin app** for back-office management
+- **API worker** running on Cloudflare Workers
+- **Shared packages** for contracts, UI, and common logic
+- **Infrastructure files** for D1 database setup and deployment
+
+## Repository Structure
+
+```text
+souq-rahba-platform/
+├── apps/
+│   ├── storefront/   # Customer-facing React app
+│   └── admin/        # Admin React app
+├── workers/
+│   └── api/          # Cloudflare Worker API (Hono)
+├── packages/         # Shared workspace packages
+├── infra/
+│   └── d1/           # Database schema and seed files
+├── .github/
+│   └── workflows/    # CI workflow
+├── package.json
+├── pnpm-workspace.yaml
+└── README.md
+
+Tech Stack
+
+Frontend
+
+React 18
+
+Vite 6
+
+TypeScript 5
+
+React Router DOM
+
+
+Backend
+
+Cloudflare Workers
+
+Hono
+
+Zod
+
+Cloudflare D1
+
+
+Platform / Tooling
+
+pnpm workspaces
+
+Turbo
+
+Prettier
+
+GitHub Actions
+
+
+Workspace Packages
+
+Current workspace apps and services:
+
+@souq/storefront
+
+@souq/admin
+
+@souq/api
+
+
+Requirements
+
+Node.js 18+
+
+pnpm
+
+Cloudflare account
+
+Wrangler CLI configured for deployment
+
+
+Getting Started
+
+1) Clone the repository
+
+git clone https://github.com/ori00fit-tech/souq-rahba-platform.git
+cd souq-rahba-platform
+
+2) Install dependencies
+
+pnpm install
+
+3) Create environment file
+
+cp .env.example .env
+
+Then update the values according to your local or Cloudflare environment.
+
+Environment Variables
+
+The example file currently includes the following keys:
+
+PUBLIC_API_BASE_URL=
+JWT_SECRET=
+R2_PUBLIC_BUCKET=
+D1_DB_NAME=
+
+Add any additional secrets required by your Cloudflare setup through Wrangler or dashboard-based secret management.
+
+Development
+
+Run all main apps together
+
+pnpm dev
+
+This runs the main workspace development processes in parallel.
+
+Run a specific app
+
+Storefront
+
+pnpm --filter @souq/storefront dev
+
+Admin
+
+pnpm --filter @souq/admin dev
+
+API Worker
+
+pnpm --filter @souq/api dev
+
+Build
+
+Build all workspace packages:
+
+pnpm build
+
+Quality Checks
+
+pnpm lint
+pnpm typecheck
+pnpm format
+
+API Overview
+
+The API worker is mounted with route groups under:
+
+/auth
+
+/catalog
+
+/marketplace
+
+/admin
+
+/commerce
+
+
+If you call an undefined route, the worker returns a JSON NOT_FOUND response.
+
+Cloudflare Deployment
+
+The API worker is configured through workers/api/wrangler.toml and uses Cloudflare bindings for services such as:
+
+D1 database
+
+R2 bucket
+
+KV namespace
+
+
+Before deploying, make sure your Cloudflare resources exist and the bindings match your target environment.
+
+Deploy the API worker
+
+From the API worker directory:
+
+cd workers/api
+pnpm deploy
+
+Or use your preferred Wrangler deployment flow if you manage environments separately.
+
+CI
+
+A GitHub Actions workflow is included and runs the following on push / pull request:
+
+install dependencies
+
+lint
+
+typecheck
+
+build
+
+
+This helps keep the workspace healthy before deployment.
+
+Infrastructure
+
+Database-related files live under:
+
+infra/d1/
+
+Typical contents include schema and seed files for initializing Cloudflare D1.
+
+Notes
+
+This repository is organized as a production-oriented monorepo.
+
+Keep README and route documentation in sync whenever API structure changes.
+
+Prefer documenting only verified features that exist in the codebase.
+
+
+Contributing
+
+1. Fork the repository
+
+
+2. Create a feature branch
+
+
+3. Make your changes
+
+
+4. Run:
+
+pnpm lint
+pnpm typecheck
+pnpm build
+
+
+5. Open a pull request
+
+
+
+License
+
+MIT EOF
+
+ثم نفذ:
+
+```bash
+git add README.md
+git commit -m "Rewrite README with accurate monorepo and deployment docs"
+git push origin main
