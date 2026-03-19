@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../lib/config";
@@ -35,9 +35,15 @@ export default function AuthPage() {
   const googleUrl = useMemo(() => `${API_BASE_URL}/auth/google/login`, []);
 
   useEffect(() => {
+    if (!authLoading && currentUser) {
+      navigate("/", { replace: true });
+    }
+  }, [authLoading, currentUser, navigate]);
+
+  useEffect(() => {
     const params = new URLSearchParams(location.search);
     const token = params.get("token");
-    const google = params.get("google");
+    const provider = params.get("provider");
 
     async function consumeGoogleToken() {
       if (!token) return;
@@ -49,57 +55,51 @@ export default function AuthPage() {
         navigate("/", { replace: true });
       } catch (err) {
         console.error(err);
-        setMessage("تعذر إتمام تسجيل الدخول عبر Google");
+        setMessage("تعذر إكمال تسجيل الدخول عبر Google");
       } finally {
         setLoadingGoogle(false);
       }
     }
 
-    if (google === "success" && token) {
+    if (provider === "google" && token) {
       consumeGoogleToken();
     }
   }, [location.search, loginUser, navigate]);
 
-  if (!authLoading && currentUser) {
-    return <Navigate to="/" replace />;
-  }
-
-  function updateLoginField(name, value) {
-    setLoginForm((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function updateRegisterField(name, value) {
-    setRegisterForm((prev) => ({ ...prev, [name]: value }));
-  }
-
-  async function handleLogin(e) {
+  async function handleLoginSubmit(e) {
     e.preventDefault();
 
     try {
       setSubmitting(true);
       setMessage("");
 
-      const res = await apiPost("/auth/login", {
+      const result = await apiPost("/auth/login", {
         email: loginForm.email.trim().toLowerCase(),
         password: loginForm.password
       });
 
-      if (!res?.ok || !res?.data?.token) {
-        setMessage(res?.message || "تعذر تسجيل الدخول");
+      if (!result.ok) {
+        setMessage(result.message || "تعذر تسجيل الدخول");
         return;
       }
 
-      await loginUser(res.data.token);
+      const token = result?.data?.token;
+      if (!token) {
+        setMessage("لم يتم العثور على رمز الجلسة");
+        return;
+      }
+
+      await loginUser(token);
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
-      setMessage(err.message || "حدث خطأ أثناء تسجيل الدخول");
+      setMessage("حدث خطأ أثناء تسجيل الدخول");
     } finally {
       setSubmitting(false);
     }
   }
 
-  async function handleRegister(e) {
+  async function handleRegisterSubmit(e) {
     e.preventDefault();
 
     if (!registerForm.full_name.trim()) {
@@ -131,24 +131,43 @@ export default function AuthPage() {
       setSubmitting(true);
       setMessage("");
 
-      const res = await apiPost("/auth/register", {
+      const registerResult = await apiPost("/auth/register", {
         full_name: registerForm.full_name.trim(),
         email: registerForm.email.trim().toLowerCase(),
-        phone: registerForm.phone.trim() || null,
+        phone: registerForm.phone.trim(),
         password: registerForm.password,
-        role: "buyer"
+        role: "buyer",
+        locale: "ar"
       });
 
-      if (!res?.ok || !res?.data?.token) {
-        setMessage(res?.message || "تعذر إنشاء الحساب");
+      if (!registerResult.ok) {
+        setMessage(registerResult.message || "تعذر إنشاء الحساب");
         return;
       }
 
-      await loginUser(res.data.token);
+      const loginResult = await apiPost("/auth/login", {
+        email: registerForm.email.trim().toLowerCase(),
+        password: registerForm.password
+      });
+
+      if (!loginResult.ok) {
+        setMessage("تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً");
+        setTab(TABS.login);
+        return;
+      }
+
+      const token = loginResult?.data?.token;
+      if (!token) {
+        setMessage("تم إنشاء الحساب، لكن لم يتم العثور على رمز الجلسة");
+        setTab(TABS.login);
+        return;
+      }
+
+      await loginUser(token);
       navigate("/", { replace: true });
     } catch (err) {
       console.error(err);
-      setMessage(err.message || "حدث خطأ أثناء إنشاء الحساب");
+      setMessage("حدث خطأ أثناء إنشاء الحساب");
     } finally {
       setSubmitting(false);
     }
@@ -156,288 +175,182 @@ export default function AuthPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div style={s.wrap}>
-        <div style={s.hero}>
-          <div style={s.heroBadge}>RAHBA AUTH</div>
-          <h1 style={s.title}>مرحباً بك في رحبة</h1>
-          <p style={s.subtitle}>
-            سجّل الدخول بسرعة عبر Google أو أنشئ حسابك بالبريد الإلكتروني لإتمام الطلبات وتتبعها.
+      <div className="auth-shell">
+        <div className="auth-card auth-card-wide">
+          <div className="auth-badge">RAHBA AUTH</div>
+
+          <h1 className="auth-title">مرحباً بك في رحبة</h1>
+          <p className="auth-subtitle">
+            سجل الدخول بسرعة عبر Google أو أنشئ حسابك بالبريد الإلكتروني لإتمام الطلبات وتتبعها.
           </p>
 
-          <a
-            href={googleUrl}
-            style={s.googleBtn}
-            onClick={() => setLoadingGoogle(true)}
-          >
-            <span style={s.googleIcon}>G</span>
-            <span>{loadingGoogle ? "جاري التحويل..." : "المتابعة عبر Google"}</span>
+          <a href={googleUrl} className="auth-google-btn">
+            <span className="auth-google-icon">G</span>
+            <span>
+              {loadingGoogle ? "جاري المتابعة..." : "المتابعة عبر Google"}
+            </span>
           </a>
 
-          <div style={s.divider}>
-            <span style={s.dividerLine} />
-            <span style={s.dividerText}>أو</span>
-            <span style={s.dividerLine} />
+          <div className="auth-divider">
+            <span>أو</span>
           </div>
 
-          <div style={s.tabs}>
+          <div className="auth-tabs">
             <button
               type="button"
-              onClick={() => {
-                setTab(TABS.login);
-                setMessage("");
-              }}
-              style={{
-                ...s.tabBtn,
-                ...(tab === TABS.login ? s.tabBtnActive : {})
-              }}
-            >
-              تسجيل الدخول
-            </button>
-
-            <button
-              type="button"
+              className={`auth-tab ${tab === TABS.register ? "is-active" : ""}`}
               onClick={() => {
                 setTab(TABS.register);
                 setMessage("");
               }}
-              style={{
-                ...s.tabBtn,
-                ...(tab === TABS.register ? s.tabBtnActive : {})
-              }}
             >
               إنشاء حساب
             </button>
+
+            <button
+              type="button"
+              className={`auth-tab ${tab === TABS.login ? "is-active" : ""}`}
+              onClick={() => {
+                setTab(TABS.login);
+                setMessage("");
+              }}
+            >
+              تسجيل الدخول
+            </button>
           </div>
 
-          {message ? <div style={s.message}>{message}</div> : null}
+          {message ? <div className="auth-message-box">{message}</div> : null}
 
           {tab === TABS.login ? (
-            <form onSubmit={handleLogin} style={s.form}>
-              <Field label="البريد الإلكتروني">
+            <form className="auth-form" onSubmit={handleLoginSubmit}>
+              <div className="auth-form-group">
+                <label>البريد الإلكتروني</label>
                 <input
                   type="email"
                   value={loginForm.email}
-                  onChange={(e) => updateLoginField("email", e.target.value)}
-                  style={s.input}
+                  onChange={(e) =>
+                    setLoginForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   placeholder="name@example.com"
+                  className="ui-input"
+                  autoComplete="email"
                 />
-              </Field>
+              </div>
 
-              <Field label="كلمة السر">
+              <div className="auth-form-group">
+                <label>كلمة السر</label>
                 <input
                   type="password"
                   value={loginForm.password}
-                  onChange={(e) => updateLoginField("password", e.target.value)}
-                  style={s.input}
+                  onChange={(e) =>
+                    setLoginForm((prev) => ({ ...prev, password: e.target.value }))
+                  }
                   placeholder="••••••••"
+                  className="ui-input"
+                  autoComplete="current-password"
                 />
-              </Field>
+              </div>
 
-              <button type="submit" disabled={submitting || loadingGoogle} style={s.primaryBtn}>
-                {submitting ? "جاري الدخول..." : "دخول"}
+              <button
+                type="submit"
+                className="btn btn-primary full-width"
+                disabled={submitting || authLoading || loadingGoogle}
+              >
+                {submitting ? "جاري تسجيل الدخول..." : "دخول"}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} style={s.form}>
-              <Field label="الاسم الكامل">
+            <form className="auth-form" onSubmit={handleRegisterSubmit}>
+              <div className="auth-form-group">
+                <label>الاسم الكامل</label>
                 <input
                   type="text"
                   value={registerForm.full_name}
-                  onChange={(e) => updateRegisterField("full_name", e.target.value)}
-                  style={s.input}
-                  placeholder="الاسم الكامل"
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, full_name: e.target.value }))
+                  }
+                  placeholder="Talidi Chafik"
+                  className="ui-input"
+                  autoComplete="name"
                 />
-              </Field>
+              </div>
 
-              <Field label="البريد الإلكتروني">
+              <div className="auth-form-group">
+                <label>البريد الإلكتروني</label>
                 <input
                   type="email"
                   value={registerForm.email}
-                  onChange={(e) => updateRegisterField("email", e.target.value)}
-                  style={s.input}
-                  placeholder="name@example.com"
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  placeholder="talidichafiq@gmail.com"
+                  className="ui-input"
+                  autoComplete="email"
                 />
-              </Field>
+              </div>
 
-              <Field label="رقم الهاتف">
+              <div className="auth-form-group">
+                <label>رقم الهاتف</label>
                 <input
-                  type="text"
+                  type="tel"
                   value={registerForm.phone}
-                  onChange={(e) => updateRegisterField("phone", e.target.value)}
-                  style={s.input}
-                  placeholder="06XXXXXXXX"
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  placeholder="0618072884"
+                  className="ui-input"
+                  autoComplete="tel"
                 />
-              </Field>
+              </div>
 
-              <Field label="كلمة السر">
+              <div className="auth-form-group">
+                <label>كلمة السر</label>
                 <input
                   type="password"
                   value={registerForm.password}
-                  onChange={(e) => updateRegisterField("password", e.target.value)}
-                  style={s.input}
-                  placeholder="6 أحرف على الأقل"
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="••••••••"
+                  className="ui-input"
+                  autoComplete="new-password"
                 />
-              </Field>
+              </div>
 
-              <Field label="تأكيد كلمة السر">
+              <div className="auth-form-group">
+                <label>تأكيد كلمة السر</label>
                 <input
                   type="password"
                   value={registerForm.confirm_password}
-                  onChange={(e) => updateRegisterField("confirm_password", e.target.value)}
-                  style={s.input}
-                  placeholder="أعد كتابة كلمة السر"
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({
+                      ...prev,
+                      confirm_password: e.target.value
+                    }))
+                  }
+                  placeholder="••••••••"
+                  className="ui-input"
+                  autoComplete="new-password"
                 />
-              </Field>
+              </div>
 
-              <button type="submit" disabled={submitting || loadingGoogle} style={s.primaryBtn}>
+              <button
+                type="submit"
+                className="btn btn-primary full-width"
+                disabled={submitting || authLoading || loadingGoogle}
+              >
                 {submitting ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
               </button>
             </form>
           )}
+
+          <div className="auth-footer-links">
+            <NavLink to="/" className="auth-back-home">
+              العودة إلى الرئيسية
+            </NavLink>
+          </div>
         </div>
       </div>
     </section>
   );
 }
-
-function Field({ label, children }) {
-  return (
-    <label style={s.field}>
-      <span style={s.label}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
-const s = {
-  wrap: {
-    maxWidth: "560px",
-    margin: "0 auto"
-  },
-  hero: {
-    background: "#fff",
-    border: "1px solid #e7dccf",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 18px 40px rgba(27,58,107,0.08)",
-    display: "grid",
-    gap: "18px"
-  },
-  heroBadge: {
-    width: "fit-content",
-    padding: "8px 12px",
-    borderRadius: "999px",
-    background: "#eff6ff",
-    color: "#1b3a6b",
-    fontWeight: 800,
-    fontSize: "12px"
-  },
-  title: {
-    margin: 0,
-    fontSize: "32px",
-    color: "#1b3a6b",
-    fontWeight: 900
-  },
-  subtitle: {
-    margin: 0,
-    color: "#6e6357",
-    lineHeight: 1.8
-  },
-  googleBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    padding: "14px 16px",
-    borderRadius: "16px",
-    background: "#ffffff",
-    border: "1px solid #d8dee9",
-    color: "#111827",
-    textDecoration: "none",
-    fontWeight: 800
-  },
-  googleIcon: {
-    width: "28px",
-    height: "28px",
-    borderRadius: "999px",
-    display: "grid",
-    placeItems: "center",
-    background: "#f3f4f6",
-    fontWeight: 900
-  },
-  divider: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto 1fr",
-    alignItems: "center",
-    gap: "12px"
-  },
-  dividerLine: {
-    height: "1px",
-    background: "#e5e7eb",
-    display: "block"
-  },
-  dividerText: {
-    color: "#6b7280",
-    fontSize: "13px",
-    fontWeight: 700
-  },
-  tabs: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px"
-  },
-  tabBtn: {
-    padding: "12px 14px",
-    borderRadius: "14px",
-    border: "1px solid #d6d3d1",
-    background: "#fff",
-    color: "#374151",
-    fontWeight: 800,
-    cursor: "pointer"
-  },
-  tabBtnActive: {
-    background: "#1b3a6b",
-    color: "#fff",
-    borderColor: "#1b3a6b"
-  },
-  form: {
-    display: "grid",
-    gap: "14px"
-  },
-  field: {
-    display: "grid",
-    gap: "8px"
-  },
-  label: {
-    fontWeight: 800,
-    color: "#1f2937",
-    fontSize: "14px"
-  },
-  input: {
-    width: "100%",
-    padding: "14px 16px",
-    borderRadius: "14px",
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    fontSize: "15px",
-    boxSizing: "border-box"
-  },
-  primaryBtn: {
-    padding: "14px 18px",
-    borderRadius: "16px",
-    border: "none",
-    background: "#1b3a6b",
-    color: "#fff",
-    fontWeight: 900,
-    fontSize: "15px",
-    cursor: "pointer"
-  },
-  message: {
-    padding: "12px 14px",
-    borderRadius: "14px",
-    background: "#fff7ed",
-    border: "1px solid #fdba74",
-    color: "#9a3412",
-    fontWeight: 700
-  }
-};
