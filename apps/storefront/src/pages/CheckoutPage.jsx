@@ -6,27 +6,18 @@ import { formatMoney } from "../lib/utils";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const {
-    cart,
-    total,
-    currency,
-    language,
-    currentUser,
-    clearCart,
-    removeFromCart
-  } = useApp();
+  const { cart, total, currency, language, currentUser, removeFromCart } = useApp();
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
-  const [successOrder, setSuccessOrder] = useState(null);
+  const [results, setResults] = useState([]);
 
   const [form, setForm] = useState({
     buyer_name: "",
     buyer_phone: "",
     buyer_city: "",
     buyer_address: "",
-    notes: "",
-    payment_method: "cod"
+    notes: ""
   });
 
   const locale =
@@ -35,53 +26,51 @@ export default function CheckoutPage() {
     "en-US";
 
   useEffect(() => {
-    setForm((prev) => ({
-      ...prev,
-      buyer_name: prev.buyer_name || currentUser?.full_name || "",
-      buyer_phone: prev.buyer_phone || currentUser?.phone || ""
-    }));
+    if (currentUser) {
+      setForm((f) => ({
+        ...f,
+        buyer_name: f.buyer_name || currentUser.full_name || "",
+        buyer_phone: f.buyer_phone || currentUser.phone || ""
+      }));
+    }
   }, [currentUser]);
 
-  const normalizedCart = useMemo(() => {
-    if (!Array.isArray(cart)) return [];
+  const ordersGrouped = useMemo(() => {
+    const groups = {};
 
-    return cart.map((item) => ({
-      id: item.id,
-      product_id: item.id,
-      slug: item.slug,
-      name: item.name || "",
-      seller_id: item.seller_id || null,
-      seller: item.seller || "RAHBA",
-      price: Number(item.price ?? 0),
-      qty: Number(item.qty || item.quantity || 1),
-      image_url: item.image_url || ""
+    (cart || []).forEach((item) => {
+      const sellerId = item.seller_id || "default";
+      if (!groups[sellerId]) {
+        groups[sellerId] = {
+          seller_id: sellerId,
+          seller_name: item.seller || "RAHBA",
+          items: []
+        };
+      }
+
+      groups[sellerId].items.push({
+        id: item.id,
+        product_id: item.id,
+        quantity: Number(item.qty || item.quantity || 1),
+        price: Number(item.price || 0),
+        name: item.name || "منتج"
+      });
+    });
+
+    return Object.values(groups).map((group) => ({
+      ...group,
+      subtotal: group.items.reduce(
+        (sum, item) => sum + Number(item.price) * Number(item.quantity),
+        0
+      )
     }));
   }, [cart]);
 
-  const sellerIds = useMemo(() => {
-    return [...new Set(normalizedCart.map((item) => item.seller_id).filter(Boolean))];
-  }, [normalizedCart]);
-
-  const hasMixedSellers = sellerIds.length > 1;
-  const canCheckout = normalizedCart.length > 0 && !hasMixedSellers;
-
+  const numSellers = ordersGrouped.length;
   const shipping = total > 0 ? 0 : 0;
   const grandTotal = total + shipping;
 
-  async function emptyCartSafely() {
-    if (typeof clearCart === "function") {
-      clearCart();
-      return;
-    }
-
-    if (typeof removeFromCart === "function") {
-      normalizedCart.forEach((item) => removeFromCart(item.id));
-    }
-  }
-
   function validateForm() {
-    if (!normalizedCart.length) return "السلة فارغة";
-    if (hasMixedSellers) return "حالياً يجب أن تكون كل عناصر الطلب من نفس البائع";
     if (!form.buyer_name.trim()) return "يرجى إدخال الاسم الكامل";
     if (!form.buyer_phone.trim()) return "يرجى إدخال رقم الهاتف";
     if (!/^0[5-7][0-9]{8}$/.test(form.buyer_phone.trim())) {
@@ -89,6 +78,7 @@ export default function CheckoutPage() {
     }
     if (!form.buyer_city.trim()) return "يرجى إدخال المدينة";
     if (!form.buyer_address.trim()) return "يرجى إدخال العنوان";
+    if (!ordersGrouped.length) return "السلة فارغة";
     return "";
   }
 
@@ -101,107 +91,142 @@ export default function CheckoutPage() {
       return;
     }
 
-    try {
-      setSubmitting(true);
-      setMessage("");
+    setSubmitting(true);
+    setMessage("");
 
-      const payload = {
-        seller_id: sellerIds[0] || null,
-        payment_method: "cod",
-        buyer_name: form.buyer_name.trim(),
-        buyer_phone: form.buyer_phone.trim(),
-        buyer_city: form.buyer_city.trim(),
-        buyer_address: form.buyer_address.trim(),
-        notes: form.notes.trim() || null,
-        items: normalizedCart.map((item) => ({
-          product_id: item.product_id,
-          quantity: item.qty
-        }))
-      };
+    const newResults = [];
 
-      const result = await apiPost("/commerce/orders", payload);
+    for (const group of ordersGrouped) {
+      try {
+        const payload = {
+          buyer_name: form.buyer_name.trim(),
+          buyer_phone: form.buyer_phone.trim(),
+          buyer_city: form.buyer_city.trim(),
+          buyer_address: form.buyer_address.trim(),
+          notes: form.notes.trim() || null,
+          seller_id: group.seller_id === "default" ? null : group.seller_id,
+          payment_method: "cod",
+          items: group.items.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity
+          }))
+        };
 
-      if (!result?.ok) {
-        setMessage(
-          result?.message ||
-          "تعذر إتمام الطلب. إذا كنت غير مسجل، فقد يكون الـ backend مازال ما كيدعمش guest checkout."
-        );
-        return;
+        const res = await apiPost("/commerce/orders", payload);
+
+        if (res?.ok) {
+          newResults.push({
+            ok: true,
+            seller: group.seller_name,
+            order_number: res.data?.order_number || "—",
+            total_mad: group.subtotal
+          });
+
+          group.items.forEach((item) => removeFromCart(item.id));
+        } else {
+          newResults.push({
+            ok: false,
+            seller: group.seller_name,
+            error: res?.message || "فشل إنشاء الطلب"
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        newResults.push({
+          ok: false,
+          seller: group.seller_name,
+          error: "خطأ في الاتصال بالخادم"
+        });
       }
-
-      await emptyCartSafely();
-      setSuccessOrder(result.data || null);
-    } catch (err) {
-      console.error(err);
-      setMessage("حدث خطأ أثناء تأكيد الطلب");
-    } finally {
-      setSubmitting(false);
     }
+
+    setResults(newResults);
+    setSubmitting(false);
   }
 
-  if (!normalizedCart.length && !successOrder) {
-    return (
-      <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
-            <div className="ui-chip">RAHBA CHECKOUT</div>
-            <h1 className="page-title">إتمام الطلب</h1>
-            <p className="page-subtitle">
-              لا يمكن إتمام الطلب لأن السلة فارغة حالياً.
-            </p>
-          </div>
+  const successCount = results.filter((r) => r.ok).length;
+  const failedCount = results.filter((r) => !r.ok).length;
 
-          <div className="empty-state" style={s.emptyCard}>
-            <div style={s.emptyIcon}>🧺</div>
-            <h3 style={s.emptyTitle}>السلة فارغة</h3>
-            <p style={s.emptyText}>
-              أضف منتجات إلى السلة أولاً ثم ارجع لإتمام الطلب.
-            </p>
-
-            <Link to="/products" className="btn btn-primary full-width">
-              تصفح المنتجات
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  if (successOrder) {
+  if (results.length > 0) {
     return (
       <section className="container section-space" dir="rtl">
         <div className="page-stack">
           <div className="ui-card" style={s.successCard}>
-            <div style={s.successIcon}>✅</div>
-            <div className="ui-chip">تم الطلب بنجاح</div>
-            <h1 className="page-title">تم تأكيد طلبك</h1>
+            <div style={s.successIcon}>{successCount > 0 ? "✅" : "⚠️"}</div>
+
+            <div className="ui-chip">
+              {successCount === numSellers
+                ? "تم إرسال كل الطلبات"
+                : `تم إرسال ${successCount} من أصل ${numSellers}`}
+            </div>
+
+            <h1 className="page-title">
+              {successCount === numSellers
+                ? "تم تأكيد طلباتك بنجاح"
+                : "تم تنفيذ الطلبات بشكل جزئي"}
+            </h1>
+
             <p className="page-subtitle">
-              توصلنا بطلبك بنجاح، وسيتم التواصل معك لتأكيد التفاصيل.
+              {successCount === numSellers
+                ? "توصلنا بجميع طلباتك، وسيتم التواصل معك لتأكيد التفاصيل."
+                : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."}
             </p>
 
-            <div className="ui-card-soft" style={s.successInfo}>
-              <div style={s.successRow}>
-                <span>رقم الطلب</span>
-                <strong>{successOrder.order_number || "—"}</strong>
+            <div style={s.resultsStats}>
+              <div className="ui-card-soft" style={s.statCard}>
+                <span style={s.statLabel}>الطلبات الناجحة</span>
+                <strong style={s.statSuccess}>{successCount}</strong>
               </div>
-              <div style={s.successRow}>
-                <span>طريقة الدفع</span>
-                <strong>الدفع عند الاستلام</strong>
-              </div>
-              <div style={s.successRow}>
-                <span>الإجمالي</span>
-                <strong>{formatMoney(successOrder.total_mad || grandTotal, currency, locale)}</strong>
+
+              <div className="ui-card-soft" style={s.statCard}>
+                <span style={s.statLabel}>الطلبات غير المكتملة</span>
+                <strong style={s.statDanger}>{failedCount}</strong>
               </div>
             </div>
 
+            <div style={s.resultsList}>
+              {results.map((result, idx) => (
+                <div
+                  key={`${result.seller}-${idx}`}
+                  className="ui-card-soft"
+                  style={{
+                    ...s.resultRow,
+                    borderRight: result.ok ? "4px solid #16a34a" : "4px solid #dc2626"
+                  }}
+                >
+                  <div style={s.resultMain}>
+                    <div style={s.resultSeller}>{result.seller}</div>
+                    <div style={s.resultMeta}>
+                      {result.ok ? "تم إنشاء الطلب" : "تعذر إنشاء الطلب"}
+                    </div>
+                  </div>
+
+                  <div style={s.resultSide}>
+                    {result.ok ? (
+                      <>
+                        <strong style={s.orderNumber}>{result.order_number}</strong>
+                        <span style={s.orderAmount}>
+                          {formatMoney(result.total_mad || 0, currency, locale)}
+                        </span>
+                      </>
+                    ) : (
+                      <strong style={s.errorText}>{result.error}</strong>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div style={s.successActions}>
-              <button
-                type="button"
-                className="btn btn-primary full-width"
-                onClick={() => navigate("/my-orders")}
-              >
-                عرض طلباتي
-              </button>
+              {successCount > 0 ? (
+                <button
+                  type="button"
+                  className="btn btn-primary full-width"
+                  onClick={() => navigate("/my-orders")}
+                >
+                  عرض طلباتي
+                </button>
+              ) : null}
 
               <button
                 type="button"
@@ -224,22 +249,30 @@ export default function CheckoutPage() {
           <div className="ui-chip">RAHBA CHECKOUT</div>
           <h1 className="page-title">إتمام الطلب</h1>
           <p className="page-subtitle">
-            خطوة أخيرة فقط: أدخل بيانات التوصيل وأكد الطلب.
+            أدخل بيانات التوصيل مرة واحدة، وسنقسم السلة حسب البائعين تلقائياً.
           </p>
+
+          {numSellers > 1 ? (
+            <div className="ui-card-soft" style={s.splitNotice}>
+              <strong style={s.splitTitle}>📦 السلة متعددة الباعة</strong>
+              <div style={s.splitText}>
+                سيتم إنشاء <strong>{numSellers} طلبات</strong> مستقلة، طلب لكل بائع.
+              </div>
+            </div>
+          ) : (
+            <div className="ui-card-soft" style={s.singleNotice}>
+              <strong style={s.splitTitle}>طلب واحد</strong>
+              <div style={s.splitText}>كل المنتجات الحالية من نفس البائع.</div>
+            </div>
+          )}
         </div>
 
         {!currentUser ? (
           <div className="ui-card-soft" style={s.guestInfo}>
             <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
             <span style={s.guestText}>
-              لست بحاجة إلى حساب لإتمام هذا الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
+              لست بحاجة إلى حساب لإتمام الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
             </span>
-          </div>
-        ) : null}
-
-        {hasMixedSellers ? (
-          <div className="message-box">
-            حالياً لا يمكن إتمام طلب واحد من عدة باعة. يرجى إتمام كل بائع بشكل منفصل.
           </div>
         ) : null}
 
@@ -254,7 +287,7 @@ export default function CheckoutPage() {
               <input
                 className="ui-input"
                 value={form.buyer_name}
-                onChange={(e) => setForm((prev) => ({ ...prev, buyer_name: e.target.value }))}
+                onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
                 placeholder="الاسم الكامل"
               />
             </label>
@@ -264,7 +297,7 @@ export default function CheckoutPage() {
               <input
                 className="ui-input"
                 value={form.buyer_phone}
-                onChange={(e) => setForm((prev) => ({ ...prev, buyer_phone: e.target.value }))}
+                onChange={(e) => setForm({ ...form, buyer_phone: e.target.value })}
                 placeholder="06xxxxxxxx"
                 inputMode="tel"
               />
@@ -275,7 +308,7 @@ export default function CheckoutPage() {
               <input
                 className="ui-input"
                 value={form.buyer_city}
-                onChange={(e) => setForm((prev) => ({ ...prev, buyer_city: e.target.value }))}
+                onChange={(e) => setForm({ ...form, buyer_city: e.target.value })}
                 placeholder="مثلاً: الدار البيضاء"
               />
             </label>
@@ -285,7 +318,7 @@ export default function CheckoutPage() {
               <textarea
                 className="ui-textarea"
                 value={form.buyer_address}
-                onChange={(e) => setForm((prev) => ({ ...prev, buyer_address: e.target.value }))}
+                onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
                 placeholder="الحي، الزنقة، رقم المنزل..."
               />
             </label>
@@ -295,7 +328,7 @@ export default function CheckoutPage() {
               <textarea
                 className="ui-textarea"
                 value={form.notes}
-                onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="ملاحظات اختيارية حول الطلب أو التوصيل"
               />
             </label>
@@ -310,33 +343,50 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              disabled={submitting || !canCheckout}
               className="btn btn-primary full-width"
+              disabled={submitting || !ordersGrouped.length}
             >
-              {submitting ? "جاري تأكيد الطلب..." : "تأكيد الطلب"}
+              {submitting
+                ? "جاري إنشاء الطلبات..."
+                : `تأكيد الطلب (${formatMoney(grandTotal, currency, locale)})`}
             </button>
           </form>
 
           <aside className="ui-card" style={s.summaryCard}>
-            <h2 className="section-title">ملخص الطلب</h2>
+            <h2 className="section-title">ملخص السلة</h2>
 
-            <div style={s.itemsList}>
-              {normalizedCart.map((item) => (
-                <div key={item.id} className="ui-card-soft" style={s.summaryItem}>
-                  <div style={s.summaryItemTop}>
-                    <div style={s.summaryItemName}>{item.name}</div>
-                    <div style={s.summaryItemQty}>× {item.qty}</div>
+            <div style={s.groupList}>
+              {ordersGrouped.map((group) => (
+                <div key={group.seller_id} className="ui-card-soft" style={s.groupCard}>
+                  <div style={s.groupHead}>
+                    <strong style={s.groupSeller}>{group.seller_name}</strong>
+                    <span style={s.groupSubtotal}>
+                      {formatMoney(group.subtotal, currency, locale)}
+                    </span>
                   </div>
 
-                  <div style={s.summaryItemMeta}>
-                    <span>{item.seller}</span>
-                    <strong>{formatMoney(item.price * item.qty, currency, locale)}</strong>
+                  <div style={s.groupItems}>
+                    {group.items.map((item) => (
+                      <div key={item.id} style={s.itemRow}>
+                        <span style={s.itemName}>
+                          {item.name} × {item.quantity}
+                        </span>
+                        <strong style={s.itemPrice}>
+                          {formatMoney(item.price * item.quantity, currency, locale)}
+                        </strong>
+                      </div>
+                    ))}
                   </div>
                 </div>
               ))}
             </div>
 
             <div style={s.totals}>
+              <div style={s.totalRow}>
+                <span>عدد الطلبات</span>
+                <strong>{numSellers}</strong>
+              </div>
+
               <div style={s.totalRow}>
                 <span>المجموع الفرعي</span>
                 <strong>{formatMoney(total, currency, locale)}</strong>
@@ -355,7 +405,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <Link to="/cart" className="btn btn-secondary full-width" style={s.backToCart}>
+            <Link to="/cart" className="btn btn-secondary full-width" style={s.backBtn}>
               الرجوع إلى السلة
             </Link>
           </aside>
@@ -369,7 +419,28 @@ const s = {
   heroCard: {
     padding: "18px",
     display: "grid",
-    gap: "10px"
+    gap: "12px"
+  },
+  splitNotice: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px",
+    background: "#fff7e6",
+    border: "1px solid #f3d7a4"
+  },
+  singleNotice: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px",
+    background: "#eef6ff",
+    border: "1px solid #d3e4f8"
+  },
+  splitTitle: {
+    color: "#173b74"
+  },
+  splitText: {
+    color: "#5b6470",
+    lineHeight: 1.8
   },
   guestInfo: {
     padding: "14px",
@@ -413,37 +484,45 @@ const s = {
     display: "grid",
     gap: "14px"
   },
-  itemsList: {
+  groupList: {
     display: "grid",
     gap: "10px"
   },
-  summaryItem: {
-    padding: "12px"
+  groupCard: {
+    padding: "12px",
+    display: "grid",
+    gap: "10px"
   },
-  summaryItemTop: {
+  groupHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "center"
+  },
+  groupSeller: {
+    color: "#173b74"
+  },
+  groupSubtotal: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  groupItems: {
+    display: "grid",
+    gap: "8px"
+  },
+  itemRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "10px",
     alignItems: "start"
   },
-  summaryItemName: {
-    color: "#1f2937",
-    fontWeight: 900,
+  itemName: {
+    color: "#4b5563",
     lineHeight: 1.6
   },
-  summaryItemQty: {
-    color: "#173b74",
-    fontWeight: 900,
+  itemPrice: {
+    color: "#1f2937",
     whiteSpace: "nowrap"
-  },
-  summaryItemMeta: {
-    marginTop: "8px",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    color: "#6b7280",
-    fontSize: "13px",
-    fontWeight: 700
   },
   totals: {
     display: "grid",
@@ -468,27 +547,10 @@ const s = {
     height: "1px",
     background: "#e9dfd2"
   },
-  backToCart: {
+  backBtn: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
-  },
-  emptyCard: {
-    display: "grid",
-    gap: "12px"
-  },
-  emptyIcon: {
-    fontSize: "40px"
-  },
-  emptyTitle: {
-    margin: 0,
-    color: "#173b74",
-    fontWeight: 900
-  },
-  emptyText: {
-    margin: 0,
-    color: "#7a6f63",
-    lineHeight: 1.8
   },
   successCard: {
     padding: "22px",
@@ -496,19 +558,77 @@ const s = {
     gap: "14px"
   },
   successIcon: {
-    fontSize: "42px"
+    fontSize: "42px",
+    textAlign: "center"
   },
-  successInfo: {
+  resultsStats: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px"
+  },
+  statCard: {
     padding: "14px",
+    display: "grid",
+    gap: "6px",
+    textAlign: "center"
+  },
+  statLabel: {
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  statSuccess: {
+    color: "#15803d",
+    fontSize: "24px",
+    fontWeight: 900
+  },
+  statDanger: {
+    color: "#b91c1c",
+    fontSize: "24px",
+    fontWeight: 900
+  },
+  resultsList: {
     display: "grid",
     gap: "10px"
   },
-  successRow: {
+  resultRow: {
+    padding: "14px",
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    color: "#374151",
+    alignItems: "start"
+  },
+  resultMain: {
+    display: "grid",
+    gap: "4px"
+  },
+  resultSeller: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  resultMeta: {
+    color: "#6b7280",
+    fontSize: "13px",
     fontWeight: 700
+  },
+  resultSide: {
+    display: "grid",
+    gap: "4px",
+    textAlign: "left"
+  },
+  orderNumber: {
+    color: "#1f2937",
+    fontWeight: 900
+  },
+  orderAmount: {
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  errorText: {
+    color: "#b91c1c",
+    fontWeight: 800,
+    maxWidth: "160px"
   },
   successActions: {
     display: "grid",
