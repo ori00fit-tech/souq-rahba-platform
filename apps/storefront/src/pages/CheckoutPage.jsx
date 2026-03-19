@@ -79,36 +79,25 @@ export default function CheckoutPage() {
     }
   }
 
+  function validateForm() {
+    if (!normalizedCart.length) return "السلة فارغة";
+    if (hasMixedSellers) return "حالياً يجب أن تكون كل عناصر الطلب من نفس البائع";
+    if (!form.buyer_name.trim()) return "يرجى إدخال الاسم الكامل";
+    if (!form.buyer_phone.trim()) return "يرجى إدخال رقم الهاتف";
+    if (!/^0[5-7][0-9]{8}$/.test(form.buyer_phone.trim())) {
+      return "يرجى إدخال رقم هاتف مغربي صحيح";
+    }
+    if (!form.buyer_city.trim()) return "يرجى إدخال المدينة";
+    if (!form.buyer_address.trim()) return "يرجى إدخال العنوان";
+    return "";
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!normalizedCart.length) {
-      setMessage("السلة فارغة");
-      return;
-    }
-
-    if (hasMixedSellers) {
-      setMessage("حالياً يجب أن تكون كل عناصر الطلب من نفس البائع");
-      return;
-    }
-
-    if (!form.buyer_name.trim()) {
-      setMessage("يرجى إدخال الاسم الكامل");
-      return;
-    }
-
-    if (!form.buyer_phone.trim()) {
-      setMessage("يرجى إدخال رقم الهاتف");
-      return;
-    }
-
-    if (!form.buyer_city.trim()) {
-      setMessage("يرجى إدخال المدينة");
-      return;
-    }
-
-    if (!form.buyer_address.trim()) {
-      setMessage("يرجى إدخال العنوان");
+    const validationError = validateForm();
+    if (validationError) {
+      setMessage(validationError);
       return;
     }
 
@@ -117,7 +106,7 @@ export default function CheckoutPage() {
       setMessage("");
 
       const payload = {
-        seller_id: sellerIds[0],
+        seller_id: sellerIds[0] || null,
         payment_method: "cod",
         buyer_name: form.buyer_name.trim(),
         buyer_phone: form.buyer_phone.trim(),
@@ -133,7 +122,10 @@ export default function CheckoutPage() {
       const result = await apiPost("/commerce/orders", payload);
 
       if (!result?.ok) {
-        setMessage(result?.message || "تعذر إتمام الطلب");
+        setMessage(
+          result?.message ||
+          "تعذر إتمام الطلب. إذا كنت غير مسجل، فقد يكون الـ backend مازال ما كيدعمش guest checkout."
+        );
         return;
       }
 
@@ -236,6 +228,15 @@ export default function CheckoutPage() {
           </p>
         </div>
 
+        {!currentUser ? (
+          <div className="ui-card-soft" style={s.guestInfo}>
+            <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
+            <span style={s.guestText}>
+              لست بحاجة إلى حساب لإتمام هذا الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
+            </span>
+          </div>
+        ) : null}
+
         {hasMixedSellers ? (
           <div className="message-box">
             حالياً لا يمكن إتمام طلب واحد من عدة باعة. يرجى إتمام كل بائع بشكل منفصل.
@@ -302,11 +303,7 @@ export default function CheckoutPage() {
             <div className="ui-card-soft" style={s.paymentCard}>
               <div style={s.paymentTitle}>طريقة الدفع</div>
               <label style={s.paymentMethod}>
-                <input
-                  type="radio"
-                  checked
-                  readOnly
-                />
+                <input type="radio" checked readOnly />
                 <span>الدفع عند الاستلام (Cash on Delivery)</span>
               </label>
             </div>
@@ -374,6 +371,18 @@ const s = {
     display: "grid",
     gap: "10px"
   },
+  guestInfo: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px"
+  },
+  guestTitle: {
+    color: "#173b74"
+  },
+  guestText: {
+    color: "#6b7280",
+    lineHeight: 1.8
+  },
   layout: {
     display: "grid",
     gap: "14px"
@@ -402,9 +411,7 @@ const s = {
   summaryCard: {
     padding: "16px",
     display: "grid",
-    gap: "14px",
-    position: "sticky",
-    bottom: "12px"
+    gap: "14px"
   },
   itemsList: {
     display: "grid",
