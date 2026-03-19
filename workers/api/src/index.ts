@@ -9,21 +9,21 @@ import { uploadRouter } from "./routes/upload";
 import { mediaRouter } from "./routes/media";
 import { authRouter } from "./routes/auth";
 import { adminRouter } from "./routes/admin";
-import type { Bindings } from "./types";
+import type { AppEnv } from "./types";
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<AppEnv>();
 
 app.use("*", cors());
 app.use("*", requestId);
 
 app.route("/", healthRouter);
-app.route("/", authRouter);
+app.route("/auth", authRouter);
 app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/admin", adminRouter);
 app.route("/commerce", orderRouter);
-app.route("/upload", uploadRouter);
-app.route("/media", mediaRouter);
+app.route("/", uploadRouter);
+app.route("/", mediaRouter);
 
 app.notFound((c) =>
   c.json(

@@ -71,9 +71,8 @@ authRouter.post("/register", async (c) => {
         phone,
         role,
         locale,
-        password_hash,
-        auth_provider
-      ) values (?, ?, ?, ?, ?, ?, ?, 'password')`
+        password_hash
+      ) values (?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         userId,
@@ -192,19 +191,6 @@ authRouter.get("/me", authMiddleware, async (c) => {
       role: authUser.role
     }
   });
-});
-
-authRouter.post("/logout", authMiddleware, async (c) => {
-  const authHeader = c.req.header("Authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
-
-  if (token) {
-    await c.env.DB.prepare(`delete from sessions where token = ?`)
-      .bind(token)
-      .run();
-  }
-
-  return c.json({ ok: true });
 });
 
 authRouter.get("/google/login", async (c) => {
@@ -404,4 +390,17 @@ authRouter.get("/google/callback", async (c) => {
       500
     );
   }
+});
+
+authRouter.post("/logout", authMiddleware, async (c) => {
+  const authHeader = c.req.header("Authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+
+  if (token) {
+    await c.env.DB.prepare(`delete from sessions where token = ?`)
+      .bind(token)
+      .run();
+  }
+
+  return c.json({ ok: true });
 });
