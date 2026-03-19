@@ -22,8 +22,8 @@ app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/admin", adminRouter);
 app.route("/commerce", orderRouter);
-app.route("/", uploadRouter);
-app.route("/", mediaRouter);
+app.route("/upload", uploadRouter);
+app.route("/media", mediaRouter);
 
 app.notFound((c) =>
   c.json(
