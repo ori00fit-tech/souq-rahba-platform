@@ -1,65 +1,131 @@
-import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
-
-function badgeStyle(status) {
-  if (status === "delivered") {
-    return { background: "#ecfdf5", color: "#166534", border: "1px solid #bbf7d0" };
-  }
-  if (status === "shipped") {
-    return { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" };
-  }
-  if (status === "confirmed") {
-    return { background: "#fff7ed", color: "#c2410c", border: "1px solid #fdba74" };
-  }
-  if (status === "cancelled") {
-    return { background: "#fef2f2", color: "#b91c1c", border: "1px solid #fecaca" };
-  }
-  return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
-}
-
-function statusText(order) {
-  if (order.order_status === "delivered") return "تم تسليم الطلب بنجاح";
-  if (order.order_status === "shipped") return "الطلب في الطريق إليك";
-  if (order.order_status === "confirmed") return "تم تأكيد الطلب من البائع";
-  if (order.order_status === "cancelled") return "تم إلغاء الطلب";
-  return "الطلب قيد المعالجة";
-}
+import { formatMoney } from "../lib/utils";
 
 export default function BuyerOrderDetailsPage() {
   const { id } = useParams();
-  const { currentUser, authLoading } = useApp();
+  const navigate = useNavigate();
+  const { currentUser, authLoading, currency, language } = useApp();
+
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+
+  const locale =
+    language === "ar" ? "ar-MA" :
+    language === "fr" ? "fr-MA" :
+    "en-US";
+
+  const buyerId = useMemo(() => {
+    return currentUser?.id || currentUser?.user_id || null;
+  }, [currentUser]);
 
   useEffect(() => {
     async function loadOrder() {
+      if (authLoading) return;
+
+      if (!currentUser) {
+        setLoading(false);
+        setMessage("يجب تسجيل الدخول أولاً لعرض تفاصيل الطلب");
+        return;
+      }
+
+      if (!id) {
+        setLoading(false);
+        setMessage("رقم الطلب غير صالح");
+        return;
+      }
+
       try {
         setLoading(true);
-        const res = await apiGet(`/commerce/orders/${id}`);
-        setOrder(res.data || null);
+        setMessage("");
+
+        const result = await apiGet(`/commerce/orders/${id}`);
+
+        if (!result?.ok) {
+          setMessage(result?.message || "تعذر تحميل تفاصيل الطلب");
+          setOrder(null);
+          return;
+        }
+
+        const data = result.data;
+
+        if (buyerId && data?.buyer_user_id && data.buyer_user_id !== buyerId) {
+          setMessage("ليس لديك صلاحية لعرض هذا الطلب");
+          setOrder(null);
+          return;
+        }
+
+        setOrder(data);
       } catch (err) {
         console.error(err);
-        alert("تعذر تحميل تفاصيل الطلب");
+        setMessage("حدث خطأ أثناء تحميل تفاصيل الطلب");
+        setOrder(null);
       } finally {
         setLoading(false);
       }
     }
 
-    if (!authLoading && currentUser) {
-      loadOrder();
-    }
-  }, [id, currentUser, authLoading]);
+    loadOrder();
+  }, [authLoading, currentUser, id, buyerId]);
 
-  if (!authLoading && !currentUser) {
-    return <Navigate to="/auth" replace />;
+  function getStatusMeta(status) {
+    switch (status) {
+      case "pending":
+        return { label: "قيد الانتظار", bg: "#fff7ed", color: "#9a4f18", border: "#fed7aa" };
+      case "confirmed":
+        return { label: "تم التأكيد", bg: "#ecfeff", color: "#155e75", border: "#a5f3fc" };
+      case "processing":
+        return { label: "قيد المعالجة", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
+      case "shipped":
+        return { label: "تم الشحن", bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" };
+      case "delivered":
+        return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
+      case "cancelled":
+        return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+      default:
+        return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
+    }
   }
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <div style={s.card}>جاري تحميل تفاصيل الطلب...</div>
+        <div className="page-stack">
+          <div className="ui-card" style={s.heroCard}>
+            <div className="ui-chip">RAHBA ORDER</div>
+            <h1 className="page-title">تفاصيل الطلب</h1>
+            <p className="page-subtitle">جاري تحميل تفاصيل الطلب...</p>
+          </div>
+
+          <div className="loading-state">جاري تحميل تفاصيل الطلب...</div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <section className="container section-space" dir="rtl">
+        <div className="page-stack">
+          <div className="ui-card" style={s.heroCard}>
+            <div className="ui-chip">RAHBA ORDER</div>
+            <h1 className="page-title">تفاصيل الطلب</h1>
+            <p className="page-subtitle">قم بتسجيل الدخول أولاً للوصول إلى الطلب.</p>
+          </div>
+
+          <div className="empty-state" style={s.emptyCard}>
+            <div style={s.emptyIcon}>🔐</div>
+            <h3 style={s.emptyTitle}>تسجيل الدخول مطلوب</h3>
+            <p style={s.emptyText}>لا يمكن عرض تفاصيل الطلب بدون تسجيل الدخول.</p>
+
+            <Link to="/auth" className="btn btn-primary full-width">
+              تسجيل الدخول
+            </Link>
+          </div>
+        </div>
       </section>
     );
   }
@@ -67,231 +133,369 @@ export default function BuyerOrderDetailsPage() {
   if (!order) {
     return (
       <section className="container section-space" dir="rtl">
-        <div style={s.card}>الطلب غير موجود</div>
+        <div className="page-stack">
+          <div className="ui-card" style={s.heroCard}>
+            <div className="ui-chip">RAHBA ORDER</div>
+            <h1 className="page-title">تفاصيل الطلب</h1>
+            <p className="page-subtitle">تعذر العثور على الطلب المطلوب.</p>
+          </div>
+
+          {message ? <div className="message-box">{message}</div> : null}
+
+          <button
+            type="button"
+            className="btn btn-secondary full-width"
+            onClick={() => navigate("/my-orders")}
+          >
+            الرجوع إلى طلباتي
+          </button>
+        </div>
       </section>
     );
   }
 
+  const status = getStatusMeta(order.order_status);
+  const orderCurrency = order.currency || currency;
+  const items = Array.isArray(order.items) ? order.items : [];
+
   return (
     <section className="container section-space" dir="rtl">
-      <div style={s.page}>
-        <div style={s.top}>
-          <div>
-            <h1 style={s.title}>تفاصيل الطلب</h1>
-            <p style={s.muted}>{order.order_number || order.id}</p>
-          </div>
-
-          <Link to="/my-orders" style={s.backBtn}>
-            رجوع إلى طلباتي
-          </Link>
-        </div>
-
-        <div style={s.heroCard}>
-          <div style={s.heroHead}>
-            <div style={{ ...s.badge, ...badgeStyle(order.order_status) }}>
-              {order.order_status}
+      <div className="page-stack">
+        <div className="ui-card" style={s.heroCard}>
+          <div style={s.heroTop}>
+            <div>
+              <div className="ui-chip">RAHBA ORDER</div>
+              <h1 className="page-title" style={s.heroTitle}>تفاصيل الطلب</h1>
+              <p className="page-subtitle">
+                راجع حالة الطلب، المنتجات، ومعلومات التوصيل.
+              </p>
             </div>
-            <div style={s.heroStatusText}>{statusText(order)}</div>
-          </div>
 
-          <div style={s.trackingBox}>
-            <div style={s.trackingTitle}>التتبع</div>
-            <div style={s.trackingValue}>
-              {order.tracking_number || "لم يتم إضافة رقم تتبع بعد"}
+            <div
+              style={{
+                ...s.statusPill,
+                background: status.bg,
+                color: status.color,
+                borderColor: status.border
+              }}
+            >
+              {status.label}
             </div>
           </div>
-        </div>
 
-        <div style={s.card}>
-          <h2 style={s.sectionTitle}>معلومات الطلب</h2>
-          <div style={s.infoGrid}>
-            <div><strong>المتجر:</strong> {order.seller_name || order.seller_id}</div>
-            <div><strong>الإجمالي:</strong> {order.total_mad} {order.currency}</div>
-            <div><strong>طريقة الدفع:</strong> {order.payment_method}</div>
-            <div><strong>حالة الدفع:</strong> {order.payment_status}</div>
-            <div><strong>حالة الشحن:</strong> {order.shipping_status}</div>
-            <div><strong>تاريخ الإنشاء:</strong> {order.created_at}</div>
-          </div>
-        </div>
-
-        <div style={s.card}>
-          <h2 style={s.sectionTitle}>بيانات التوصيل</h2>
-          <div style={s.infoGrid}>
-            <div><strong>الاسم:</strong> {order.buyer_name || "—"}</div>
-            <div><strong>الهاتف:</strong> {order.buyer_phone || "—"}</div>
-            <div><strong>المدينة:</strong> {order.buyer_city || "—"}</div>
-            <div><strong>رقم التتبع:</strong> {order.tracking_number || "—"}</div>
-          </div>
-
-          <div style={s.addressBox}>
-            <strong>العنوان:</strong> {order.buyer_address || "غير متوفر"}
-          </div>
-
-          {order.notes ? (
-            <div style={s.addressBox}>
-              <strong>ملاحظات:</strong> {order.notes}
+          <div className="ui-card-soft" style={s.orderMetaCard}>
+            <div style={s.metaRow}>
+              <span style={s.metaLabel}>رقم الطلب</span>
+              <strong style={s.metaValue}>{order.order_number || "—"}</strong>
             </div>
-          ) : null}
+
+            <div style={s.metaRow}>
+              <span style={s.metaLabel}>تاريخ الطلب</span>
+              <strong style={s.metaValue}>{order.created_at || "—"}</strong>
+            </div>
+
+            <div style={s.metaRow}>
+              <span style={s.metaLabel}>البائع</span>
+              <strong style={s.metaValue}>{order.seller_name || "RAHBA"}</strong>
+            </div>
+
+            <div style={s.metaRow}>
+              <span style={s.metaLabel}>الإجمالي</span>
+              <strong style={s.totalValue}>
+                {formatMoney(Number(order.total_mad || 0), orderCurrency, locale)}
+              </strong>
+            </div>
+          </div>
         </div>
 
-        <div style={s.card}>
-          <h2 style={s.sectionTitle}>المنتجات</h2>
+        {message ? <div className="message-box">{message}</div> : null}
+
+        <section className="ui-card" style={s.sectionCard}>
+          <h2 className="section-title">المنتجات</h2>
 
           <div style={s.itemsList}>
-            {(order.items || []).map((item) => (
-              <div key={item.id} style={s.itemCard}>
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.title_ar} style={s.itemImage} />
-                ) : (
-                  <div style={s.noImage}>No image</div>
-                )}
-
-                <div style={s.itemBody}>
-                  <div style={s.itemTitle}>{item.title_ar || item.product_id}</div>
-                  <div style={s.itemMeta}>الكمية: {item.quantity}</div>
-                  <div style={s.itemMeta}>السعر الفردي: {item.unit_price_mad} MAD</div>
-                  <div style={s.itemTotal}>
-                    المجموع: {(Number(item.unit_price_mad || 0) * Number(item.quantity || 0)).toFixed(0)} MAD
+            {items.length === 0 ? (
+              <div className="empty-state">لا توجد عناصر داخل هذا الطلب</div>
+            ) : (
+              items.map((item) => (
+                <article key={item.id} className="ui-card-soft" style={s.itemCard}>
+                  <div style={s.itemMedia}>
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.title_ar || "منتج"}
+                        style={s.itemImage}
+                      />
+                    ) : (
+                      <div style={s.itemNoImage}>No image</div>
+                    )}
                   </div>
-                </div>
-              </div>
-            ))}
+
+                  <div style={s.itemBody}>
+                    <div style={s.itemTitle}>
+                      {item.title_ar || "منتج"}
+                    </div>
+
+                    <div style={s.itemInfoRow}>
+                      <span style={s.itemLabel}>الكمية</span>
+                      <strong style={s.itemValue}>{item.quantity || 0}</strong>
+                    </div>
+
+                    <div style={s.itemInfoRow}>
+                      <span style={s.itemLabel}>السعر الفردي</span>
+                      <strong style={s.itemValue}>
+                        {formatMoney(Number(item.unit_price_mad || 0), orderCurrency, locale)}
+                      </strong>
+                    </div>
+
+                    <div style={s.itemInfoRow}>
+                      <span style={s.itemLabel}>الإجمالي</span>
+                      <strong style={s.itemTotal}>
+                        {formatMoney(
+                          Number(item.unit_price_mad || 0) * Number(item.quantity || 0),
+                          orderCurrency,
+                          locale
+                        )}
+                      </strong>
+                    </div>
+
+                    {item.slug ? (
+                      <button
+                        type="button"
+                        className="btn btn-outline full-width"
+                        onClick={() => navigate(`/products/${item.slug}`)}
+                      >
+                        فتح المنتج
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            )}
           </div>
+        </section>
+
+        <section className="ui-card" style={s.sectionCard}>
+          <h2 className="section-title">معلومات التوصيل</h2>
+
+          <div style={s.infoGrid}>
+            <InfoRow label="الاسم" value={order.buyer_name || "—"} />
+            <InfoRow label="الهاتف" value={order.buyer_phone || "—"} />
+            <InfoRow label="المدينة" value={order.buyer_city || "—"} />
+            <InfoRow label="العنوان" value={order.buyer_address || "—"} />
+          </div>
+        </section>
+
+        <section className="ui-card" style={s.sectionCard}>
+          <h2 className="section-title">الدفع والشحن</h2>
+
+          <div style={s.infoGrid}>
+            <InfoRow
+              label="طريقة الدفع"
+              value={order.payment_method === "cod" ? "الدفع عند الاستلام" : (order.payment_method || "—")}
+            />
+            <InfoRow label="حالة الدفع" value={order.payment_status || "—"} />
+            <InfoRow label="حالة الشحن" value={order.shipping_status || "—"} />
+            <InfoRow label="رقم التتبع" value={order.tracking_number || "غير متوفر بعد"} />
+          </div>
+        </section>
+
+        {order.notes ? (
+          <section className="ui-card" style={s.sectionCard}>
+            <h2 className="section-title">ملاحظات الطلب</h2>
+            <div className="ui-card-soft" style={s.notesBox}>
+              {order.notes}
+            </div>
+          </section>
+        ) : null}
+
+        <div style={s.actions}>
+          <button
+            type="button"
+            className="btn btn-secondary full-width"
+            onClick={() => navigate("/my-orders")}
+          >
+            الرجوع إلى طلباتي
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-primary full-width"
+            onClick={() => navigate("/products")}
+          >
+            متابعة التسوق
+          </button>
         </div>
       </div>
     </section>
   );
 }
 
+function InfoRow({ label, value }) {
+  return (
+    <div className="ui-card-soft" style={s.infoCard}>
+      <div style={s.infoLabel}>{label}</div>
+      <div style={s.infoValue}>{value}</div>
+    </div>
+  );
+}
+
 const s = {
-  page: { display: "grid", gap: "18px" },
-  top: {
+  heroCard: {
+    padding: "18px",
+    display: "grid",
+    gap: "14px"
+  },
+  heroTop: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    flexWrap: "wrap",
-    alignItems: "center"
+    alignItems: "start",
+    flexWrap: "wrap"
   },
-  title: { margin: 0, color: "#1b3a6b" },
-  muted: { margin: "6px 0 0", color: "#6e6357" },
-  backBtn: {
-    padding: "10px 14px",
-    borderRadius: "12px",
-    background: "#1b3a6b",
-    color: "#fff",
-    textDecoration: "none",
-    fontWeight: 800
+  heroTitle: {
+    marginTop: "10px"
   },
-  heroCard: {
-    background: "linear-gradient(135deg, #fffdfa 0%, #f8f4ec 100%)",
-    border: "1px solid #e6dccf",
-    borderRadius: "20px",
-    padding: "18px",
-    display: "grid",
-    gap: "14px",
-    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
+  statusPill: {
+    minHeight: "36px",
+    padding: "0 12px",
+    borderRadius: "999px",
+    border: "1px solid",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: 900
   },
-  heroHead: {
+  orderMetaCard: {
+    padding: "14px",
     display: "grid",
     gap: "10px"
   },
-  heroStatusText: {
-    fontWeight: 800,
-    color: "#1b3a6b",
-    fontSize: "18px"
+  metaRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center"
   },
-  trackingBox: {
-    padding: "14px",
-    borderRadius: "16px",
-    background: "#fff",
-    border: "1px solid #eee4d8",
-    display: "grid",
-    gap: "6px"
-  },
-  trackingTitle: {
-    fontSize: "13px",
-    color: "#6e6357",
+  metaLabel: {
+    color: "#7a6f63",
+    fontSize: "14px",
     fontWeight: 700
   },
-  trackingValue: {
-    color: "#221d16",
-    fontWeight: 800
+  metaValue: {
+    color: "#1f2937",
+    fontWeight: 900
   },
-  card: {
-    background: "#fff",
-    border: "1px solid #e6dccf",
-    borderRadius: "18px",
-    padding: "18px",
+  totalValue: {
+    color: "#173b74",
+    fontWeight: 900,
+    fontSize: "18px"
+  },
+  sectionCard: {
+    padding: "16px",
     display: "grid",
-    gap: "14px",
-    boxShadow: "0 10px 28px rgba(27,58,107,0.06)"
-  },
-  sectionTitle: {
-    margin: 0,
-    color: "#1b3a6b"
-  },
-  badge: {
-    padding: "8px 12px",
-    borderRadius: "999px",
-    fontSize: "13px",
-    fontWeight: 800,
-    width: "fit-content"
-  },
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "12px"
-  },
-  addressBox: {
-    padding: "12px 14px",
-    borderRadius: "14px",
-    background: "#fffdfa",
-    border: "1px solid #f0e7dc",
-    lineHeight: 1.8
+    gap: "14px"
   },
   itemsList: {
     display: "grid",
     gap: "12px"
   },
   itemCard: {
-    border: "1px solid #eee4d8",
-    borderRadius: "16px",
-    padding: "12px",
+    overflow: "hidden"
+  },
+  itemMedia: {
+    borderBottom: "1px solid #eee6da"
+  },
+  itemImage: {
+    width: "100%",
+    height: "210px",
+    objectFit: "cover",
+    display: "block"
+  },
+  itemNoImage: {
+    width: "100%",
+    height: "210px",
     display: "grid",
-    gridTemplateColumns: "90px 1fr",
+    placeItems: "center",
+    background: "#f8fafc",
+    color: "#94a3b8"
+  },
+  itemBody: {
+    padding: "14px",
+    display: "grid",
+    gap: "10px"
+  },
+  itemTitle: {
+    color: "#1f2937",
+    fontWeight: 900,
+    fontSize: "17px",
+    lineHeight: 1.6
+  },
+  itemInfoRow: {
+    display: "flex",
+    justifyContent: "space-between",
     gap: "12px",
     alignItems: "center"
   },
-  itemImage: {
-    width: "90px",
-    height: "90px",
-    objectFit: "cover",
-    borderRadius: "12px",
-    border: "1px solid #e6dccf"
+  itemLabel: {
+    color: "#7a6f63",
+    fontSize: "14px",
+    fontWeight: 700
   },
-  noImage: {
-    width: "90px",
-    height: "90px",
+  itemValue: {
+    color: "#1f2937",
+    fontWeight: 900
+  },
+  itemTotal: {
+    color: "#173b74",
+    fontWeight: 900,
+    fontSize: "18px"
+  },
+  infoGrid: {
     display: "grid",
-    placeItems: "center",
-    borderRadius: "12px",
-    background: "#f8fafc",
-    color: "#94a3b8",
-    border: "1px solid #e6dccf"
+    gap: "10px"
   },
-  itemBody: {
+  infoCard: {
+    padding: "14px",
     display: "grid",
     gap: "6px"
   },
-  itemTitle: {
-    fontWeight: 800,
-    color: "#221d16"
+  infoLabel: {
+    color: "#7a6f63",
+    fontSize: "13px",
+    fontWeight: 700
   },
-  itemMeta: {
-    color: "#6e6357"
+  infoValue: {
+    color: "#1f2937",
+    fontWeight: 900,
+    lineHeight: 1.7
   },
-  itemTotal: {
-    color: "#1b3a6b",
-    fontWeight: 800
+  notesBox: {
+    padding: "14px",
+    color: "#374151",
+    lineHeight: 1.9
+  },
+  actions: {
+    display: "grid",
+    gap: "10px",
+    paddingBottom: "8px"
+  },
+  emptyCard: {
+    display: "grid",
+    gap: "12px"
+  },
+  emptyIcon: {
+    fontSize: "40px"
+  },
+  emptyTitle: {
+    margin: 0,
+    color: "#173b74",
+    fontWeight: 900
+  },
+  emptyText: {
+    margin: 0,
+    color: "#7a6f63",
+    lineHeight: 1.8
   }
 };
