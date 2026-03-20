@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
 import type { AppEnv } from "../types";
+import { notifyNewOrder } from "../lib/notifications";
 
 export const orderRouter = new Hono<AppEnv>();
 
@@ -302,6 +303,7 @@ orderRouter.post("/orders", async (c) => {
       product_id: string;
       quantity: number;
       unit_price_mad: number;
+      product_name: string;
     }> = [];
 
     for (const item of items) {
@@ -322,7 +324,8 @@ orderRouter.post("/orders", async (c) => {
           seller_id,
           price_mad,
           stock,
-          status
+          status,
+          title_ar
         from products
         where id = ?
         limit 1
@@ -335,6 +338,7 @@ orderRouter.post("/orders", async (c) => {
           price_mad: number;
           stock: number | null;
           status: string | null;
+          title_ar: string | null;
         }>();
 
       if (!product) {
@@ -383,7 +387,8 @@ orderRouter.post("/orders", async (c) => {
       validatedItems.push({
         product_id: product.id,
         quantity,
-        unit_price_mad: unitPriceMad
+        unit_price_mad: unitPriceMad,
+        product_name: product.title_ar || "منتج"
       });
     }
 
@@ -470,6 +475,22 @@ orderRouter.post("/orders", async (c) => {
         .bind(item.quantity, item.product_id)
         .run();
     }
+
+    c.executionCtx.waitUntil(
+      notifyNewOrder({
+        order_number: orderNumber,
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        buyer_city: buyerCity,
+        total_mad: totalMad,
+        items: validatedItems.map((item) => ({
+          name: item.product_name,
+          quantity: item.quantity
+        })),
+        seller_name: seller.display_name || "RAHBA",
+        seller_phone: null
+      })
+    );
 
     return c.json({
       ok: true,
