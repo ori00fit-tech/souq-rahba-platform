@@ -477,19 +477,27 @@ orderRouter.post("/orders", async (c) => {
     }
 
     c.executionCtx.waitUntil(
-      notifyNewOrder({
-        order_number: orderNumber,
-        buyer_name: buyerName,
-        buyer_phone: buyerPhone,
-        buyer_city: buyerCity,
-        total_mad: totalMad,
-        items: validatedItems.map((item) => ({
-          name: item.product_name,
-          quantity: item.quantity
-        })),
-        seller_name: seller.display_name || "RAHBA",
-        seller_phone: null
-      })
+      notifyNewOrder(
+        {
+          WHATSAPP_ACCESS_TOKEN: c.env.WHATSAPP_ACCESS_TOKEN,
+          WHATSAPP_PHONE_NUMBER_ID: c.env.WHATSAPP_PHONE_NUMBER_ID,
+          WHATSAPP_BUSINESS_ACCOUNT_ID: c.env.WHATSAPP_BUSINESS_ACCOUNT_ID,
+          WHATSAPP_DEFAULT_COUNTRY_CODE: c.env.WHATSAPP_DEFAULT_COUNTRY_CODE
+        },
+        {
+          order_number: orderNumber,
+          buyer_name: buyerName,
+          buyer_phone: buyerPhone,
+          buyer_city: buyerCity,
+          total_mad: totalMad,
+          items: validatedItems.map((item) => ({
+            name: item.product_name,
+            quantity: item.quantity
+          })),
+          seller_name: seller.display_name || "RAHBA",
+          seller_phone: null
+        }
+      )
     );
 
     return c.json({

@@ -8,6 +8,10 @@ export type Bindings = {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   GOOGLE_REDIRECT_URI: string;
+  WHATSAPP_ACCESS_TOKEN: string;
+  WHATSAPP_PHONE_NUMBER_ID: string;
+  WHATSAPP_BUSINESS_ACCOUNT_ID: string;
+  WHATSAPP_DEFAULT_COUNTRY_CODE: string;
 };
 
 export type AuthUser = {
