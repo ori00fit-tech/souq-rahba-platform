@@ -18,69 +18,22 @@ function normalizeMoroccanPhone(input: string, defaultCountryCode = "212") {
   const raw = String(input || "").trim().replace(/[^\d+]/g, "");
 
   if (!raw) return null;
-
-  if (raw.startsWith("+")) {
-    return raw.slice(1);
-  }
-
-  if (raw.startsWith("00")) {
-    return raw.slice(2);
-  }
-
-  if (raw.startsWith(defaultCountryCode)) {
-    return raw;
-  }
-
-  if (raw.startsWith("0")) {
-    return `${defaultCountryCode}${raw.slice(1)}`;
-  }
-
+  if (raw.startsWith("+")) return raw.slice(1);
+  if (raw.startsWith("00")) return raw.slice(2);
+  if (raw.startsWith(defaultCountryCode)) return raw;
+  if (raw.startsWith("0")) return `${defaultCountryCode}${raw.slice(1)}`;
   return `${defaultCountryCode}${raw}`;
 }
 
-export function buildSellerOrderWhatsAppMessage(order: OrderNotificationData) {
-  const itemsSummary = order.items
-    .map((item) => `- ${item.name} × ${item.quantity}`)
-    .join("\n");
-
-  return [
-    "🔔 *طلب جديد على RAHBA*",
-    "",
-    `رقم الطلب: ${order.order_number}`,
-    `المشتري: ${order.buyer_name}`,
-    `الهاتف: ${order.buyer_phone}`,
-    `المدينة: ${order.buyer_city}`,
-    `الإجمالي: ${order.total_mad} MAD`,
-    "",
-    "*المنتجات:*",
-    itemsSummary || "- منتج",
-    "",
-    "يرجى التواصل مع الزبون لتأكيد الطلب."
-  ].join("\n");
-}
-
-export function buildBuyerOrderWhatsAppMessage(order: OrderNotificationData) {
-  return [
-    "✅ *تم استلام طلبك بنجاح*",
-    "",
-    `مرحباً ${order.buyer_name}،`,
-    `رقم طلبك: ${order.order_number}`,
-    `المبلغ الإجمالي: ${order.total_mad} MAD`,
-    `البائع: ${order.seller_name}`,
-    "",
-    "سيتم التواصل معك قريباً لتأكيد التوصيل.",
-    "شكراً لثقتك في منصة رهبة."
-  ].join("\n");
-}
-
-async function sendWhatsAppTextMessage(
+export async function sendWhatsAppTemplateMessage(
   env: {
     WHATSAPP_ACCESS_TOKEN?: string;
     WHATSAPP_PHONE_NUMBER_ID?: string;
     WHATSAPP_DEFAULT_COUNTRY_CODE?: string;
   },
   to: string,
-  body: string
+  templateName = "hello_world",
+  languageCode = "en_US"
 ) {
   const accessToken = env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = env.WHATSAPP_PHONE_NUMBER_ID;
@@ -110,10 +63,12 @@ async function sendWhatsAppTextMessage(
       body: JSON.stringify({
         messaging_product: "whatsapp",
         to: normalizedTo,
-        type: "text",
-        text: {
-          preview_url: false,
-          body
+        type: "template",
+        template: {
+          name: templateName,
+          language: {
+            code: languageCode
+          }
         }
       })
     }
@@ -122,15 +77,15 @@ async function sendWhatsAppTextMessage(
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    console.error("WhatsApp send failed", {
+    console.error("WhatsApp template send failed", {
       status: response.status,
       data
     });
-    return { ok: false, skipped: false, status: response.status, data };
+    return { ok: false, status: response.status, data };
   }
 
-  console.log("WhatsApp sent successfully", { to: normalizedTo, data });
-  return { ok: true, skipped: false, data };
+  console.log("WhatsApp template sent successfully", { to: normalizedTo, data });
+  return { ok: true, data };
 }
 
 export async function notifyNewOrder(
@@ -143,34 +98,20 @@ export async function notifyNewOrder(
   order: OrderNotificationData
 ) {
   try {
-    const sellerMsg = buildSellerOrderWhatsAppMessage(order);
-    const buyerMsg = buildBuyerOrderWhatsAppMessage(order);
+    console.log("Preparing WhatsApp notification for order", order.order_number);
 
-    console.log("---------- WHATSAPP NOTIFICATION ----------");
-    console.log("TO SELLER:");
-    console.log(sellerMsg);
-    console.log("-------------------------------------------");
-    console.log("TO BUYER:");
-    console.log(buyerMsg);
-    console.log("-------------------------------------------");
-
-    const results = {
-      seller: null as any,
-      buyer: null as any
-    };
-
-    if (order.seller_phone) {
-      results.seller = await sendWhatsAppTextMessage(env, order.seller_phone, sellerMsg);
-    } else {
-      console.log("Seller phone missing, seller WhatsApp skipped");
-      results.seller = { ok: false, skipped: true, reason: "missing_seller_phone" };
-    }
-
-    results.buyer = await sendWhatsAppTextMessage(env, order.buyer_phone, buyerMsg);
+    const buyerResult = await sendWhatsAppTemplateMessage(
+      env,
+      order.buyer_phone,
+      "hello_world",
+      "en_US"
+    );
 
     return {
       ok: true,
-      results
+      results: {
+        buyer: buyerResult
+      }
     };
   } catch (error) {
     console.error("Failed to process notifications:", error);
