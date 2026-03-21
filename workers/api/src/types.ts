@@ -12,6 +12,7 @@ export type Bindings = {
   WHATSAPP_PHONE_NUMBER_ID: string;
   WHATSAPP_BUSINESS_ACCOUNT_ID: string;
   WHATSAPP_DEFAULT_COUNTRY_CODE: string;
+  WHATSAPP_REGISTRATION_PIN: string;
 };
 
 export type AuthUser = {

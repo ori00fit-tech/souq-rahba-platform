@@ -8,6 +8,7 @@ import { orderRouter } from "./routes/orders";
 import { uploadRouter } from "./routes/upload";
 import { mediaRouter } from "./routes/media";
 import { authRouter } from "./routes/auth";
+import { whatsappRouter } from "./routes/whatsapp";
 import { adminRouter } from "./routes/admin";
 import type { AppEnv } from "./types";
 
@@ -24,6 +25,7 @@ app.route("/admin", adminRouter);
 app.route("/commerce", orderRouter);
 app.route("/", uploadRouter);
 app.route("/", mediaRouter);
+app.route("/", whatsappRouter);
 
 app.notFound((c) =>
   c.json(
