@@ -1,99 +1,588 @@
-import { useState } from "react";
-import { Navigate } from "react-router-dom";
-import { useSellerAuth } from "../context/SellerAuthContext";
+import { useMemo, useState } from "react";
+import { apiPost } from "../lib/api";
+
+const SELLER_LOGIN_ENDPOINT = "/seller/auth/login";
+const SELLER_REGISTER_ENDPOINT = "/seller/auth/register";
+
+const STORE_CATEGORIES = [
+  "مواد غذائية",
+  "إلكترونيات",
+  "لوازم البحر",
+  "المنزل والمطبخ",
+  "الملابس",
+  "الصحة والجمال",
+  "التجهيزات المهنية",
+  "أخرى"
+];
 
 export default function LoginPage() {
-  const { currentSeller, loginSeller, authLoading } = useSellerAuth();
+  const [tab, setTab] = useState("login");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
 
-  const [form, setForm] = useState({
+  const [loginForm, setLoginForm] = useState({
     email: "",
     password: ""
   });
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  if (!authLoading && currentSeller) {
-    return <Navigate to="/" replace />;
+  const [registerForm, setRegisterForm] = useState({
+    store_name: "",
+    owner_name: "",
+    phone: "",
+    city: "",
+    category: STORE_CATEGORIES[0],
+    email: "",
+    password: "",
+    confirm_password: "",
+    notes: "",
+    accept_terms: false
+  });
+
+  const pageTitle = useMemo(() => {
+    return tab === "login" ? "دخول البائع" : "تسجيل بائع جديد";
+  }, [tab]);
+
+  function showMessage(text, type = "info") {
+    setMessage(text);
+    setMessageType(type);
   }
 
-  function handleChange(e) {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value
-    });
+  function resetMessage() {
+    setMessage("");
+    setMessageType("info");
   }
 
-  async function handleSubmit(e) {
+  function validateLogin() {
+    if (!loginForm.email.trim()) return "يرجى إدخال البريد الإلكتروني";
+    if (!loginForm.password.trim()) return "يرجى إدخال كلمة السر";
+    return "";
+  }
+
+  function validateRegister() {
+    if (!registerForm.store_name.trim()) return "يرجى إدخال اسم المتجر";
+    if (!registerForm.owner_name.trim()) return "يرجى إدخال اسم المسؤول";
+    if (!registerForm.phone.trim()) return "يرجى إدخال رقم الهاتف";
+
+    const phone = registerForm.phone.trim();
+    if (!/^0[5-7][0-9]{8}$/.test(phone)) {
+      return "يرجى إدخال رقم هاتف مغربي صحيح";
+    }
+
+    if (!registerForm.city.trim()) return "يرجى إدخال المدينة";
+    if (!registerForm.email.trim()) return "يرجى إدخال البريد الإلكتروني";
+    if (!registerForm.password.trim()) return "يرجى إدخال كلمة السر";
+    if (registerForm.password.length < 6) return "كلمة السر يجب أن تكون 6 أحرف على الأقل";
+    if (registerForm.password !== registerForm.confirm_password) {
+      return "تأكيد كلمة السر غير مطابق";
+    }
+    if (!registerForm.accept_terms) {
+      return "يجب الموافقة على الشروط قبل إرسال الطلب";
+    }
+
+    return "";
+  }
+
+  async function handleLogin(e) {
     e.preventDefault();
 
-    try {
-      setLoading(true);
-      setMessage("");
+    const error = validateLogin();
+    if (error) {
+      showMessage(error, "error");
+      return;
+    }
 
-      await loginSeller(form.email, form.password);
-      setMessage("Logged in successfully");
-    } catch (err) {
-      console.error(err);
-      setMessage("Login failed");
+    try {
+      setSubmitting(true);
+      resetMessage();
+
+      const result = await apiPost(SELLER_LOGIN_ENDPOINT, {
+        email: loginForm.email.trim(),
+        password: loginForm.password
+      });
+
+      if (!result?.ok) {
+        showMessage(result?.message || "تعذر تسجيل الدخول", "error");
+        return;
+      }
+
+      const token =
+        result?.data?.token ||
+        result?.token ||
+        result?.data?.access_token ||
+        result?.access_token ||
+        "";
+
+      if (token && typeof window !== "undefined") {
+        localStorage.setItem("seller_auth_token", token);
+      }
+
+      showMessage("تم تسجيل الدخول بنجاح، جاري تحويلك...", "success");
+
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.href = "/dashboard";
+        }, 700);
+      }
+    } catch (error) {
+      console.error(error);
+      showMessage(error?.message || "حدث خطأ أثناء تسجيل الدخول", "error");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+
+    const error = validateRegister();
+    if (error) {
+      showMessage(error, "error");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      resetMessage();
+
+      const payload = {
+        store_name: registerForm.store_name.trim(),
+        owner_name: registerForm.owner_name.trim(),
+        phone: registerForm.phone.trim(),
+        city: registerForm.city.trim(),
+        category: registerForm.category,
+        email: registerForm.email.trim(),
+        password: registerForm.password,
+        notes: registerForm.notes.trim() || null
+      };
+
+      const result = await apiPost(SELLER_REGISTER_ENDPOINT, payload);
+
+      if (!result?.ok) {
+        showMessage(result?.message || "تعذر إرسال طلب التسجيل", "error");
+        return;
+      }
+
+      showMessage(
+        "تم إرسال طلب تسجيل البائع بنجاح. سنراجع الطلب ونتواصل معك قريباً.",
+        "success"
+      );
+
+      setRegisterForm({
+        store_name: "",
+        owner_name: "",
+        phone: "",
+        city: "",
+        category: STORE_CATEGORIES[0],
+        email: "",
+        password: "",
+        confirm_password: "",
+        notes: "",
+        accept_terms: false
+      });
+
+      setTimeout(() => {
+        setTab("login");
+      }, 1200);
+    } catch (error) {
+      console.error(error);
+      showMessage(error?.message || "حدث خطأ أثناء تسجيل البائع الجديد", "error");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div style={{ maxWidth: "460px", margin: "40px auto", display: "grid", gap: "20px" }}>
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e2e8f0",
-          borderRadius: "20px",
-          padding: "24px"
-        }}
-      >
-        <h1 style={{ marginTop: 0 }}>Seller Login</h1>
-        <p style={{ color: "#64748b" }}>Login to manage your store</p>
+    <section style={s.page} dir="rtl">
+      <div style={s.shell}>
+        <div style={s.card}>
+          <div style={s.hero}>
+            <div style={s.badge}>RAHBA SELLER</div>
+            <h1 style={s.title}>{pageTitle}</h1>
+            <p style={s.subtitle}>
+              {tab === "login"
+                ? "ادخل لإدارة متجرك، المنتجات، الطلبات، والأرباح من بوابة البائع."
+                : "أنشئ حساب بائع جديد وابدأ بيع منتجاتك داخل رحبة بطريقة احترافية."}
+            </p>
+          </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "14px" }}>
-          <input
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            style={input}
-          />
-          <input
-            name="password"
-            placeholder="Password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            style={input}
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: "12px",
-              borderRadius: "12px",
-              border: "none",
-              background: "#ea580c",
-              color: "#fff",
-              fontWeight: "700"
-            }}
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
+          <div style={s.tabs}>
+            <button
+              type="button"
+              onClick={() => {
+                setTab("login");
+                resetMessage();
+              }}
+              style={{
+                ...s.tabButton,
+                ...(tab === "login" ? s.tabButtonActive : {})
+              }}
+            >
+              دخول البائع
+            </button>
 
-        {message ? <p style={{ marginTop: "14px" }}>{message}</p> : null}
+            <button
+              type="button"
+              onClick={() => {
+                setTab("register");
+                resetMessage();
+              }}
+              style={{
+                ...s.tabButton,
+                ...(tab === "register" ? s.tabButtonActive : {})
+              }}
+            >
+              تسجيل بائع جديد
+            </button>
+          </div>
+
+          {message ? (
+            <div
+              style={{
+                ...s.notice,
+                ...(messageType === "success"
+                  ? s.noticeSuccess
+                  : messageType === "error"
+                  ? s.noticeError
+                  : s.noticeInfo)
+              }}
+            >
+              {message}
+            </div>
+          ) : null}
+
+          {tab === "login" ? (
+            <form onSubmit={handleLogin} style={s.form}>
+              <label style={s.label}>
+                <span>البريد الإلكتروني</span>
+                <input
+                  type="email"
+                  value={loginForm.email}
+                  onChange={(e) =>
+                    setLoginForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  placeholder="seller@example.com"
+                  style={s.input}
+                  autoComplete="email"
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>كلمة السر</span>
+                <input
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(e) =>
+                    setLoginForm((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="••••••••"
+                  style={s.input}
+                  autoComplete="current-password"
+                />
+              </label>
+
+              <button type="submit" disabled={submitting} style={s.primaryButton}>
+                {submitting ? "جاري الدخول..." : "دخول"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegister} style={s.form}>
+              <label style={s.label}>
+                <span>اسم المتجر</span>
+                <input
+                  type="text"
+                  value={registerForm.store_name}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, store_name: e.target.value }))
+                  }
+                  placeholder="مثلاً: Inwi Home"
+                  style={s.input}
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>اسم المسؤول</span>
+                <input
+                  type="text"
+                  value={registerForm.owner_name}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, owner_name: e.target.value }))
+                  }
+                  placeholder="الاسم الكامل"
+                  style={s.input}
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>رقم الهاتف</span>
+                <input
+                  type="tel"
+                  value={registerForm.phone}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, phone: e.target.value }))
+                  }
+                  placeholder="06xxxxxxxx"
+                  style={s.input}
+                  inputMode="tel"
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>المدينة</span>
+                <input
+                  type="text"
+                  value={registerForm.city}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, city: e.target.value }))
+                  }
+                  placeholder="مثلاً: الدار البيضاء"
+                  style={s.input}
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>الفئة</span>
+                <select
+                  value={registerForm.category}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, category: e.target.value }))
+                  }
+                  style={s.input}
+                >
+                  {STORE_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={s.label}>
+                <span>البريد الإلكتروني</span>
+                <input
+                  type="email"
+                  value={registerForm.email}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  placeholder="store@example.com"
+                  style={s.input}
+                  autoComplete="email"
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>كلمة السر</span>
+                <input
+                  type="password"
+                  value={registerForm.password}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="على الأقل 6 أحرف"
+                  style={s.input}
+                  autoComplete="new-password"
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>تأكيد كلمة السر</span>
+                <input
+                  type="password"
+                  value={registerForm.confirm_password}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({
+                      ...prev,
+                      confirm_password: e.target.value
+                    }))
+                  }
+                  placeholder="أعد كتابة كلمة السر"
+                  style={s.input}
+                  autoComplete="new-password"
+                />
+              </label>
+
+              <label style={s.label}>
+                <span>ملاحظات إضافية</span>
+                <textarea
+                  value={registerForm.notes}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                  placeholder="نوع النشاط، المنتجات التي ستبيعها، أو أي تفاصيل مفيدة..."
+                  style={s.textarea}
+                />
+              </label>
+
+              <label style={s.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={registerForm.accept_terms}
+                  onChange={(e) =>
+                    setRegisterForm((prev) => ({
+                      ...prev,
+                      accept_terms: e.target.checked
+                    }))
+                  }
+                />
+                <span>أوافق على شروط المنصة وسياسة مراجعة حسابات البائعين</span>
+              </label>
+
+              <button type="submit" disabled={submitting} style={s.primaryButton}>
+                {submitting ? "جاري إرسال الطلب..." : "إرسال طلب التسجيل"}
+              </button>
+            </form>
+          )}
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-const input = {
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e2e8f0",
-  fontSize: "14px"
+const s = {
+  page: {
+    minHeight: "100dvh",
+    background: "linear-gradient(180deg, #f4f1ea 0%, #f7f5ef 100%)",
+    padding: "20px 14px 40px"
+  },
+  shell: {
+    width: "100%",
+    maxWidth: "560px",
+    margin: "0 auto"
+  },
+  card: {
+    background: "#ffffff",
+    borderRadius: "28px",
+    border: "1px solid #e9dfd2",
+    boxShadow: "0 24px 50px rgba(23,59,116,0.08)",
+    padding: "22px 16px",
+    display: "grid",
+    gap: "16px"
+  },
+  hero: {
+    display: "grid",
+    gap: "10px",
+    textAlign: "center"
+  },
+  badge: {
+    margin: "0 auto",
+    minHeight: "34px",
+    padding: "0 14px",
+    borderRadius: "999px",
+    background: "#eef6ff",
+    color: "#173b74",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: 900
+  },
+  title: {
+    margin: 0,
+    color: "#0f1d3a",
+    fontSize: "32px",
+    lineHeight: 1.1,
+    fontWeight: 900
+  },
+  subtitle: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "15px",
+    lineHeight: 1.9
+  },
+  tabs: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "10px"
+  },
+  tabButton: {
+    minHeight: "48px",
+    borderRadius: "16px",
+    border: "1px solid #dde5ef",
+    background: "#f8fafc",
+    color: "#4b5563",
+    fontWeight: 800,
+    fontSize: "14px",
+    cursor: "pointer"
+  },
+  tabButtonActive: {
+    background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)",
+    color: "#ffffff",
+    border: "none"
+  },
+  notice: {
+    borderRadius: "16px",
+    padding: "12px 14px",
+    fontSize: "14px",
+    lineHeight: 1.8,
+    fontWeight: 700
+  },
+  noticeInfo: {
+    background: "#eef6ff",
+    color: "#173b74"
+  },
+  noticeSuccess: {
+    background: "#ecfdf5",
+    color: "#166534"
+  },
+  noticeError: {
+    background: "#fef2f2",
+    color: "#b91c1c"
+  },
+  form: {
+    display: "grid",
+    gap: "14px"
+  },
+  label: {
+    display: "grid",
+    gap: "8px",
+    color: "#1f2937",
+    fontWeight: 800,
+    fontSize: "14px"
+  },
+  input: {
+    width: "100%",
+    minHeight: "56px",
+    borderRadius: "18px",
+    border: "1px solid #d9dde5",
+    background: "#ffffff",
+    padding: "0 16px",
+    fontSize: "16px",
+    color: "#111827",
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "110px",
+    borderRadius: "18px",
+    border: "1px solid #d9dde5",
+    background: "#ffffff",
+    padding: "14px 16px",
+    fontSize: "15px",
+    color: "#111827",
+    outline: "none",
+    boxSizing: "border-box",
+    resize: "vertical"
+  },
+  checkboxRow: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "flex-start",
+    color: "#4b5563",
+    fontSize: "14px",
+    lineHeight: 1.8,
+    fontWeight: 700
+  },
+  primaryButton: {
+    minHeight: "56px",
+    borderRadius: "18px",
+    border: "none",
+    background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)",
+    color: "#ffffff",
+    fontSize: "18px",
+    fontWeight: 900,
+    boxShadow: "0 14px 28px rgba(20,150,127,0.18)",
+    cursor: "pointer"
+  }
 };
