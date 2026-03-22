@@ -289,7 +289,7 @@ orderRouter.post("/orders", async (c) => {
       `select id, display_name, phone from sellers where id = ? limit 1`
     )
       .bind(sellerId)
-      .first<{ id: string; display_name: string | null }>();
+      .first<{ id: string; display_name: string | null; phone: string | null }>();
 
     if (!seller) {
       return c.json(
