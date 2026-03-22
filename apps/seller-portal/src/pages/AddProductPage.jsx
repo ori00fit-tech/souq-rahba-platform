@@ -2,16 +2,21 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiPost, apiUploadFile } from "../lib/api";
 
-function emptyImage() {
-  return { url: "", alt_text: "", uploading: false };
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
 }
 
-function emptySpec() {
-  return { label_ar: "", value_ar: "" };
-}
-
-function emptyFaq() {
-  return { question_ar: "", answer_ar: "" };
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
 }
 
 export default function AddProductPage() {
@@ -21,110 +26,143 @@ export default function AddProductPage() {
     title_ar: "",
     slug: "",
     description_ar: "",
-    description_long_ar: "",
-    landing_html_ar: "",
-    category_id: "",
-    sku: "",
     price_mad: "",
     stock: "",
-    featured: false,
-    images: [emptyImage()],
-    specs: [emptySpec()],
-    faqs: [emptyFaq()]
+    status: "active",
+    featured: false
   });
 
-  const [saving, setSaving] = useState(false);
+  const [images, setImages] = useState([
+    {
+      image_url: "",
+      alt_text: "",
+      uploading: false
+    }
+  ]);
+
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("info");
+  const [saving, setSaving] = useState(false);
 
   const canSubmit = useMemo(() => {
-    return form.title_ar.trim() && form.slug.trim() && String(form.price_mad).trim();
+    return (
+      form.title_ar.trim() &&
+      form.slug.trim() &&
+      form.description_ar.trim() &&
+      String(form.price_mad).trim() &&
+      String(form.stock).trim()
+    );
   }, [form]);
 
   function updateField(name, value) {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function updateArrayItem(key, index, field, value) {
-    setForm((prev) => {
-      const next = [...prev[key]];
-      next[index] = { ...next[index], [field]: value };
-      return { ...prev, [key]: next };
+  function updateImage(index, patch) {
+    setImages((prev) =>
+      prev.map((img, i) => (i === index ? { ...img, ...patch } : img))
+    );
+  }
+
+  function addImageBlock() {
+    setImages((prev) => [
+      ...prev,
+      { image_url: "", alt_text: "", uploading: false }
+    ]);
+  }
+
+  function removeImageBlock(index) {
+    setImages((prev) => {
+      if (prev.length === 1) {
+        return [{ image_url: "", alt_text: "", uploading: false }];
+      }
+      return prev.filter((_, i) => i !== index);
     });
   }
 
-  function addArrayItem(key, factory) {
-    setForm((prev) => ({ ...prev, [key]: [...prev[key], factory()] }));
-  }
-
-  function removeArrayItem(key, index) {
-    setForm((prev) => {
-      const next = prev[key].filter((_, i) => i !== index);
-      return {
-        ...prev,
-        [key]: next.length ? next : [key === "images" ? emptyImage() : key === "specs" ? emptySpec() : emptyFaq()]
-      };
-    });
-  }
-
-  async function handleImageUpload(index, file) {
+  async function handleUpload(index, file) {
     if (!file) return;
 
     try {
+      updateImage(index, { uploading: true });
       setMessage("");
-      updateArrayItem("images", index, "uploading", true);
 
       const res = await apiUploadFile(file);
 
-      if (!res?.url) {
-        setMessage("تعذر رفع الصورة");
-        return;
+      const uploadedUrl =
+        res?.data?.url || res?.url || res?.data?.file_url || "";
+
+      if (!uploadedUrl) {
+        throw new Error("لم يتم إرجاع رابط الصورة");
       }
 
-      updateArrayItem("images", index, "url", res.url);
+      updateImage(index, {
+        image_url: uploadedUrl,
+        uploading: false
+      });
 
-      if (!form.images[index]?.alt_text) {
-        updateArrayItem("images", index, "alt_text", form.title_ar || file.name);
-      }
+      setMessageType("success");
+      setMessage("تم رفع الصورة بنجاح");
     } catch (err) {
       console.error(err);
-      setMessage("حدث خطأ أثناء رفع الصورة");
-    } finally {
-      updateArrayItem("images", index, "uploading", false);
+      updateImage(index, { uploading: false });
+      setMessageType("error");
+      setMessage(err?.message || "فشل رفع الصورة");
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!canSubmit) {
+      setMessageType("error");
+      setMessage("يرجى ملء جميع الحقول الأساسية");
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage("");
+
+      const firstValidImage =
+        images.find((img) => img.image_url && img.image_url.trim()) || null;
 
       const payload = {
         title_ar: form.title_ar.trim(),
         slug: form.slug.trim(),
         description_ar: form.description_ar.trim(),
-        description_long_ar: form.description_long_ar.trim(),
-        landing_html_ar: form.landing_html_ar.trim(),
-        category_id: form.category_id.trim() || null,
-        sku: form.sku.trim() || null,
-        price_mad: Number(form.price_mad || 0),
-        stock: Number(form.stock || 0),
-        featured: form.featured,
-        images: form.images
-          .filter((x) => x.url.trim())
-          .map(({ url, alt_text }) => ({ url, alt_text })),
-        specs: form.specs.filter((x) => x.label_ar.trim() && x.value_ar.trim()),
-        faqs: form.faqs.filter((x) => x.question_ar.trim() && x.answer_ar.trim())
+        price_mad: Number(form.price_mad),
+        stock: Number(form.stock),
+        status: form.status,
+        featured: form.featured ? 1 : 0,
+        image_url: firstValidImage?.image_url || "",
+        media: images
+          .filter((img) => img.image_url && img.image_url.trim())
+          .map((img, idx) => ({
+            sort_order: idx,
+            url: img.image_url.trim(),
+            alt_text: img.alt_text?.trim() || form.title_ar.trim()
+          }))
       };
 
       const res = await apiPost("/catalog/products", payload);
 
-      setMessage("تم إنشاء المنتج بنجاح");
-      setTimeout(() => navigate("/products"), 800);
+      if (!res?.ok) {
+        setMessageType("error");
+        setMessage(res?.message || "تعذر إضافة المنتج");
+        return;
+      }
+
+      setMessageType("success");
+      setMessage("تمت إضافة المنتج بنجاح");
+
+      setTimeout(() => {
+        navigate("/products");
+      }, 900);
     } catch (err) {
       console.error(err);
-      setMessage(err.message || "حدث خطأ أثناء الحفظ");
+      setMessageType("error");
+      setMessage(err?.message || "حدث خطأ أثناء إضافة المنتج");
     } finally {
       setSaving(false);
     }
@@ -134,174 +172,481 @@ export default function AddProductPage() {
     <section className="page-shell" dir="rtl">
       <div className="page-header">
         <h1>إضافة منتج جديد</h1>
-        <p>أنشئ صفحة منتج متكاملة بصور، مواصفات، أسئلة شائعة و HTML Landing اختياري.</p>
+        <p>أضف منتجاً جديداً إلى متجرك مع الصور والمعلومات الأساسية</p>
       </div>
 
-      <form onSubmit={handleSubmit} style={s.form}>
-        <Card title="المعلومات الأساسية">
-          <Input label="اسم المنتج" value={form.title_ar} onChange={(v) => updateField("title_ar", v)} />
-          <Input label="Slug" value={form.slug} onChange={(v) => updateField("slug", v)} />
-          <Input label="الوصف المختصر" value={form.description_ar} onChange={(v) => updateField("description_ar", v)} />
-          <Textarea label="الوصف الطويل" value={form.description_long_ar} onChange={(v) => updateField("description_long_ar", v)} />
-          <Textarea label="HTML Landing اختياري" value={form.landing_html_ar} onChange={(v) => updateField("landing_html_ar", v)} />
-          <Input label="الفئة category_id" value={form.category_id} onChange={(v) => updateField("category_id", v)} />
-          <Input label="SKU" value={form.sku} onChange={(v) => updateField("sku", v)} />
-          <Input label="السعر MAD" value={form.price_mad} onChange={(v) => updateField("price_mad", v)} type="number" />
-          <Input label="المخزون" value={form.stock} onChange={(v) => updateField("stock", v)} type="number" />
-          <label style={s.checkboxRow}>
-            <input
-              type="checkbox"
-              checked={form.featured}
-              onChange={(e) => updateField("featured", e.target.checked)}
-            />
-            <span>منتج مميز Featured</span>
-          </label>
-        </Card>
+      {message ? (
+        <div
+          style={{
+            ...s.message,
+            ...(messageType === "success" ? s.messageSuccess : s.messageError)
+          }}
+        >
+          {message}
+        </div>
+      ) : null}
 
-        <Card title="صور المنتج">
-          {form.images.map((item, index) => (
-            <div key={index} style={s.rowBox}>
-              <Input
-                label={`رابط الصورة ${index + 1}`}
-                value={item.url}
-                onChange={(v) => updateArrayItem("images", index, "url", v)}
+      <form style={s.layout} onSubmit={handleSubmit}>
+        <div style={s.mainCol}>
+          <div style={s.card}>
+            <div style={s.sectionTitle}>المعلومات الأساسية</div>
+
+            <label style={s.label}>
+              <span>اسم المنتج</span>
+              <input
+                style={s.input}
+                value={form.title_ar}
+                onChange={(e) => {
+                  const title = e.target.value;
+                  updateField("title_ar", title);
+                  if (!form.slug.trim()) {
+                    updateField("slug", slugify(title));
+                  }
+                }}
+                placeholder="مثلاً: ساعة ذكية Fit Max S2"
               />
+            </label>
 
-              <label style={s.field}>
-                <span style={s.label}>رفع صورة من الجهاز</span>
+            <label style={s.label}>
+              <span>Slug</span>
+              <input
+                style={s.input}
+                dir="ltr"
+                value={form.slug}
+                onChange={(e) => updateField("slug", slugify(e.target.value))}
+                placeholder="smart-watch-fit-max-s2"
+              />
+            </label>
+
+            <label style={s.label}>
+              <span>وصف المنتج</span>
+              <textarea
+                style={s.textarea}
+                value={form.description_ar}
+                onChange={(e) => updateField("description_ar", e.target.value)}
+                placeholder="اكتب وصفاً مختصراً وواضحاً للمنتج..."
+              />
+            </label>
+
+            <div style={s.grid2}>
+              <label style={s.label}>
+                <span>السعر (MAD)</span>
                 <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
                   style={s.input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.price_mad}
+                  onChange={(e) => updateField("price_mad", e.target.value)}
+                  placeholder="349"
                 />
               </label>
 
-              {item.uploading ? (
-                <div style={s.uploadInfo}>جاري رفع الصورة...</div>
-              ) : null}
-
-              {item.url ? (
-                <img src={item.url} alt="preview" style={s.previewImage} />
-              ) : null}
-
-              <Input
-                label="وصف الصورة"
-                value={item.alt_text}
-                onChange={(v) => updateArrayItem("images", index, "alt_text", v)}
-              />
-
-              <button type="button" onClick={() => removeArrayItem("images", index)} style={s.smallBtn}>
-                حذف
-              </button>
+              <label style={s.label}>
+                <span>المخزون</span>
+                <input
+                  style={s.input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.stock}
+                  onChange={(e) => updateField("stock", e.target.value)}
+                  placeholder="10"
+                />
+              </label>
             </div>
-          ))}
 
-          <button type="button" onClick={() => addArrayItem("images", emptyImage)} style={s.addBtn}>
-            + إضافة صورة
-          </button>
-        </Card>
+            <div style={s.grid2}>
+              <label style={s.label}>
+                <span>الحالة</span>
+                <select
+                  style={s.input}
+                  value={form.status}
+                  onChange={(e) => updateField("status", e.target.value)}
+                >
+                  <option value="active">active</option>
+                  <option value="draft">draft</option>
+                  <option value="archived">archived</option>
+                </select>
+              </label>
 
-        <Card title="المواصفات">
-          {form.specs.map((item, index) => (
-            <div key={index} style={s.rowBox}>
-              <Input
-                label="الاسم"
-                value={item.label_ar}
-                onChange={(v) => updateArrayItem("specs", index, "label_ar", v)}
-              />
-              <Input
-                label="القيمة"
-                value={item.value_ar}
-                onChange={(v) => updateArrayItem("specs", index, "value_ar", v)}
-              />
-              <button type="button" onClick={() => removeArrayItem("specs", index)} style={s.smallBtn}>
-                حذف
-              </button>
+              <label style={{ ...s.label, justifyContent: "end" }}>
+                <span>منتج مميز Featured</span>
+                <div style={s.checkboxRow}>
+                  <input
+                    type="checkbox"
+                    checked={form.featured}
+                    onChange={(e) => updateField("featured", e.target.checked)}
+                  />
+                </div>
+              </label>
             </div>
-          ))}
+          </div>
 
-          <button type="button" onClick={() => addArrayItem("specs", emptySpec)} style={s.addBtn}>
-            + إضافة مواصفة
-          </button>
-        </Card>
+          <div style={s.card}>
+            <div style={s.sectionTitle}>صور المنتج</div>
 
-        <Card title="الأسئلة الشائعة">
-          {form.faqs.map((item, index) => (
-            <div key={index} style={s.rowBox}>
-              <Input
-                label="السؤال"
-                value={item.question_ar}
-                onChange={(v) => updateArrayItem("faqs", index, "question_ar", v)}
-              />
-              <Textarea
-                label="الجواب"
-                value={item.answer_ar}
-                onChange={(v) => updateArrayItem("faqs", index, "answer_ar", v)}
-              />
-              <button type="button" onClick={() => removeArrayItem("faqs", index)} style={s.smallBtn}>
-                حذف
-              </button>
+            <div style={s.imageStack}>
+              {images.map((img, index) => {
+                const previewUrl = resolveImageUrl(img.image_url);
+
+                return (
+                  <div key={index} style={s.imageBlock}>
+                    <label style={s.label}>
+                      <span>رابط الصورة {index + 1}</span>
+                      <input
+                        style={s.input}
+                        value={img.image_url}
+                        onChange={(e) =>
+                          updateImage(index, { image_url: e.target.value })
+                        }
+                        placeholder="https://... أو /media/..."
+                        dir="ltr"
+                      />
+                    </label>
+
+                    <label style={s.label}>
+                      <span>رفع صورة من الجهاز</span>
+                      <input
+                        style={s.input}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleUpload(index, e.target.files?.[0])}
+                      />
+                    </label>
+
+                    <label style={s.label}>
+                      <span>وصف الصورة</span>
+                      <input
+                        style={s.input}
+                        value={img.alt_text}
+                        onChange={(e) =>
+                          updateImage(index, { alt_text: e.target.value })
+                        }
+                        placeholder="مثلاً: ساعة ذكية Fit Max S2"
+                      />
+                    </label>
+
+                    <div style={s.previewBox}>
+                      {img.uploading ? (
+                        <div style={s.previewPlaceholder}>جاري رفع الصورة...</div>
+                      ) : previewUrl ? (
+                        <img
+                          src={previewUrl}
+                          alt={img.alt_text || form.title_ar || "preview"}
+                          style={s.previewImage}
+                        />
+                      ) : (
+                        <div style={s.previewPlaceholder}>preview</div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      style={s.secondaryButton}
+                      onClick={() => removeImageBlock(index)}
+                    >
+                      حذف
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          ))}
 
-          <button type="button" onClick={() => addArrayItem("faqs", emptyFaq)} style={s.addBtn}>
-            + إضافة سؤال
-          </button>
-        </Card>
+            <button type="button" style={s.dashedButton} onClick={addImageBlock}>
+              + إضافة صورة
+            </button>
+          </div>
+        </div>
 
-        {message ? <div style={s.message}>{message}</div> : null}
+        <aside style={s.sideCol}>
+          <div style={s.card}>
+            <div style={s.sectionTitle}>المعاينة</div>
 
-        <button type="submit" disabled={!canSubmit || saving} style={s.submitBtn}>
-          {saving ? "جاري الحفظ..." : "حفظ المنتج"}
-        </button>
+            <div style={s.summaryCard}>
+              <div style={s.summaryImageWrap}>
+                {resolveImageUrl(images[0]?.image_url) ? (
+                  <img
+                    src={resolveImageUrl(images[0]?.image_url)}
+                    alt={images[0]?.alt_text || form.title_ar || "preview"}
+                    style={s.summaryImage}
+                  />
+                ) : (
+                  <div style={s.summaryNoImage}>No image</div>
+                )}
+              </div>
+
+              <div style={s.summaryBody}>
+                <div style={s.badgeRow}>
+                  <span style={s.badge}>{form.status || "active"}</span>
+                  {form.featured ? (
+                    <span style={s.badgeFeatured}>featured</span>
+                  ) : null}
+                </div>
+
+                <h3 style={s.summaryTitle}>
+                  {form.title_ar || "اسم المنتج سيظهر هنا"}
+                </h3>
+
+                <p style={s.summaryText}>
+                  {form.description_ar || "وصف المنتج سيظهر هنا."}
+                </p>
+
+                <div style={s.summaryMeta}>
+                  <div><strong>السعر:</strong> {form.price_mad || 0} MAD</div>
+                  <div><strong>المخزون:</strong> {form.stock || 0}</div>
+                  <div><strong>Slug:</strong> {form.slug || "—"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={s.card}>
+            <button
+              type="submit"
+              disabled={!canSubmit || saving}
+              style={{
+                ...s.primaryButton,
+                opacity: !canSubmit || saving ? 0.7 : 1
+              }}
+            >
+              {saving ? "جاري الحفظ..." : "حفظ المنتج"}
+            </button>
+          </div>
+        </aside>
       </form>
     </section>
   );
 }
 
-function Card({ title, children }) {
-  return (
-    <div style={s.card}>
-      <h3 style={s.cardTitle}>{title}</h3>
-      <div style={s.cardBody}>{children}</div>
-    </div>
-  );
-}
-
-function Input({ label, value, onChange, type = "text" }) {
-  return (
-    <label style={s.field}>
-      <span style={s.label}>{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={s.input} />
-    </label>
-  );
-}
-
-function Textarea({ label, value, onChange }) {
-  return (
-    <label style={s.field}>
-      <span style={s.label}>{label}</span>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} style={s.textarea} />
-    </label>
-  );
-}
-
 const s = {
-  form: { display: "grid", gap: "18px" },
-  card: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: "18px", padding: "18px" },
-  cardTitle: { margin: "0 0 14px", fontSize: "18px", fontWeight: 800 },
-  cardBody: { display: "grid", gap: "14px" },
-  field: { display: "grid", gap: "6px" },
-  label: { fontWeight: 700, fontSize: "14px" },
-  input: { padding: "12px", borderRadius: "12px", border: "1px solid #d1d5db" },
-  textarea: { padding: "12px", borderRadius: "12px", border: "1px solid #d1d5db", minHeight: "120px", resize: "vertical" },
-  checkboxRow: { display: "flex", alignItems: "center", gap: "10px", fontWeight: 700 },
-  rowBox: { border: "1px solid #e5e7eb", borderRadius: "14px", padding: "12px", display: "grid", gap: "10px", background: "#f8fafc" },
-  smallBtn: { padding: "10px 12px", borderRadius: "10px", border: "1px solid #d1d5db", background: "#fff", cursor: "pointer" },
-  addBtn: { padding: "12px 14px", borderRadius: "12px", border: "1px dashed #94a3b8", background: "#fff", cursor: "pointer", fontWeight: 700 },
-  submitBtn: { padding: "14px 18px", borderRadius: "14px", border: "none", background: "#1f3b73", color: "#fff", fontWeight: 800, cursor: "pointer" },
-  message: { padding: "12px", borderRadius: "12px", background: "#fff", border: "1px solid #e5e7eb" },
-  uploadInfo: { fontSize: "13px", color: "#1d4ed8", fontWeight: 700 },
-  previewImage: { width: "120px", borderRadius: "10px", border: "1px solid #e5e7eb" }
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "1.15fr 0.85fr",
+    gap: "16px"
+  },
+  mainCol: {
+    display: "grid",
+    gap: "16px"
+  },
+  sideCol: {
+    display: "grid",
+    gap: "16px"
+  },
+  card: {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    padding: "18px",
+    display: "grid",
+    gap: "16px"
+  },
+  sectionTitle: {
+    fontWeight: "900",
+    fontSize: "18px",
+    color: "#0f172a"
+  },
+  label: {
+    display: "grid",
+    gap: "8px",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#111827"
+  },
+  input: {
+    width: "100%",
+    minHeight: "52px",
+    borderRadius: "14px",
+    border: "1px solid #d9dde5",
+    background: "#fff",
+    padding: "0 14px",
+    fontSize: "15px",
+    color: "#111827",
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "120px",
+    borderRadius: "14px",
+    border: "1px solid #d9dde5",
+    background: "#fff",
+    padding: "12px 14px",
+    fontSize: "15px",
+    color: "#111827",
+    outline: "none",
+    boxSizing: "border-box",
+    resize: "vertical"
+  },
+  grid2: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "14px"
+  },
+  checkboxRow: {
+    minHeight: "52px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start"
+  },
+  imageStack: {
+    display: "grid",
+    gap: "16px"
+  },
+  imageBlock: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "16px",
+    padding: "14px",
+    display: "grid",
+    gap: "12px",
+    background: "#fafafa"
+  },
+  previewBox: {
+    width: "100%",
+    minHeight: "180px",
+    borderRadius: "14px",
+    overflow: "hidden",
+    border: "1px solid #e2e8f0",
+    background: "#f8fafc",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  previewImage: {
+    width: "100%",
+    height: "180px",
+    objectFit: "cover",
+    display: "block"
+  },
+  previewPlaceholder: {
+    color: "#64748b",
+    fontWeight: "700"
+  },
+  secondaryButton: {
+    minHeight: "48px",
+    borderRadius: "14px",
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#111827",
+    fontSize: "16px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  dashedButton: {
+    minHeight: "54px",
+    borderRadius: "14px",
+    border: "2px dashed #cbd5e1",
+    background: "#fff",
+    color: "#111827",
+    fontSize: "18px",
+    fontWeight: "900",
+    cursor: "pointer"
+  },
+  primaryButton: {
+    minHeight: "56px",
+    borderRadius: "16px",
+    border: "none",
+    background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)",
+    color: "#fff",
+    fontSize: "18px",
+    fontWeight: "900",
+    cursor: "pointer"
+  },
+  summaryCard: {
+    overflow: "hidden",
+    borderRadius: "18px",
+    border: "1px solid #e2e8f0",
+    background: "#fff"
+  },
+  summaryImageWrap: {
+    width: "100%",
+    height: "220px",
+    background: "#eef2f7",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  summaryImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
+  },
+  summaryNoImage: {
+    color: "#94a3b8",
+    fontSize: "18px",
+    fontWeight: "700"
+  },
+  summaryBody: {
+    padding: "16px",
+    display: "grid",
+    gap: "12px"
+  },
+  badgeRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+  badge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "34px",
+    padding: "0 14px",
+    borderRadius: "999px",
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    border: "1px solid #bfdbfe",
+    fontWeight: "800",
+    fontSize: "14px"
+  },
+  badgeFeatured: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "34px",
+    padding: "0 14px",
+    borderRadius: "999px",
+    background: "#fff7ed",
+    color: "#c2410c",
+    border: "1px solid #fdba74",
+    fontWeight: "800",
+    fontSize: "14px"
+  },
+  summaryTitle: {
+    margin: 0,
+    fontSize: "28px",
+    fontWeight: "900",
+    color: "#0f172a",
+    lineHeight: 1.4
+  },
+  summaryText: {
+    margin: 0,
+    color: "#6b7280",
+    lineHeight: 1.9,
+    fontSize: "16px"
+  },
+  summaryMeta: {
+    display: "grid",
+    gap: "8px",
+    color: "#111827",
+    fontSize: "16px"
+  },
+  message: {
+    borderRadius: "14px",
+    padding: "12px 14px",
+    marginBottom: "16px",
+    fontSize: "14px",
+    fontWeight: "700"
+  },
+  messageSuccess: {
+    background: "#ecfdf5",
+    color: "#166534",
+    border: "1px solid #bbf7d0"
+  },
+  messageError: {
+    background: "#fef2f2",
+    color: "#b91c1c",
+    border: "1px solid #fecaca"
+  }
 };
