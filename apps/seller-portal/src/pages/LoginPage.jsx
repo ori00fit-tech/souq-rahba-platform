@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import { apiPost } from "../lib/api";
 
-const SELLER_LOGIN_ENDPOINT = "/seller/auth/login";
-const SELLER_REGISTER_ENDPOINT = "/seller/auth/register";
+const SELLER_LOGIN_ENDPOINT = "/auth/login";
+const USER_REGISTER_ENDPOINT = "/auth/register";
+const SELLER_ONBOARDING_ENDPOINT = "/sellers/onboarding";
 
 const STORE_CATEGORIES = [
   "مواد غذائية",
@@ -83,6 +84,16 @@ export default function LoginPage() {
     return "";
   }
 
+  function extractToken(result) {
+    return (
+      result?.data?.token ||
+      result?.token ||
+      result?.data?.access_token ||
+      result?.access_token ||
+      ""
+    );
+  }
+
   async function handleLogin(e) {
     e.preventDefault();
 
@@ -106,12 +117,7 @@ export default function LoginPage() {
         return;
       }
 
-      const token =
-        result?.data?.token ||
-        result?.token ||
-        result?.data?.access_token ||
-        result?.access_token ||
-        "";
+      const token = extractToken(result);
 
       if (token && typeof window !== "undefined") {
         localStorage.setItem("seller_auth_token", token);
@@ -145,45 +151,75 @@ export default function LoginPage() {
       setSubmitting(true);
       resetMessage();
 
-      const payload = {
-        store_name: registerForm.store_name.trim(),
-        owner_name: registerForm.owner_name.trim(),
-        phone: registerForm.phone.trim(),
-        city: registerForm.city.trim(),
-        category: registerForm.category,
+      // 1) إنشاء حساب user بدور seller
+      const registerResult = await apiPost(USER_REGISTER_ENDPOINT, {
         email: registerForm.email.trim(),
         password: registerForm.password,
-        notes: registerForm.notes.trim() || null
-      };
+        full_name: registerForm.owner_name.trim(),
+        phone: registerForm.phone.trim(),
+        role: "seller"
+      });
 
-      const result = await apiPost(SELLER_REGISTER_ENDPOINT, payload);
+      if (!registerResult?.ok) {
+        showMessage(registerResult?.message || "تعذر إنشاء حساب البائع", "error");
+        return;
+      }
 
-      if (!result?.ok) {
-        showMessage(result?.message || "تعذر إرسال طلب التسجيل", "error");
+      // 2) تسجيل الدخول مباشرة للحصول على التوكن
+      const loginResult = await apiPost(SELLER_LOGIN_ENDPOINT, {
+        email: registerForm.email.trim(),
+        password: registerForm.password
+      });
+
+      if (!loginResult?.ok) {
+        showMessage(loginResult?.message || "تم إنشاء الحساب لكن تعذر تسجيل الدخول تلقائياً", "error");
+        return;
+      }
+
+      const token = extractToken(loginResult);
+
+      if (!token) {
+        showMessage("تم إنشاء الحساب لكن لم يتم استلام توكن صالح", "error");
+        return;
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("seller_auth_token", token);
+      }
+
+      // 3) إنشاء seller profile / onboarding
+      const onboardingResult = await apiPost(SELLER_ONBOARDING_ENDPOINT, {
+        display_name: registerForm.store_name.trim(),
+        slug: registerForm.store_name
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
+          .replace(/^-+|-+$/g, ""),
+        city: registerForm.city.trim(),
+        phone: registerForm.phone.trim(),
+        category: registerForm.category,
+        description: registerForm.notes.trim() || null
+      });
+
+      if (!onboardingResult?.ok) {
+        showMessage(
+          onboardingResult?.message ||
+            "تم إنشاء الحساب لكن تعذر إكمال ملف البائع. يمكنك المتابعة من صفحة الدخول.",
+          "error"
+        );
         return;
       }
 
       showMessage(
-        "تم إرسال طلب تسجيل البائع بنجاح. سنراجع الطلب ونتواصل معك قريباً.",
+        "تم إنشاء حساب البائع بنجاح. جاري تحويلك إلى مرحلة المراجعة.",
         "success"
       );
 
-      setRegisterForm({
-        store_name: "",
-        owner_name: "",
-        phone: "",
-        city: "",
-        category: STORE_CATEGORIES[0],
-        email: "",
-        password: "",
-        confirm_password: "",
-        notes: "",
-        accept_terms: false
-      });
-
-      setTimeout(() => {
-        setTab("login");
-      }, 1200);
+      if (typeof window !== "undefined") {
+        setTimeout(() => {
+          window.location.href = "/onboarding";
+        }, 900);
+      }
     } catch (error) {
       console.error(error);
       showMessage(error?.message || "حدث خطأ أثناء تسجيل البائع الجديد", "error");
