@@ -3,7 +3,7 @@ import { apiPost } from "../lib/api";
 
 const SELLER_LOGIN_ENDPOINT = "/auth/login";
 const USER_REGISTER_ENDPOINT = "/auth/register";
-const SELLER_ONBOARDING_ENDPOINT = "/sellers/onboarding";
+const SELLER_ONBOARDING_ENDPOINT = "/marketplace/onboarding";
 
 const STORE_CATEGORIES = [
   "مواد غذائية",
