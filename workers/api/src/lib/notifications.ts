@@ -16,7 +16,6 @@ export interface OrderNotificationData {
 
 function normalizeMoroccanPhone(input: string, defaultCountryCode = "212") {
   const raw = String(input || "").trim().replace(/[^\d+]/g, "");
-
   if (!raw) return null;
   if (raw.startsWith("+")) return raw.slice(1);
   if (raw.startsWith("00")) return raw.slice(2);
@@ -25,21 +24,21 @@ function normalizeMoroccanPhone(input: string, defaultCountryCode = "212") {
   return `${defaultCountryCode}${raw}`;
 }
 
-export async function sendWhatsAppTemplateMessage(
+async function sendWhatsAppTemplateMessage(
   env: {
     WHATSAPP_ACCESS_TOKEN?: string;
     WHATSAPP_PHONE_NUMBER_ID?: string;
     WHATSAPP_DEFAULT_COUNTRY_CODE?: string;
   },
   to: string,
-  templateName = "hello_world",
-  languageCode = "en_US"
+  templateName: string,
+  languageCode: string,
+  parameters: string[] = []
 ) {
   const accessToken = env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = env.WHATSAPP_PHONE_NUMBER_ID;
 
   if (!accessToken || !phoneNumberId) {
-    console.log("WhatsApp config missing, skipping real send");
     return { ok: false, skipped: true, reason: "missing_config" };
   }
 
@@ -51,6 +50,18 @@ export async function sendWhatsAppTemplateMessage(
   if (!normalizedTo) {
     return { ok: false, skipped: true, reason: "invalid_phone" };
   }
+
+  const components = parameters.length
+    ? [
+        {
+          type: "body",
+          parameters: parameters.map((value) => ({
+            type: "text",
+            text: value
+          }))
+        }
+      ]
+    : [];
 
   const response = await fetch(
     `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
@@ -68,7 +79,8 @@ export async function sendWhatsAppTemplateMessage(
           name: templateName,
           language: {
             code: languageCode
-          }
+          },
+          ...(components.length ? { components } : {})
         }
       })
     }
@@ -81,11 +93,16 @@ export async function sendWhatsAppTemplateMessage(
       status: response.status,
       data
     });
-    return { ok: false, status: response.status, data };
+    return { ok: false, skipped: false, status: response.status, data };
   }
 
-  console.log("WhatsApp template sent successfully", { to: normalizedTo, data });
-  return { ok: true, data };
+  console.log("WhatsApp template sent successfully", {
+    to: normalizedTo,
+    templateName,
+    data
+  });
+
+  return { ok: true, skipped: false, data };
 }
 
 export async function notifyNewOrder(
@@ -98,13 +115,12 @@ export async function notifyNewOrder(
   order: OrderNotificationData
 ) {
   try {
-    console.log("Preparing WhatsApp notification for order", order.order_number);
-
     const buyerResult = await sendWhatsAppTemplateMessage(
       env,
       order.buyer_phone,
-      "hello_world",
-      "en_US"
+      "rahba_order_received",
+      "en",
+      [order.order_number]
     );
 
     return {

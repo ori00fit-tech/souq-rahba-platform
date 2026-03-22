@@ -15,21 +15,17 @@ function normalizeMoroccanPhone(input: string, defaultCountryCode = "212") {
 
 whatsappRouter.post("/whatsapp/register", async (c) => {
   try {
-    const phoneNumberId = c.env.WHATSAPP_PHONE_NUMBER_ID;
-    const accessToken = c.env.WHATSAPP_ACCESS_TOKEN;
-    const pin = c.env.WHATSAPP_REGISTRATION_PIN;
-
     const res = await fetch(
-      `https://graph.facebook.com/v23.0/${phoneNumberId}/register`,
+      `https://graph.facebook.com/v23.0/${c.env.WHATSAPP_PHONE_NUMBER_ID}/register`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${c.env.WHATSAPP_ACCESS_TOKEN}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           messaging_product: "whatsapp",
-          pin
+          pin: c.env.WHATSAPP_REGISTRATION_PIN
         })
       }
     );
@@ -37,22 +33,12 @@ whatsappRouter.post("/whatsapp/register", async (c) => {
     const data = await res.json().catch(() => ({}));
 
     return c.json(
-      {
-        ok: res.ok,
-        status: res.status,
-        data
-      },
+      { ok: res.ok, status: res.status, data },
       res.ok ? 200 : 400
     );
   } catch (error) {
     console.error(error);
-    return c.json(
-      {
-        ok: false,
-        message: "Failed to register WhatsApp phone number"
-      },
-      500
-    );
+    return c.json({ ok: false, message: "Failed to register WhatsApp phone number" }, 500);
   }
 });
 
@@ -65,14 +51,10 @@ whatsappRouter.post("/whatsapp/test", async (c) => {
     );
 
     if (!to) {
-      return c.json(
-        {
-          ok: false,
-          message: "Phone is required"
-        },
-        400
-      );
+      return c.json({ ok: false, message: "Phone is required" }, 400);
     }
+
+    const orderNumber = body?.order_number || "RB-2026-TEST1234";
 
     const res = await fetch(
       `https://graph.facebook.com/v23.0/${c.env.WHATSAPP_PHONE_NUMBER_ID}/messages`,
@@ -87,10 +69,21 @@ whatsappRouter.post("/whatsapp/test", async (c) => {
           to,
           type: "template",
           template: {
-            name: "hello_world",
+            name: "rahba_order_received",
             language: {
-              code: "en_US"
-            }
+              code: "en"
+            },
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    text: orderNumber
+                  }
+                ]
+              }
+            ]
           }
         })
       }
@@ -99,22 +92,12 @@ whatsappRouter.post("/whatsapp/test", async (c) => {
     const data = await res.json().catch(() => ({}));
 
     return c.json(
-      {
-        ok: res.ok,
-        status: res.status,
-        data
-      },
+      { ok: res.ok, status: res.status, data },
       res.ok ? 200 : 400
     );
   } catch (error) {
     console.error(error);
-    return c.json(
-      {
-        ok: false,
-        message: "Failed to send WhatsApp test message"
-      },
-      500
-    );
+    return c.json({ ok: false, message: "Failed to send WhatsApp test message" }, 500);
   }
 });
 
