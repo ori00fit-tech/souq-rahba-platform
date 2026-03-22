@@ -14,7 +14,7 @@ export interface OrderNotificationData {
   seller_phone?: string | null;
 }
 
-function normalizeMoroccanPhone(input: string, defaultCountryCode = "212") {
+function normalizePhone(input: string, defaultCountryCode = "212") {
   const raw = String(input || "").trim().replace(/[^\d+]/g, "");
   if (!raw) return null;
   if (raw.startsWith("+")) return raw.slice(1);
@@ -42,7 +42,7 @@ async function sendWhatsAppTemplateMessage(
     return { ok: false, skipped: true, reason: "missing_config" };
   }
 
-  const normalizedTo = normalizeMoroccanPhone(
+  const normalizedTo = normalizePhone(
     to,
     env.WHATSAPP_DEFAULT_COUNTRY_CODE || "212"
   );
@@ -124,15 +124,21 @@ export async function notifyNewOrder(
       [order.order_number]
     );
 
-    const recipientForSellerSide = order.seller_phone || env.WHATSAPP_ADMIN_PHONE || "";
+    const sellerRecipient = order.seller_phone || env.WHATSAPP_ADMIN_PHONE || "";
 
-    const sellerResult = recipientForSellerSide
+    const sellerResult = sellerRecipient
       ? await sendWhatsAppTemplateMessage(
           env,
-          recipientForSellerSide,
-          "rahba_order_received",
-          "en",
-          [order.order_number]
+          sellerRecipient,
+          "rahba_new_order_seller",
+          "ar",
+          [
+            order.order_number,
+            order.buyer_name,
+            order.buyer_phone,
+            order.buyer_city,
+            `${order.total_mad} MAD`
+          ]
         )
       : { ok: false, skipped: true, reason: "missing_seller_and_admin_phone" };
 
