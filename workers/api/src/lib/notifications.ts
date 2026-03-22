@@ -77,9 +77,7 @@ async function sendWhatsAppTemplateMessage(
         type: "template",
         template: {
           name: templateName,
-          language: {
-            code: languageCode
-          },
+          language: { code: languageCode },
           ...(components.length ? { components } : {})
         }
       })
@@ -126,34 +124,23 @@ export async function notifyNewOrder(
       [order.order_number]
     );
 
-    const adminPhone = order.seller_phone || env.WHATSAPP_ADMIN_PHONE || "";
+    const recipientForSellerSide = order.seller_phone || env.WHATSAPP_ADMIN_PHONE || "";
 
-    const adminText = [
-      `طلب جديد على Rahba`,
-      `رقم الطلب: ${order.order_number}`,
-      `المشتري: ${order.buyer_name}`,
-      `الهاتف: ${order.buyer_phone}`,
-      `المدينة: ${order.buyer_city}`,
-      `الإجمالي: ${order.total_mad} MAD`,
-      `البائع: ${order.seller_name}`,
-      `المنتجات: ${order.items.map((i) => `${i.name} x${i.quantity}`).join(" | ")}`
-    ].join("\n");
-
-    const adminResult = await sendWhatsAppTemplateMessage(
-      env,
-      adminPhone,
-      "rahba_order_received",
-      "en",
-      [order.order_number]
-    );
-
-    console.log("Admin order summary:", adminText);
+    const sellerResult = recipientForSellerSide
+      ? await sendWhatsAppTemplateMessage(
+          env,
+          recipientForSellerSide,
+          "rahba_order_received",
+          "en",
+          [order.order_number]
+        )
+      : { ok: false, skipped: true, reason: "missing_seller_and_admin_phone" };
 
     return {
       ok: true,
       results: {
         buyer: buyerResult,
-        admin: adminResult
+        seller: sellerResult
       }
     };
   } catch (error) {

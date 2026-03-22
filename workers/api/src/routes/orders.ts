@@ -286,7 +286,7 @@ orderRouter.post("/orders", async (c) => {
     }
 
     const seller = await c.env.DB.prepare(
-      `select id, display_name from sellers where id = ? limit 1`
+      `select id, display_name, phone from sellers where id = ? limit 1`
     )
       .bind(sellerId)
       .first<{ id: string; display_name: string | null }>();
@@ -496,7 +496,7 @@ orderRouter.post("/orders", async (c) => {
             quantity: item.quantity
           })),
           seller_name: seller.display_name || "RAHBA",
-          seller_phone: null
+          seller_phone: seller.phone || null
         }
       )
     );
