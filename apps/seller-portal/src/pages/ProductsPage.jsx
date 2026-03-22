@@ -5,6 +5,7 @@ import { apiDelete, apiGet } from "../lib/api";
 export default function ProductsPage() {
   const navigate = useNavigate();
 
+  const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({
     page: 1,
@@ -22,7 +23,16 @@ export default function ProductsPage() {
         setLoading(true);
         setMessage("");
 
-        const res = await apiGet("/catalog/products");
+        const sellerRes = await apiGet("/marketplace/me");
+        if (!sellerRes?.ok || !sellerRes?.data?.id) {
+          setMessage("تعذر تحديد المتجر الحالي");
+          return;
+        }
+
+        const currentSeller = sellerRes.data;
+        setSeller(currentSeller);
+
+        const res = await apiGet(`/catalog/products?seller_id=${encodeURIComponent(currentSeller.id)}`);
 
         if (!res?.ok) {
           setMessage(res?.message || "تعذر تحميل المنتجات");
@@ -53,7 +63,7 @@ export default function ProductsPage() {
         );
       } catch (err) {
         console.error(err);
-        setMessage("حدث خطأ أثناء تحميل المنتجات");
+        setMessage(err?.message || "حدث خطأ أثناء تحميل المنتجات");
       } finally {
         setLoading(false);
       }
@@ -90,7 +100,7 @@ export default function ProductsPage() {
       setMessage("تم حذف المنتج بنجاح");
     } catch (err) {
       console.error(err);
-      setMessage("حدث خطأ أثناء حذف المنتج");
+      setMessage(err?.message || "حدث خطأ أثناء حذف المنتج");
     } finally {
       setDeletingId("");
     }
@@ -101,7 +111,7 @@ export default function ProductsPage() {
       <section className="page-shell" dir="rtl">
         <div className="page-header">
           <h1>المنتجات</h1>
-          <p>جاري تحميل المنتجات...</p>
+          <p>جاري تحميل منتجات المتجر...</p>
         </div>
       </section>
     );
@@ -112,7 +122,10 @@ export default function ProductsPage() {
       <div className="products-topbar">
         <div className="page-header">
           <h1>المنتجات</h1>
-          <p>إدارة المنتجات، الأسعار، المخزون وصفحات العرض</p>
+          <p>
+            إدارة منتجات متجرك فقط
+            {seller?.display_name ? ` — ${seller.display_name}` : ""}
+          </p>
         </div>
 
         <button
@@ -163,7 +176,9 @@ export default function ProductsPage() {
                   ) : null}
                 </div>
 
-                <h3 className="product-admin-title">{product.title_ar || "بدون اسم"}</h3>
+                <h3 className="product-admin-title">
+                  {product.title_ar || "بدون اسم"}
+                </h3>
 
                 <p className="product-admin-text">
                   {product.description_ar || "بدون وصف مختصر"}
@@ -176,7 +191,10 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="product-admin-actions">
-                  <Link to={`/products/${product.id}/edit`} className="ui-btn ui-btn--secondary">
+                  <Link
+                    to={`/products/${product.id}/edit`}
+                    className="ui-btn ui-btn--secondary"
+                  >
                     تعديل
                   </Link>
 
