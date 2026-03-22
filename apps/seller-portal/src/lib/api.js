@@ -4,6 +4,7 @@ function getAuthHeaders(extra = {}) {
   const token = localStorage.getItem("seller_auth_token");
 
   return {
+    Accept: "application/json",
     ...extra,
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
@@ -13,68 +14,80 @@ async function parseResponse(response) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.message || `Request failed: ${response.status}`);
+    const error = new Error(data?.message || `Request failed: ${response.status}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;
 }
 
-export async function apiGet(path) {
+async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: getAuthHeaders()
+    ...options,
+    headers: getAuthHeaders(options.headers || {})
   });
 
   return parseResponse(response);
 }
 
-export async function apiPost(path, payload) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+export async function apiGet(path, headers = {}) {
+  return request(path, {
+    method: "GET",
+    headers
+  });
+}
+
+export async function apiPost(path, payload = {}, headers = {}) {
+  return request(path, {
     method: "POST",
-    headers: getAuthHeaders({
-      "Content-Type": "application/json"
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      ...headers
+    },
     body: JSON.stringify(payload)
   });
-
-  return parseResponse(response);
 }
 
-export async function apiPut(path, payload) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+export async function apiPut(path, payload = {}, headers = {}) {
+  return request(path, {
     method: "PUT",
-    headers: getAuthHeaders({
-      "Content-Type": "application/json"
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      ...headers
+    },
     body: JSON.stringify(payload)
   });
-
-  return parseResponse(response);
 }
 
-export async function apiPatch(path, payload) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+export async function apiPatch(path, payload = {}, headers = {}) {
+  return request(path, {
     method: "PATCH",
-    headers: getAuthHeaders({
-      "Content-Type": "application/json"
-    }),
+    headers: {
+      "Content-Type": "application/json",
+      ...headers
+    },
     body: JSON.stringify(payload)
   });
-
-  return parseResponse(response);
 }
 
-export async function apiDelete(path) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+export async function apiDelete(path, headers = {}) {
+  return request(path, {
     method: "DELETE",
-    headers: getAuthHeaders()
+    headers
   });
-
-  return parseResponse(response);
 }
 
-export async function apiUploadFile(file) {
+export async function apiUploadFile(file, extraFields = {}) {
   const formData = new FormData();
   formData.append("file", file);
+
+  Object.entries(extraFields).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, String(value));
+    }
+  });
 
   const response = await fetch(`${API_BASE_URL}/upload`, {
     method: "POST",
@@ -83,4 +96,8 @@ export async function apiUploadFile(file) {
   });
 
   return parseResponse(response);
+}
+
+export function getApiBaseUrl() {
+  return API_BASE_URL;
 }
