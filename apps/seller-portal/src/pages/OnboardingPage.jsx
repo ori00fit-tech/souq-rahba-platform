@@ -1,16 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { apiGet } from "../lib/api";
 
-const MOCK_APPLICATION = {
-  status: "pending", // pending | needs_info | approved | rejected
-  store_name: "MicroTech",
-  owner_name: "Mohamed dub",
-  phone: "0772593541",
-  city: "Tanger",
-  category: "إلكترونيات",
-  submitted_at: "2026-03-22 14:30",
-  updated_at: "2026-03-22 18:10",
-  review_note: "نحتاج فقط إلى تأكيد بعض المعلومات الإضافية قبل التفعيل."
-};
+const ONBOARDING_STATUS_ENDPOINT = "/seller/application/me";
 
 function getStatusConfig(status) {
   switch (status) {
@@ -33,7 +24,7 @@ function getStatusConfig(status) {
         ],
         primaryLabel: "الدخول إلى لوحة البائع",
         primaryHref: "/dashboard",
-        secondaryLabel: "إضافة أول منتج لاحقاً",
+        secondaryLabel: "إضافة المنتجات لاحقاً",
         secondaryHref: "/dashboard"
       };
 
@@ -51,10 +42,10 @@ function getStatusConfig(status) {
         },
         steps: [
           "راجع البيانات الحالية وتأكد من صحتها.",
-          "جهّز المعلومات أو الوثائق المطلوبة.",
-          "تواصل مع الفريق أو أعد إرسال الطلب بعد التحديث."
+          "أكمل المعلومات أو الوثائق المطلوبة.",
+          "أعد إرسال الطلب أو تواصل مع الدعم."
         ],
-        primaryLabel: "تحديث بيانات الطلب",
+        primaryLabel: "إكمال البيانات",
         primaryHref: "/login",
         secondaryLabel: "التواصل مع الدعم",
         secondaryHref: "https://wa.me/212618072884"
@@ -101,7 +92,7 @@ function getStatusConfig(status) {
           "تابع واتساب والبريد الإلكتروني لأي تحديث.",
           "انتظر مراجعة الفريق قبل الدخول إلى لوحة البائع."
         ],
-        primaryLabel: "تحديث الصفحة لاحقاً",
+        primaryLabel: "تحديث الحالة",
         primaryHref: "/onboarding",
         secondaryLabel: "الرجوع إلى الدخول",
         secondaryHref: "/login"
@@ -119,11 +110,117 @@ function InfoRow({ label, value }) {
 }
 
 export default function OnboardingPage() {
-  const application = MOCK_APPLICATION;
-  const statusConfig = useMemo(
-    () => getStatusConfig(application.status),
-    [application.status]
-  );
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
+  const [application, setApplication] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadApplication() {
+      try {
+        setLoading(true);
+        setMessage("");
+
+        const result = await apiGet(ONBOARDING_STATUS_ENDPOINT);
+
+        if (!mounted) return;
+
+        if (!result?.ok) {
+          setMessage(result?.message || "تعذر تحميل حالة طلب البائع");
+          setApplication(null);
+          return;
+        }
+
+        const data = result?.data || null;
+
+        if (!data) {
+          setApplication(null);
+          return;
+        }
+
+        setApplication({
+          status: data.status || "pending",
+          store_name: data.store_name || data.shop_name || "",
+          owner_name: data.owner_name || data.full_name || "",
+          phone: data.phone || "",
+          city: data.city || "",
+          category: data.category || "",
+          submitted_at: data.submitted_at || data.created_at || "—",
+          updated_at: data.updated_at || data.reviewed_at || data.created_at || "—",
+          review_note: data.review_note || data.note || ""
+        });
+      } catch (error) {
+        console.error(error);
+        if (mounted) {
+          setMessage("حدث خطأ أثناء تحميل طلب البائع");
+          setApplication(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadApplication();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const statusConfig = useMemo(() => {
+    return getStatusConfig(application?.status || "pending");
+  }, [application]);
+
+  if (loading) {
+    return (
+      <section style={s.page} dir="rtl">
+        <div style={s.shell}>
+          <div style={s.heroCard}>
+            <div style={s.badge}>RAHBA SELLER</div>
+            <h1 style={s.pageTitle}>مراجعة طلب البائع</h1>
+            <p style={s.pageSubtitle}>جاري تحميل حالة الطلب...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!application) {
+    return (
+      <section style={s.page} dir="rtl">
+        <div style={s.shell}>
+          <div style={s.stack}>
+            <div style={s.heroCard}>
+              <div style={s.badge}>RAHBA SELLER</div>
+              <h1 style={s.pageTitle}>طلب البائع</h1>
+              <p style={s.pageSubtitle}>
+                لم نعثر على طلب بائع مرتبط بهذا الحساب حالياً.
+              </p>
+            </div>
+
+            {message ? <div style={s.errorCard}>{message}</div> : null}
+
+            <div style={s.card}>
+              <div style={s.emptyIcon}>📭</div>
+              <h3 style={s.emptyTitle}>لا يوجد طلب تسجيل بعد</h3>
+              <p style={s.emptyText}>
+                يمكنك الرجوع إلى صفحة التسجيل وإنشاء طلب انضمام جديد كبائع.
+              </p>
+
+              <div style={s.actions}>
+                <a href="/login" style={s.primaryButton}>
+                  تسجيل بائع جديد
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section style={s.page} dir="rtl">
@@ -136,6 +233,8 @@ export default function OnboardingPage() {
               تابع حالة طلب الانضمام إلى بوابة البائع وتحقق من الخطوات التالية.
             </p>
           </div>
+
+          {message ? <div style={s.errorCard}>{message}</div> : null}
 
           <div
             style={{
@@ -265,6 +364,16 @@ const s = {
     color: "#6b7280",
     fontSize: "15px",
     lineHeight: 1.9
+  },
+  errorCard: {
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    color: "#b91c1c",
+    borderRadius: "18px",
+    padding: "14px 16px",
+    fontSize: "14px",
+    fontWeight: 700,
+    lineHeight: 1.8
   },
   statusCard: {
     borderRadius: "24px",
@@ -410,6 +519,24 @@ const s = {
     fontSize: "14px",
     lineHeight: 1.9,
     fontWeight: 700
+  },
+  emptyIcon: {
+    fontSize: "42px",
+    textAlign: "center"
+  },
+  emptyTitle: {
+    margin: 0,
+    color: "#173b74",
+    fontSize: "22px",
+    fontWeight: 900,
+    textAlign: "center"
+  },
+  emptyText: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "15px",
+    lineHeight: 1.9,
+    textAlign: "center"
   },
   actions: {
     display: "grid",
