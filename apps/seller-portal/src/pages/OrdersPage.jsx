@@ -17,16 +17,27 @@ export default function OrdersPage() {
   const { currentSeller, authLoading } = useSellerAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState("");
 
   async function loadOrders() {
     try {
-      if (!currentSeller) return;
+      if (!currentSeller?.id) return;
+
       setLoading(true);
-      const res = await apiGet(`/commerce/orders?seller_id=${currentSeller.id}`);
-      setOrders(res.data || []);
+      setMessage("");
+
+      const res = await apiGet(`/orders?seller_id=${encodeURIComponent(currentSeller.id)}`);
+
+      if (!res?.ok) {
+        setMessage(res?.message || "تعذر تحميل الطلبات");
+        setOrders([]);
+        return;
+      }
+
+      setOrders(Array.isArray(res?.data) ? res.data : []);
     } catch (err) {
       console.error(err);
-      alert("تعذر تحميل الطلبات");
+      setMessage("تعذر تحميل الطلبات");
     } finally {
       setLoading(false);
     }
@@ -44,26 +55,29 @@ export default function OrdersPage() {
 
   async function updateStatus(orderId, nextStatus) {
     try {
-      const res = await apiPatch(`/commerce/orders/${orderId}/status`, {
+      const res = await apiPatch(`/orders/${orderId}/status`, {
         order_status: nextStatus
       });
 
-      if (res?.ok) {
-        setOrders((prev) =>
-          prev.map((order) =>
-            order.id === orderId
-              ? {
-                  ...order,
-                  order_status: res.data?.order_status || nextStatus,
-                  shipping_status: res.data?.shipping_status || order.shipping_status
-                }
-              : order
-          )
-        );
+      if (!res?.ok) {
+        setMessage(res?.message || "فشل تحديث حالة الطلب");
+        return;
       }
+
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                order_status: res.data?.order_status || nextStatus,
+                shipping_status: res.data?.shipping_status || order.shipping_status
+              }
+            : order
+        )
+      );
     } catch (err) {
       console.error("فشل تحديث الحالة:", err);
-      alert("فشل تحديث حالة الطلب");
+      setMessage("فشل تحديث حالة الطلب");
     }
   }
 
@@ -77,6 +91,8 @@ export default function OrdersPage() {
         <h1>الطلبات</h1>
         <p>إدارة الطلبات الخاصة بمتجرك ومتابعة بيانات المشترين</p>
       </div>
+
+      {message ? <div className="ui-message">{message}</div> : null}
 
       <div style={{ display: "grid", gap: "14px" }}>
         {orders.length === 0 ? (
@@ -97,7 +113,7 @@ export default function OrdersPage() {
 
               <div style={s.topRight}>
                 <div style={s.totalPrice}>
-                  {order.total_mad} {order.currency}
+                  {order.total_mad} {order.currency || "MAD"}
                 </div>
 
                 <div
@@ -126,9 +142,9 @@ export default function OrdersPage() {
 
               <div style={s.infoBox}>
                 <div style={s.boxTitle}>معلومات الطلب</div>
-                <div style={s.infoLine}>طريقة الدفع: {order.payment_method}</div>
-                <div style={s.infoLine}>حالة الدفع: {order.payment_status}</div>
-                <div style={s.infoLine}>حالة الشحن: {order.shipping_status}</div>
+                <div style={s.infoLine}>طريقة الدفع: {order.payment_method || "—"}</div>
+                <div style={s.infoLine}>حالة الدفع: {order.payment_status || "—"}</div>
+                <div style={s.infoLine}>حالة الشحن: {order.shipping_status || "—"}</div>
                 <div style={s.infoLine}>
                   عدد المنتجات: {order.items_count ?? 0}
                 </div>
@@ -258,6 +274,6 @@ const s = {
     background: "#ea580c",
     color: "#fff",
     textDecoration: "none",
-    fontWeight: "800"
+    fontWeight: "700"
   }
 };
