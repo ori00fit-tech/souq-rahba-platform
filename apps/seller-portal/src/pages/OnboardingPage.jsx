@@ -1,7 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiGet } from "../lib/api";
 
-const ONBOARDING_STATUS_ENDPOINT = "/seller/application/me";
+const ONBOARDING_STATUS_ENDPOINT = "/marketplace/me";
+
+function mapSellerStatus(data) {
+  const raw = String(data?.kyc_status || data?.status || "pending").toLowerCase();
+
+  if (raw === "approved" || raw === "active" || raw === "verified") {
+    return "approved";
+  }
+
+  if (raw === "rejected" || raw === "declined") {
+    return "rejected";
+  }
+
+  if (raw === "needs_info" || raw === "needs-information" || raw === "pending_info") {
+    return "needs_info";
+  }
+
+  return "pending";
+}
 
 function getStatusConfig(status) {
   switch (status) {
@@ -12,19 +30,15 @@ function getStatusConfig(status) {
         subtitle:
           "مبروك، تم تفعيل حسابك بنجاح وأصبح بإمكانك الدخول إلى لوحة البائع وإضافة منتجاتك.",
         icon: "✅",
-        tone: {
-          bg: "#ecfdf5",
-          border: "#bbf7d0",
-          text: "#166534"
-        },
+        tone: { bg: "#ecfdf5", border: "#bbf7d0", text: "#166534" },
         steps: [
           "ادخل إلى لوحة البائع.",
           "أضف أول منتج داخل متجرك.",
-          "راجع الطلبات والإشعارات وابدأ البيع."
+          "ابدأ إدارة الطلبات والمنتجات."
         ],
         primaryLabel: "الدخول إلى لوحة البائع",
         primaryHref: "/dashboard",
-        secondaryLabel: "إضافة المنتجات لاحقاً",
+        secondaryLabel: "الانتقال لاحقاً",
         secondaryHref: "/dashboard"
       };
 
@@ -33,19 +47,15 @@ function getStatusConfig(status) {
         badge: "معلومات إضافية مطلوبة",
         title: "نحتاج بعض المعلومات الإضافية",
         subtitle:
-          "راجع فريقنا طلبك، ونحتاج منك إكمال بعض التفاصيل قبل قبول الحساب بشكل نهائي.",
+          "راجع فريقنا طلبك ونحتاج منك إكمال بعض المعلومات قبل التفعيل النهائي.",
         icon: "📝",
-        tone: {
-          bg: "#fff7ed",
-          border: "#fed7aa",
-          text: "#9a3412"
-        },
+        tone: { bg: "#fff7ed", border: "#fed7aa", text: "#9a3412" },
         steps: [
-          "راجع البيانات الحالية وتأكد من صحتها.",
-          "أكمل المعلومات أو الوثائق المطلوبة.",
+          "راجع بيانات المتجر الحالية.",
+          "أكمل المعلومات المطلوبة.",
           "أعد إرسال الطلب أو تواصل مع الدعم."
         ],
-        primaryLabel: "إكمال البيانات",
+        primaryLabel: "الرجوع إلى الدخول",
         primaryHref: "/login",
         secondaryLabel: "التواصل مع الدعم",
         secondaryHref: "https://wa.me/212618072884"
@@ -56,22 +66,18 @@ function getStatusConfig(status) {
         badge: "تعذر القبول حالياً",
         title: "تم رفض الطلب في هذه المرحلة",
         subtitle:
-          "راجعنا طلب الانضمام، وتعذر قبوله حالياً. يمكنك تعديل معلوماتك وإعادة التقديم من جديد.",
+          "راجعنا طلب الانضمام وتعذر قبوله حالياً. يمكنك تعديل بياناتك وإعادة التقديم.",
         icon: "❌",
-        tone: {
-          bg: "#fef2f2",
-          border: "#fecaca",
-          text: "#b91c1c"
-        },
+        tone: { bg: "#fef2f2", border: "#fecaca", text: "#b91c1c" },
         steps: [
-          "راجع سبب الرفض أو الملاحظة المرفقة.",
-          "حدّث بيانات المتجر والنشاط التجاري.",
-          "أعد إرسال الطلب بعد التصحيح."
+          "راجع الملاحظات المرتبطة بالطلب.",
+          "حدّث بيانات النشاط أو المتجر.",
+          "أعد التقديم بعد التصحيح."
         ],
-        primaryLabel: "إعادة التقديم",
+        primaryLabel: "الرجوع إلى الدخول",
         primaryHref: "/login",
-        secondaryLabel: "الرجوع",
-        secondaryHref: "/login"
+        secondaryLabel: "التواصل مع الدعم",
+        secondaryHref: "https://wa.me/212618072884"
       };
 
     case "pending":
@@ -82,15 +88,11 @@ function getStatusConfig(status) {
         subtitle:
           "توصلنا بطلب انضمامك كبائع داخل رحبة، وفريقنا يراجعه حالياً. سنتواصل معك فور انتهاء المراجعة.",
         icon: "⏳",
-        tone: {
-          bg: "#eef6ff",
-          border: "#dbeafe",
-          text: "#173b74"
-        },
+        tone: { bg: "#eef6ff", border: "#dbeafe", text: "#173b74" },
         steps: [
           "تأكد أن هاتفك وبريدك الإلكتروني صحيحان.",
           "تابع واتساب والبريد الإلكتروني لأي تحديث.",
-          "انتظر مراجعة الفريق قبل الدخول إلى لوحة البائع."
+          "انتظر انتهاء المراجعة قبل دخول لوحة البائع."
         ],
         primaryLabel: "تحديث الحالة",
         primaryHref: "/onboarding",
@@ -127,8 +129,8 @@ export default function OnboardingPage() {
         if (!mounted) return;
 
         if (!result?.ok) {
-          setMessage(result?.message || "تعذر تحميل حالة طلب البائع");
           setApplication(null);
+          setMessage(result?.message || "تعذر تحميل بيانات البائع");
           return;
         }
 
@@ -140,21 +142,22 @@ export default function OnboardingPage() {
         }
 
         setApplication({
-          status: data.status || "pending",
-          store_name: data.store_name || data.shop_name || "",
+          status: mapSellerStatus(data),
+          store_name: data.display_name || data.store_name || "",
           owner_name: data.owner_name || data.full_name || "",
           phone: data.phone || "",
           city: data.city || "",
           category: data.category || "",
-          submitted_at: data.submitted_at || data.created_at || "—",
-          updated_at: data.updated_at || data.reviewed_at || data.created_at || "—",
-          review_note: data.review_note || data.note || ""
+          submitted_at: data.created_at || "—",
+          updated_at: data.updated_at || data.created_at || "—",
+          review_note: data.review_note || "",
+          raw_kyc_status: data.kyc_status || ""
         });
       } catch (error) {
         console.error(error);
         if (mounted) {
-          setMessage("حدث خطأ أثناء تحميل طلب البائع");
           setApplication(null);
+          setMessage("حدث خطأ أثناء تحميل حالة الطلب");
         }
       } finally {
         if (mounted) {
@@ -164,7 +167,6 @@ export default function OnboardingPage() {
     }
 
     loadApplication();
-
     return () => {
       mounted = false;
     };
@@ -196,24 +198,19 @@ export default function OnboardingPage() {
             <div style={s.heroCard}>
               <div style={s.badge}>RAHBA SELLER</div>
               <h1 style={s.pageTitle}>طلب البائع</h1>
-              <p style={s.pageSubtitle}>
-                لم نعثر على طلب بائع مرتبط بهذا الحساب حالياً.
-              </p>
+              <p style={s.pageSubtitle}>لم نعثر على ملف بائع مرتبط بهذا الحساب حالياً.</p>
             </div>
 
             {message ? <div style={s.errorCard}>{message}</div> : null}
 
             <div style={s.card}>
               <div style={s.emptyIcon}>📭</div>
-              <h3 style={s.emptyTitle}>لا يوجد طلب تسجيل بعد</h3>
+              <h3 style={s.emptyTitle}>لا يوجد ملف بائع بعد</h3>
               <p style={s.emptyText}>
-                يمكنك الرجوع إلى صفحة التسجيل وإنشاء طلب انضمام جديد كبائع.
+                يمكنك الرجوع إلى صفحة التسجيل وإنشاء ملف البائع من جديد.
               </p>
-
               <div style={s.actions}>
-                <a href="/login" style={s.primaryButton}>
-                  تسجيل بائع جديد
-                </a>
+                <a href="/login" style={s.primaryButton}>الرجوع إلى الدخول</a>
               </div>
             </div>
           </div>
@@ -236,25 +233,13 @@ export default function OnboardingPage() {
 
           {message ? <div style={s.errorCard}>{message}</div> : null}
 
-          <div
-            style={{
-              ...s.statusCard,
-              background: statusConfig.tone.bg,
-              borderColor: statusConfig.tone.border
-            }}
-          >
+          <div style={{ ...s.statusCard, background: statusConfig.tone.bg, borderColor: statusConfig.tone.border }}>
             <div style={s.statusTop}>
               <div style={s.statusIcon}>{statusConfig.icon}</div>
               <div style={s.statusTextWrap}>
-                <div
-                  style={{
-                    ...s.statusBadge,
-                    color: statusConfig.tone.text
-                  }}
-                >
+                <div style={{ ...s.statusBadge, color: statusConfig.tone.text }}>
                   {statusConfig.badge}
                 </div>
-
                 <h2 style={s.statusTitle}>{statusConfig.title}</h2>
                 <p style={s.statusSubtitle}>{statusConfig.subtitle}</p>
               </div>
@@ -263,8 +248,8 @@ export default function OnboardingPage() {
 
           <div style={s.card}>
             <div style={s.sectionHead}>
-              <h3 style={s.sectionTitle}>ملخص الطلب</h3>
-              <span style={s.sectionMeta}>آخر تحديث: {application.updated_at}</span>
+              <h3 style={s.sectionTitle}>ملخص البائع</h3>
+              <span style={s.sectionMeta}>الحالة التقنية: {application.raw_kyc_status || "pending"}</span>
             </div>
 
             <div style={s.infoGrid}>
@@ -273,7 +258,7 @@ export default function OnboardingPage() {
               <InfoRow label="رقم الهاتف" value={application.phone} />
               <InfoRow label="المدينة" value={application.city} />
               <InfoRow label="الفئة" value={application.category} />
-              <InfoRow label="تاريخ الإرسال" value={application.submitted_at} />
+              <InfoRow label="تاريخ الإنشاء" value={application.submitted_at} />
             </div>
           </div>
 
@@ -281,7 +266,6 @@ export default function OnboardingPage() {
             <div style={s.sectionHead}>
               <h3 style={s.sectionTitle}>الخطوات التالية</h3>
             </div>
-
             <div style={s.stepsList}>
               {statusConfig.steps.map((step, index) => (
                 <div key={step} style={s.stepItem}>
@@ -303,7 +287,6 @@ export default function OnboardingPage() {
             <a href={statusConfig.primaryHref} style={s.primaryButton}>
               {statusConfig.primaryLabel}
             </a>
-
             <a href={statusConfig.secondaryHref} style={s.secondaryButton}>
               {statusConfig.secondaryLabel}
             </a>
@@ -315,257 +298,40 @@ export default function OnboardingPage() {
 }
 
 const s = {
-  page: {
-    minHeight: "100dvh",
-    background: "linear-gradient(180deg, #f4f1ea 0%, #f7f5ef 100%)",
-    padding: "20px 14px 40px"
-  },
-  shell: {
-    width: "100%",
-    maxWidth: "560px",
-    margin: "0 auto"
-  },
-  stack: {
-    display: "grid",
-    gap: "14px"
-  },
-  heroCard: {
-    background: "#ffffff",
-    borderRadius: "28px",
-    border: "1px solid #e9dfd2",
-    boxShadow: "0 20px 44px rgba(23,59,116,0.07)",
-    padding: "22px 16px",
-    display: "grid",
-    gap: "10px",
-    textAlign: "center"
-  },
-  badge: {
-    margin: "0 auto",
-    minHeight: "34px",
-    padding: "0 14px",
-    borderRadius: "999px",
-    background: "#eef6ff",
-    color: "#173b74",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "12px",
-    fontWeight: 900
-  },
-  pageTitle: {
-    margin: 0,
-    color: "#0f1d3a",
-    fontSize: "30px",
-    lineHeight: 1.1,
-    fontWeight: 900
-  },
-  pageSubtitle: {
-    margin: 0,
-    color: "#6b7280",
-    fontSize: "15px",
-    lineHeight: 1.9
-  },
-  errorCard: {
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-    color: "#b91c1c",
-    borderRadius: "18px",
-    padding: "14px 16px",
-    fontSize: "14px",
-    fontWeight: 700,
-    lineHeight: 1.8
-  },
-  statusCard: {
-    borderRadius: "24px",
-    border: "1px solid",
-    padding: "18px 16px"
-  },
-  statusTop: {
-    display: "grid",
-    gridTemplateColumns: "56px 1fr",
-    gap: "12px",
-    alignItems: "start"
-  },
-  statusIcon: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "18px",
-    background: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "28px",
-    boxShadow: "0 10px 18px rgba(15,23,42,0.06)"
-  },
-  statusTextWrap: {
-    display: "grid",
-    gap: "8px"
-  },
-  statusBadge: {
-    fontSize: "13px",
-    fontWeight: 900
-  },
-  statusTitle: {
-    margin: 0,
-    color: "#0f1d3a",
-    fontSize: "24px",
-    lineHeight: 1.3,
-    fontWeight: 900
-  },
-  statusSubtitle: {
-    margin: 0,
-    color: "#4b5563",
-    fontSize: "15px",
-    lineHeight: 1.9
-  },
-  card: {
-    background: "#ffffff",
-    borderRadius: "24px",
-    border: "1px solid #e9dfd2",
-    boxShadow: "0 18px 36px rgba(23,59,116,0.05)",
-    padding: "18px 16px",
-    display: "grid",
-    gap: "14px"
-  },
-  sectionHead: {
-    display: "grid",
-    gap: "6px"
-  },
-  sectionTitle: {
-    margin: 0,
-    color: "#173b74",
-    fontSize: "20px",
-    fontWeight: 900
-  },
-  sectionMeta: {
-    color: "#7a6f63",
-    fontSize: "13px",
-    fontWeight: 700
-  },
-  infoGrid: {
-    display: "grid",
-    gap: "10px"
-  },
-  infoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-    minHeight: "48px",
-    padding: "0 14px",
-    borderRadius: "16px",
-    background: "#faf8f4",
-    border: "1px solid #eee5d8"
-  },
-  infoLabel: {
-    color: "#7a6f63",
-    fontSize: "14px",
-    fontWeight: 700
-  },
-  infoValue: {
-    color: "#1f2937",
-    fontSize: "15px",
-    fontWeight: 900,
-    textAlign: "left"
-  },
-  stepsList: {
-    display: "grid",
-    gap: "10px"
-  },
-  stepItem: {
-    display: "grid",
-    gridTemplateColumns: "36px 1fr",
-    gap: "12px",
-    alignItems: "start",
-    padding: "12px 14px",
-    borderRadius: "18px",
-    background: "#faf8f4",
-    border: "1px solid #eee5d8"
-  },
-  stepIndex: {
-    width: "36px",
-    height: "36px",
-    borderRadius: "12px",
-    background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 900,
-    fontSize: "14px"
-  },
-  stepText: {
-    color: "#374151",
-    fontSize: "15px",
-    lineHeight: 1.9,
-    fontWeight: 700
-  },
-  noteCard: {
-    background: "#fff7ed",
-    border: "1px solid #fed7aa",
-    borderRadius: "22px",
-    padding: "16px",
-    display: "grid",
-    gap: "8px"
-  },
-  noteTitle: {
-    color: "#9a3412",
-    fontSize: "15px",
-    fontWeight: 900
-  },
-  noteText: {
-    margin: 0,
-    color: "#7c2d12",
-    fontSize: "14px",
-    lineHeight: 1.9,
-    fontWeight: 700
-  },
-  emptyIcon: {
-    fontSize: "42px",
-    textAlign: "center"
-  },
-  emptyTitle: {
-    margin: 0,
-    color: "#173b74",
-    fontSize: "22px",
-    fontWeight: 900,
-    textAlign: "center"
-  },
-  emptyText: {
-    margin: 0,
-    color: "#6b7280",
-    fontSize: "15px",
-    lineHeight: 1.9,
-    textAlign: "center"
-  },
-  actions: {
-    display: "grid",
-    gap: "10px"
-  },
-  primaryButton: {
-    minHeight: "56px",
-    borderRadius: "18px",
-    textDecoration: "none",
-    background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)",
-    color: "#ffffff",
-    fontSize: "17px",
-    fontWeight: 900,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 14px 28px rgba(20,150,127,0.18)"
-  },
-  secondaryButton: {
-    minHeight: "54px",
-    borderRadius: "18px",
-    textDecoration: "none",
-    background: "#ffffff",
-    border: "1px solid #d9dde5",
-    color: "#173b74",
-    fontSize: "16px",
-    fontWeight: 900,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  }
+  page: { minHeight: "100dvh", background: "linear-gradient(180deg, #f4f1ea 0%, #f7f5ef 100%)", padding: "20px 14px 40px" },
+  shell: { width: "100%", maxWidth: "560px", margin: "0 auto" },
+  stack: { display: "grid", gap: "14px" },
+  heroCard: { background: "#ffffff", borderRadius: "28px", border: "1px solid #e9dfd2", boxShadow: "0 20px 44px rgba(23,59,116,0.07)", padding: "22px 16px", display: "grid", gap: "10px", textAlign: "center" },
+  badge: { margin: "0 auto", minHeight: "34px", padding: "0 14px", borderRadius: "999px", background: "#eef6ff", color: "#173b74", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 900 },
+  pageTitle: { margin: 0, color: "#0f1d3a", fontSize: "30px", lineHeight: 1.1, fontWeight: 900 },
+  pageSubtitle: { margin: 0, color: "#6b7280", fontSize: "15px", lineHeight: 1.9 },
+  errorCard: { background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: "18px", padding: "14px 16px", fontSize: "14px", fontWeight: 700, lineHeight: 1.8 },
+  statusCard: { borderRadius: "24px", border: "1px solid", padding: "18px 16px" },
+  statusTop: { display: "grid", gridTemplateColumns: "56px 1fr", gap: "12px", alignItems: "start" },
+  statusIcon: { width: "56px", height: "56px", borderRadius: "18px", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", boxShadow: "0 10px 18px rgba(15,23,42,0.06)" },
+  statusTextWrap: { display: "grid", gap: "8px" },
+  statusBadge: { fontSize: "13px", fontWeight: 900 },
+  statusTitle: { margin: 0, color: "#0f1d3a", fontSize: "24px", lineHeight: 1.3, fontWeight: 900 },
+  statusSubtitle: { margin: 0, color: "#4b5563", fontSize: "15px", lineHeight: 1.9 },
+  card: { background: "#ffffff", borderRadius: "24px", border: "1px solid #e9dfd2", boxShadow: "0 18px 36px rgba(23,59,116,0.05)", padding: "18px 16px", display: "grid", gap: "14px" },
+  sectionHead: { display: "grid", gap: "6px" },
+  sectionTitle: { margin: 0, color: "#173b74", fontSize: "20px", fontWeight: 900 },
+  sectionMeta: { color: "#7a6f63", fontSize: "13px", fontWeight: 700 },
+  infoGrid: { display: "grid", gap: "10px" },
+  infoRow: { display: "flex", justifyContent: "space-between", gap: "12px", alignItems: "center", minHeight: "48px", padding: "0 14px", borderRadius: "16px", background: "#faf8f4", border: "1px solid #eee5d8" },
+  infoLabel: { color: "#7a6f63", fontSize: "14px", fontWeight: 700 },
+  infoValue: { color: "#1f2937", fontSize: "15px", fontWeight: 900, textAlign: "left" },
+  stepsList: { display: "grid", gap: "10px" },
+  stepItem: { display: "grid", gridTemplateColumns: "36px 1fr", gap: "12px", alignItems: "start", padding: "12px 14px", borderRadius: "18px", background: "#faf8f4", border: "1px solid #eee5d8" },
+  stepIndex: { width: "36px", height: "36px", borderRadius: "12px", background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)", color: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "14px" },
+  stepText: { color: "#374151", fontSize: "15px", lineHeight: 1.9, fontWeight: 700 },
+  noteCard: { background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "22px", padding: "16px", display: "grid", gap: "8px" },
+  noteTitle: { color: "#9a3412", fontSize: "15px", fontWeight: 900 },
+  noteText: { margin: 0, color: "#7c2d12", fontSize: "14px", lineHeight: 1.9, fontWeight: 700 },
+  emptyIcon: { fontSize: "42px", textAlign: "center" },
+  emptyTitle: { margin: 0, color: "#173b74", fontSize: "22px", fontWeight: 900, textAlign: "center" },
+  emptyText: { margin: 0, color: "#6b7280", fontSize: "15px", lineHeight: 1.9, textAlign: "center" },
+  actions: { display: "grid", gap: "10px" },
+  primaryButton: { minHeight: "56px", borderRadius: "18px", textDecoration: "none", background: "linear-gradient(135deg, #173b74 0%, #14967f 100%)", color: "#ffffff", fontSize: "17px", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 14px 28px rgba(20,150,127,0.18)" },
+  secondaryButton: { minHeight: "54px", borderRadius: "18px", textDecoration: "none", background: "#ffffff", border: "1px solid #d9dde5", color: "#173b74", fontSize: "16px", fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }
 };
