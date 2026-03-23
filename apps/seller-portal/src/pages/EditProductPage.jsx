@@ -127,12 +127,15 @@ export default function EditProductPage() {
 
       const res = await apiUploadFile(file);
 
-      if (!res?.url) {
+      const uploadedUrl =
+        res?.data?.url || res?.url || res?.data?.file_url || "";
+
+      if (!uploadedUrl) {
         setMessage("تعذر رفع الصورة");
         return;
       }
 
-      updateArrayItem("images", index, "url", res.url);
+      updateArrayItem("images", index, "url", uploadedUrl);
 
       if (!form.images[index]?.alt_text) {
         updateArrayItem("images", index, "alt_text", form.title_ar || file.name);
@@ -221,6 +224,7 @@ export default function EditProductPage() {
                 label={`رابط الصورة ${index + 1}`}
                 value={item.url}
                 onChange={(v) => updateArrayItem("images", index, "url", v)}
+                dir="ltr"
               />
 
               <label style={s.field}>
@@ -238,7 +242,7 @@ export default function EditProductPage() {
               ) : null}
 
               {item.url ? (
-                <img src={item.url} alt="preview" style={s.previewImage} />
+                <img src={resolveImageUrl(item.url)} alt="preview" style={s.previewImage} />
               ) : null}
 
               <Input
