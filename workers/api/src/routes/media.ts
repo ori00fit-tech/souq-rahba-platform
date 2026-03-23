@@ -4,15 +4,23 @@ export const mediaRouter = new Hono<import("../types").AppEnv>();
 
 mediaRouter.get("/media/:filename", async (c) => {
   try {
-    const filename = String(c.req.param("filename") || "").trim();
+    const raw = String(c.req.param("filename") || "").trim();
 
-    if (!filename) {
+    if (!raw) {
       return c.json(
         { ok: false, code: "INVALID_FILENAME", message: "Filename is required" },
         400
       );
     }
 
+    let filename = raw;
+    try {
+      filename = decodeURIComponent(raw);
+    } catch {
+      filename = raw;
+    }
+
+    // مهم: نفس المفتاح اللي تخزن به upload.ts
     const object = await c.env.MEDIA.get(filename);
 
     if (!object) {

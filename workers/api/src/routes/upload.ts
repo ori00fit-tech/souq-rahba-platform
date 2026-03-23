@@ -16,24 +16,26 @@ uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), asy
       );
     }
 
-    const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+    const originalName = String(file.name || "file").trim();
+    const ext = originalName.includes(".") ? originalName.split(".").pop() : "bin";
     const safeExt = String(ext || "bin").toLowerCase();
-    const filename = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}.${safeExt}`;
-    const key = `media/${filename}`;
+    const filename = `${Date.now()}-${originalName.replace(/[^\w.\- ]+/g, "_")}`;
+    const finalName = filename.endsWith(`.${safeExt}`) ? filename : `${filename}.${safeExt}`;
 
-    await c.env.MEDIA_BUCKET.put(key, await file.arrayBuffer(), {
+    // مهم: نخزن غير filename، ماشي media/filename
+    await c.env.MEDIA.put(finalName, await file.arrayBuffer(), {
       httpMetadata: {
         contentType: file.type || "application/octet-stream"
       }
     });
 
-    const publicUrl = `https://api.rahba.site/media/${filename}`;
+    const publicUrl = `https://api.rahba.site/media/${encodeURIComponent(finalName)}`;
 
     return c.json({
       ok: true,
       data: {
-        key,
-        filename,
+        key: finalName,
+        filename: finalName,
         url: publicUrl
       }
     });
@@ -41,44 +43,6 @@ uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), asy
     console.error("POST /upload failed:", error);
     return c.json(
       { ok: false, code: "UPLOAD_FAILED", message: "Failed to upload file" },
-      500
-    );
-  }
-});
-
-uploadRouter.get("/media/:filename", async (c) => {
-  try {
-    const filename = String(c.req.param("filename") || "").trim();
-
-    if (!filename) {
-      return c.json(
-        { ok: false, code: "INVALID_FILENAME", message: "Filename is required" },
-        400
-      );
-    }
-
-    const key = `media/${filename}`;
-    const object = await c.env.MEDIA_BUCKET.get(key);
-
-    if (!object) {
-      return c.json(
-        { ok: false, code: "FILE_NOT_FOUND", message: "Media file not found" },
-        404
-      );
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("Cache-Control", "public, max-age=31536000, immutable");
-
-    return new Response(object.body, {
-      status: 200,
-      headers
-    });
-  } catch (error) {
-    console.error("GET /media/:filename failed:", error);
-    return c.json(
-      { ok: false, code: "MEDIA_READ_FAILED", message: "Failed to load media file" },
       500
     );
   }
