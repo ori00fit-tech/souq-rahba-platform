@@ -2,22 +2,41 @@ import { Hono } from "hono";
 
 export const mediaRouter = new Hono<import("../types").AppEnv>();
 
-mediaRouter.get("/:key", async (c) => {
-  const key = c.req.param("key");
-  const object = await c.env.MEDIA.get(key);
+mediaRouter.get("/media/:filename", async (c) => {
+  try {
+    const filename = String(c.req.param("filename") || "").trim();
 
-  if (!object) {
+    if (!filename) {
+      return c.json(
+        { ok: false, code: "INVALID_FILENAME", message: "Filename is required" },
+        400
+      );
+    }
+
+    const object = await c.env.MEDIA.get(filename);
+
+    if (!object) {
+      return c.json(
+        { ok: false, code: "FILE_NOT_FOUND", message: "Media file not found" },
+        404
+      );
+    }
+
+    const headers = new Headers();
+    object.writeHttpMetadata(headers);
+    headers.set("Cache-Control", "public, max-age=31536000, immutable");
+
+    return new Response(object.body, {
+      status: 200,
+      headers
+    });
+  } catch (error) {
+    console.error("GET /media/:filename failed:", error);
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Media not found" },
-      404
+      { ok: false, code: "MEDIA_READ_FAILED", message: "Failed to load media file" },
+      500
     );
   }
-
-  const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("etag", object.httpEtag);
-
-  return new Response(object.body, {
-    headers
-  });
 });
+
+export default mediaRouter;
