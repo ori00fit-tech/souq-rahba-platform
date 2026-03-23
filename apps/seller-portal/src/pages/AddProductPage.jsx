@@ -124,8 +124,9 @@ export default function AddProductPage() {
       setSaving(true);
       setMessage("");
 
-      const firstValidImage =
-        images.find((img) => img.image_url && img.image_url.trim()) || null;
+      const validImages = images.filter(
+        (img) => img.image_url && img.image_url.trim()
+      );
 
       const payload = {
         title_ar: form.title_ar.trim(),
@@ -135,14 +136,11 @@ export default function AddProductPage() {
         stock: Number(form.stock),
         status: form.status,
         featured: form.featured ? 1 : 0,
-        image_url: firstValidImage?.image_url || "",
-        media: images
-          .filter((img) => img.image_url && img.image_url.trim())
-          .map((img, idx) => ({
-            sort_order: idx,
-            url: img.image_url.trim(),
-            alt_text: img.alt_text?.trim() || form.title_ar.trim()
-          }))
+        image_url: validImages[0]?.image_url || "",
+        images: validImages.map((img) => ({
+          url: img.image_url.trim(),
+          alt_text: img.alt_text?.trim() || form.title_ar.trim()
+        }))
       };
 
       const res = await apiPost("/catalog/products", payload);
