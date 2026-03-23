@@ -58,11 +58,15 @@ export default function EditProductPage() {
           stock: data.stock || "",
           featured: Boolean(data.featured),
           images: data.media?.length
-            ? data.media.map((m) => ({
-                url: m.url || "",
-                alt_text: m.alt_text || "",
-                uploading: false
-              }))
+            ? data.media
+                .map((m, index) => ({
+                  id: m.id || `img-${index}`,
+                  url: m.url || "",
+                  alt_text: m.alt_text || "",
+                  sort_order: Number(m.sort_order ?? index),
+                  uploading: false
+                }))
+                .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
             : [emptyImage()],
           specs: data.specs?.length
             ? data.specs.map((s) => ({
@@ -113,7 +117,9 @@ export default function EditProductPage() {
       const next = prev[key].filter((_, i) => i !== index);
       return {
         ...prev,
-        [key]: next.length ? next : [key === "images" ? emptyImage() : key === "specs" ? emptySpec() : emptyFaq()]
+        [key]: next.length
+          ? next
+          : [key === "images" ? emptyImage() : key === "specs" ? emptySpec() : emptyFaq()]
       };
     });
   }
@@ -123,28 +129,45 @@ export default function EditProductPage() {
 
     try {
       setMessage("");
-      updateArrayItem("images", index, "uploading", true);
+
+      setForm((prev) => {
+        const next = [...prev.images];
+        next[index] = { ...next[index], uploading: true };
+        return { ...prev, images: next };
+      });
 
       const res = await apiUploadFile(file);
-
       const uploadedUrl =
         res?.data?.url || res?.url || res?.data?.file_url || "";
 
       if (!uploadedUrl) {
         setMessage("تعذر رفع الصورة");
+        setForm((prev) => {
+          const next = [...prev.images];
+          next[index] = { ...next[index], uploading: false };
+          return { ...prev, images: next };
+        });
         return;
       }
 
-      updateArrayItem("images", index, "url", uploadedUrl);
-
-      if (!form.images[index]?.alt_text) {
-        updateArrayItem("images", index, "alt_text", form.title_ar || file.name);
-      }
+      setForm((prev) => {
+        const next = [...prev.images];
+        next[index] = {
+          ...next[index],
+          url: uploadedUrl,
+          alt_text: next[index].alt_text || prev.title_ar || file.name,
+          uploading: false
+        };
+        return { ...prev, images: next };
+      });
     } catch (err) {
       console.error(err);
       setMessage("حدث خطأ أثناء رفع الصورة");
-    } finally {
-      updateArrayItem("images", index, "uploading", false);
+      setForm((prev) => {
+        const next = [...prev.images];
+        next[index] = { ...next[index], uploading: false };
+        return { ...prev, images: next };
+      });
     }
   }
 
@@ -167,8 +190,13 @@ export default function EditProductPage() {
         stock: Number(form.stock || 0),
         featured: form.featured,
         images: form.images
-          .filter((x) => x.url.trim())
-          .map(({ url, alt_text }) => ({ url, alt_text })),
+          .filter((x) => String(x.url || "").trim())
+          .map(({ id, url, alt_text }, index) => ({
+            ...(id && !String(id).startsWith("img-") ? { id } : {}),
+            url: url.trim(),
+            alt_text: alt_text || form.title_ar,
+            sort_order: index
+          })),
         specs: form.specs.filter((x) => x.label_ar.trim() && x.value_ar.trim()),
         faqs: form.faqs.filter((x) => x.question_ar.trim() && x.answer_ar.trim())
       };
@@ -199,12 +227,12 @@ export default function EditProductPage() {
       <form onSubmit={handleSubmit} style={s.form}>
         <Card title="المعلومات الأساسية">
           <Input label="اسم المنتج" value={form.title_ar} onChange={(v) => updateField("title_ar", v)} />
-          <Input label="Slug" value={form.slug} onChange={(v) => updateField("slug", v)} />
+          <Input label="Slug" value={form.slug} onChange={(v) => updateField("slug", v)} dir="ltr" />
           <Input label="الوصف المختصر" value={form.description_ar} onChange={(v) => updateField("description_ar", v)} />
           <Textarea label="الوصف الطويل" value={form.description_long_ar} onChange={(v) => updateField("description_long_ar", v)} />
-          <Textarea label="HTML Landing اختياري" value={form.landing_html_ar} onChange={(v) => updateField("landing_html_ar", v)} />
-          <Input label="الفئة category_id" value={form.category_id} onChange={(v) => updateField("category_id", v)} />
-          <Input label="SKU" value={form.sku} onChange={(v) => updateField("sku", v)} />
+          <Textarea label="HTML Landing اختياري" value={form.landing_html_ar} onChange={(v) => updateField("landing_html_ar", v)} dir="ltr" />
+          <Input label="الفئة category_id" value={form.category_id} onChange={(v) => updateField("category_id", v)} dir="ltr" />
+          <Input label="SKU" value={form.sku} onChange={(v) => updateField("sku", v)} dir="ltr" />
           <Input label="السعر MAD" value={form.price_mad} onChange={(v) => updateField("price_mad", v)} type="number" />
           <Input label="المخزون" value={form.stock} onChange={(v) => updateField("stock", v)} type="number" />
           <label style={s.checkboxRow}>
@@ -219,7 +247,7 @@ export default function EditProductPage() {
 
         <Card title="صور المنتج">
           {form.images.map((item, index) => (
-            <div key={index} style={s.rowBox}>
+            <div key={item.id || index} style={s.rowBox}>
               <Input
                 label={`رابط الصورة ${index + 1}`}
                 value={item.url}
@@ -242,7 +270,11 @@ export default function EditProductPage() {
               ) : null}
 
               {item.url ? (
-                <img src={resolveImageUrl(item.url)} alt="preview" style={s.previewImage} />
+                <img
+                  src={resolveImageUrl(item.url)}
+                  alt="preview"
+                  style={s.previewImage}
+                />
               ) : null}
 
               <Input
@@ -313,20 +345,31 @@ function Card({ title, children }) {
   );
 }
 
-function Input({ label, value, onChange, type = "text" }) {
+function Input({ label, value, onChange, type = "text", dir }) {
   return (
     <label style={s.field}>
       <span style={s.label}>{label}</span>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={s.input} />
+      <input
+        type={type}
+        value={value}
+        dir={dir}
+        onChange={(e) => onChange(e.target.value)}
+        style={s.input}
+      />
     </label>
   );
 }
 
-function Textarea({ label, value, onChange }) {
+function Textarea({ label, value, onChange, dir }) {
   return (
     <label style={s.field}>
       <span style={s.label}>{label}</span>
-      <textarea value={value} onChange={(e) => onChange(e.target.value)} style={s.textarea} />
+      <textarea
+        value={value}
+        dir={dir}
+        onChange={(e) => onChange(e.target.value)}
+        style={s.textarea}
+      />
     </label>
   );
 }
