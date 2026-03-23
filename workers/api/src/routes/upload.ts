@@ -22,14 +22,14 @@ uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), asy
     const filename = `${Date.now()}-${originalName.replace(/[^\w.\- ]+/g, "_")}`;
     const finalName = filename.endsWith(`.${safeExt}`) ? filename : `${filename}.${safeExt}`;
 
-    // مهم: نخزن غير filename، ماشي media/filename
     await c.env.MEDIA.put(finalName, await file.arrayBuffer(), {
       httpMetadata: {
         contentType: file.type || "application/octet-stream"
       }
     });
 
-    const publicUrl = `https://api.rahba.site/media/${encodeURIComponent(finalName)}`;
+    const reqUrl = new URL(c.req.url);
+    const publicUrl = `${reqUrl.origin}/media/${encodeURIComponent(finalName)}`;
 
     return c.json({
       ok: true,
