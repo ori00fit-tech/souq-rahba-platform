@@ -93,6 +93,13 @@ catalogRouter.get("/products", async (c) => {
         select pm.url
         from product_media pm
         where pm.product_id = p.id
+        order by pm.sort_order asc, pm.id asc
+        limit 1
+      ) as image_url,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
         order by pm.sort_order asc
         limit 1
       ) as image_url,
@@ -616,6 +623,13 @@ catalogRouter.get("/home", async (c) => {
       p.stock,
       p.category_id,
       p.created_at,
+      (
+        select pm.url
+        from product_media pm
+        where pm.product_id = p.id
+        order by pm.sort_order asc, pm.id asc
+        limit 1
+      ) as image_url,
       s.display_name as seller_name,
       (
         select pm.url

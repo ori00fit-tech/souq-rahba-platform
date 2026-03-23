@@ -33,7 +33,10 @@ mediaRouter.get("/media/:filename", async (c) => {
     object.writeHttpMetadata(headers);
     headers.set("Cache-Control", "public, max-age=31536000, immutable");
 
-    return c.body(object.body, 200, headers);
+    return new Response(object.body, {
+      status: 200,
+      headers
+    });
   } catch (error) {
     console.error("GET /media/:filename failed:", error);
     return c.json(
