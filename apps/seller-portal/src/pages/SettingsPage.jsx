@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiGet, apiPut } from "../lib/api";
+import { apiGet, apiPut } from "@rahba/shared";
 import { useSellerAuth } from "../context/SellerAuthContext";
 
 const CATEGORY_OPTIONS = [

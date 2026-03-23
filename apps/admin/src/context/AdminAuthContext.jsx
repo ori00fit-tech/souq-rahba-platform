@@ -1,65 +1,119 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost } from "@rahba/shared";
 
 const AdminAuthContext = createContext(null);
+const AUTH_TOKEN_KEY = "auth_token";
+
+function getStoredAdminToken() {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setStoredAdminToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function AdminAuthProvider({ children }) {
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     async function loadCurrentAdmin() {
-      const token = localStorage.getItem("admin_auth_token");
+      const token = getStoredAdminToken();
 
       if (!token) {
-        setAuthLoading(false);
+        if (mounted) {
+          setCurrentAdmin(null);
+          setAuthLoading(false);
+        }
         return;
       }
 
       try {
         const res = await apiGet("/auth/me");
 
-        if (res.ok && res.data?.role === "admin") {
-          setCurrentAdmin(res.data);
+        if (res?.ok && res.data?.role === "admin") {
+          if (mounted) {
+            setCurrentAdmin(res.data);
+          }
         } else {
-          localStorage.removeItem("admin_auth_token");
-          setCurrentAdmin(null);
+          setStoredAdminToken("");
+          if (mounted) {
+            setCurrentAdmin(null);
+          }
         }
       } catch (err) {
-        console.error(err);
-        localStorage.removeItem("admin_auth_token");
-        setCurrentAdmin(null);
+        console.error("loadCurrentAdmin failed:", err);
+        setStoredAdminToken("");
+        if (mounted) {
+          setCurrentAdmin(null);
+        }
       } finally {
-        setAuthLoading(false);
+        if (mounted) {
+          setAuthLoading(false);
+        }
       }
     }
 
     loadCurrentAdmin();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   async function loginAdmin(email, password) {
-    const result = await apiPost("/auth/login", { email, password });
+    try {
+      setAuthLoading(true);
 
-    if (!result.ok || result.data?.user?.role !== "admin") {
+      const result = await apiPost("/auth/login", { email, password });
+
+      if (!result?.ok || !result?.data?.token) {
+        setCurrentAdmin(null);
+        throw new Error("Admin access required");
+      }
+
+      if (result?.data?.user?.role !== "admin") {
+        setCurrentAdmin(null);
+        throw new Error("Admin access required");
+      }
+
+      setStoredAdminToken(result.data.token);
+
+      const me = await apiGet("/auth/me");
+
+      if (me?.ok && me.data?.role === "admin") {
+        setCurrentAdmin(me.data);
+        return result;
+      }
+
+      setStoredAdminToken("");
+      setCurrentAdmin(null);
       throw new Error("Admin access required");
+    } catch (err) {
+      setStoredAdminToken("");
+      setCurrentAdmin(null);
+      throw err;
+    } finally {
+      setAuthLoading(false);
     }
-
-    localStorage.setItem("admin_auth_token", result.data.token);
-
-    const me = await apiGet("/auth/me");
-
-    if (me.ok && me.data?.role === "admin") {
-      setCurrentAdmin(me.data);
-    } else {
-      localStorage.removeItem("admin_auth_token");
-      throw new Error("Admin access required");
-    }
-
-    return result;
   }
 
   function logoutAdmin() {
-    localStorage.removeItem("admin_auth_token");
+    setStoredAdminToken("");
     setCurrentAdmin(null);
   }
 
@@ -78,5 +132,11 @@ export function AdminAuthProvider({ children }) {
 }
 
 export function useAdminAuth() {
-  return useContext(AdminAuthContext);
+  const context = useContext(AdminAuthContext);
+
+  if (!context) {
+    throw new Error("useAdminAuth must be used within AdminAuthProvider");
+  }
+
+  return context;
 }

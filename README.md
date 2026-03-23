@@ -71,11 +71,11 @@ Workspace Packages
 
 Current workspace apps and services:
 
-@souq/storefront
+@rahba/storefront
 
-@souq/admin
+@rahba/admin
 
-@souq/api
+@rahba/api
 
 
 Requirements
@@ -129,15 +129,15 @@ Run a specific app
 
 Storefront
 
-pnpm --filter @souq/storefront dev
+pnpm --filter @rahba/storefront dev
 
 Admin
 
-pnpm --filter @souq/admin dev
+pnpm --filter @rahba/admin dev
 
 API Worker
 
-pnpm --filter @souq/api dev
+pnpm --filter @rahba/api dev
 
 Build
 
@@ -325,11 +325,11 @@ Workspace Packages
 
 Current workspace apps and services:
 
-@souq/storefront
+@rahba/storefront
 
-@souq/admin
+@rahba/admin
 
-@souq/api
+@rahba/api
 
 
 Requirements
@@ -383,15 +383,15 @@ Run a specific app
 
 Storefront
 
-pnpm --filter @souq/storefront dev
+pnpm --filter @rahba/storefront dev
 
 Admin
 
-pnpm --filter @souq/admin dev
+pnpm --filter @rahba/admin dev
 
 API Worker
 
-pnpm --filter @souq/api dev
+pnpm --filter @rahba/api dev
 
 Build
 

@@ -5,6 +5,23 @@ import type { AppEnv } from "../types";
 
 export const sellerRouter = new Hono<AppEnv>();
 
+function normalizeText(input: unknown): string {
+  return String(input || "").trim();
+}
+
+function normalizeSlug(input: unknown): string {
+  return String(input || "").trim().toLowerCase();
+}
+
+function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9-]+$/.test(slug);
+}
+
+function optionalText(input: unknown): string | null {
+  const value = String(input || "").trim();
+  return value ? value : null;
+}
+
 type SellerRow = {
   id: string;
   owner_user_id: string;
@@ -82,16 +99,28 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
     const authUser = c.get("authUser");
     const body = await c.req.json().catch(() => null);
 
-    if (!body?.display_name || !body?.slug || !body?.city) {
+    if (!body || typeof body !== "object") {
+      return c.json(
+        { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+        400
+      );
+    }
+
+    const displayName = normalizeText(body.display_name);
+    const slug = normalizeSlug(body.slug);
+    const city = normalizeText(body.city);
+    const phone = optionalText(body.phone);
+    const category = optionalText(body.category);
+    const description = optionalText(body.description);
+
+    if (!displayName || !slug || !city) {
       return c.json(
         { ok: false, code: "INVALID_BODY", message: "display_name, slug and city are required" },
         400
       );
     }
 
-    const slug = String(body.slug || "").trim().toLowerCase();
-
-    if (!/^[a-z0-9-]+$/.test(slug)) {
+    if (!isValidSlug(slug)) {
       return c.json(
         { ok: false, code: "INVALID_SLUG", message: "Invalid seller slug" },
         400
@@ -139,11 +168,11 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
         sellerId,
         authUser.user_id,
         slug,
-        String(body.display_name || "").trim(),
-        String(body.city || "").trim(),
-        String(body.phone || "").trim() || null,
-        String(body.category || "").trim() || null,
-        String(body.description || "").trim() || null
+        displayName,
+        city,
+        phone,
+        category,
+        description
       )
       .run();
 
@@ -175,16 +204,28 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
       );
     }
 
-    if (!body?.display_name || !body?.slug || !body?.city) {
+    if (!body || typeof body !== "object") {
+      return c.json(
+        { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+        400
+      );
+    }
+
+    const displayName = normalizeText(body.display_name);
+    const slug = normalizeSlug(body.slug);
+    const city = normalizeText(body.city);
+    const phone = optionalText(body.phone);
+    const category = optionalText(body.category);
+    const description = optionalText(body.description);
+
+    if (!displayName || !slug || !city) {
       return c.json(
         { ok: false, code: "INVALID_BODY", message: "display_name, slug and city are required" },
         400
       );
     }
 
-    const slug = String(body.slug || "").trim().toLowerCase();
-
-    if (!/^[a-z0-9-]+$/.test(slug)) {
+    if (!isValidSlug(slug)) {
       return c.json(
         { ok: false, code: "INVALID_SLUG", message: "Invalid seller slug" },
         400
@@ -216,11 +257,11 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
     )
       .bind(
         slug,
-        String(body.display_name || "").trim(),
-        String(body.city || "").trim(),
-        String(body.phone || "").trim() || null,
-        String(body.category || "").trim() || null,
-        String(body.description || "").trim() || null,
+        displayName,
+        city,
+        phone,
+        category,
+        description,
         authUser.user_id
       )
       .run();
@@ -242,9 +283,9 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
 
 sellerRouter.get("/public/:slug", async (c) => {
   try {
-    const slug = String(c.req.param("slug") || "").trim().toLowerCase();
+    const slug = normalizeSlug(c.req.param("slug"));
 
-    if (!slug) {
+    if (!slug || !isValidSlug(slug)) {
       return c.json(
         { ok: false, code: "INVALID_SLUG", message: "Seller slug is required" },
         400

@@ -1,10 +1,11 @@
-import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import SellersPage from "./pages/SellersPage";
 import { AdminAuthProvider, useAdminAuth } from "./context/AdminAuthContext";
 
 function ProtectedShell() {
   const { currentAdmin, authLoading, logoutAdmin } = useAdminAuth();
+  const navigate = useNavigate();
 
   if (authLoading) {
     return <div style={{ padding: "40px" }}>Loading...</div>;
@@ -66,7 +67,10 @@ function ProtectedShell() {
             </div>
 
             <button
-              onClick={logoutAdmin}
+              onClick={() => {
+                logoutAdmin();
+                navigate("/login", { replace: true });
+              }}
               style={{
                 padding: "10px 14px",
                 borderRadius: "10px",
@@ -119,10 +123,32 @@ function ProtectedShell() {
   );
 }
 
+
+function GuestOnlyRoute({ children }) {
+  const { currentAdmin, authLoading } = useAdminAuth();
+
+  if (authLoading) {
+    return <div style={{ padding: "40px" }}>Loading...</div>;
+  }
+
+  if (currentAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestOnlyRoute>
+            <LoginPage />
+          </GuestOnlyRoute>
+        }
+      />
       <Route path="/*" element={<ProtectedShell />} />
     </Routes>
   );

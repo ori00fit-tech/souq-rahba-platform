@@ -4,6 +4,18 @@ import type { AppEnv } from "../types";
 
 export const authRouter = new Hono<AppEnv>();
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function isStrongPassword(password: string): boolean {
+  return typeof password === "string" && password.length >= 6;
+}
+
+function normalizeEmail(email: unknown): string {
+  return String(email || "").trim().toLowerCase();
+}
+
 type UserRow = {
   id: string;
   email: string;
@@ -39,14 +51,32 @@ authRouter.post("/register", async (c) => {
   try {
     const body = await c.req.json().catch(() => null);
 
-    if (!body?.email || !body?.password) {
+    if (!body || typeof body !== "object") {
       return c.json(
-        jsonError("Email and password are required", "INVALID_BODY", 400),
+        jsonError("Invalid body", "INVALID_BODY", 400),
         400
       );
     }
 
-    const email = String(body.email).trim().toLowerCase();
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || "");
+    const fullName = String(body.full_name || "").trim();
+    const phone = String(body.phone || "").trim();
+    const locale = String(body.locale || "ar").trim() || "ar";
+
+    if (!email || !isValidEmail(email)) {
+      return c.json(
+        jsonError("Invalid email", "INVALID_EMAIL", 400),
+        400
+      );
+    }
+
+    if (!isStrongPassword(password)) {
+      return c.json(
+        jsonError("Weak password", "WEAK_PASSWORD", 400),
+        400
+      );
+    }
 
     const existing = await c.env.DB.prepare(
       `select id from users where email = ? limit 1`
@@ -77,11 +107,11 @@ authRouter.post("/register", async (c) => {
       .bind(
         userId,
         email,
-        body.full_name || null,
-        body.phone || null,
-        body.role || "buyer",
-        body.locale || "ar",
-        hashPassword(String(body.password))
+        fullName || null,
+        phone || null,
+        "buyer",
+        locale,
+        hashPassword(password)
       )
       .run();
 
@@ -91,7 +121,7 @@ authRouter.post("/register", async (c) => {
         data: {
           id: userId,
           email,
-          role: body.role || "buyer"
+          role: "buyer"
         }
       },
       201
@@ -113,14 +143,29 @@ authRouter.post("/login", async (c) => {
   try {
     const body = await c.req.json().catch(() => null);
 
-    if (!body?.email || !body?.password) {
+    if (!body || typeof body !== "object") {
+      return c.json(
+        jsonError("Invalid body", "INVALID_BODY", 400),
+        400
+      );
+    }
+
+    const email = normalizeEmail(body.email);
+    const password = String(body.password || "");
+
+    if (!email || !password) {
       return c.json(
         jsonError("Email and password are required", "INVALID_BODY", 400),
         400
       );
     }
 
-    const email = String(body.email).trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      return c.json(
+        jsonError("Invalid email", "INVALID_EMAIL", 400),
+        400
+      );
+    }
 
     const user = await c.env.DB.prepare(
       `select id, email, full_name, phone, role, password_hash
@@ -131,7 +176,7 @@ authRouter.post("/login", async (c) => {
       .bind(email)
       .first<UserRow>();
 
-    if (!user || user.password_hash !== hashPassword(String(body.password))) {
+    if (!user || user.password_hash !== hashPassword(password)) {
       return c.json(
         jsonError("Invalid email or password", "INVALID_CREDENTIALS", 401),
         401

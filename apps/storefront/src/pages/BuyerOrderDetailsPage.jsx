@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiGet } from "../lib/api";
+import { apiGet } from "@rahba/shared";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 

@@ -1,10 +1,35 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { translations } from "../data/site";
-import { apiGet } from "../lib/api";
+import { apiGet } from "@rahba/shared";
 
 const AppContext = createContext(null);
 
 const CART_STORAGE_KEY = "rahba_cart_v1";
+const AUTH_TOKEN_KEY = "auth_token";
+
+function getAuthToken() {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function setAuthToken(token) {
+  try {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  } catch (err) {
+    console.error("Failed to store auth token", err);
+  }
+}
+
+function clearAuthToken() {
+  try {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch (err) {
+    console.error("Failed to clear auth token", err);
+  }
+}
 
 function normalizeCartItem(product) {
   return {
@@ -62,29 +87,42 @@ export function AppProvider({ children }) {
   }, [cart]);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadCurrentUser() {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
 
       if (!token) {
-        setAuthLoading(false);
+        if (!cancelled) {
+          setCurrentUser(null);
+          setAuthLoading(false);
+        }
         return;
       }
 
       try {
         const res = await apiGet("/auth/me");
-        if (res.ok) {
-          setCurrentUser(res.data);
+        if (!cancelled) {
+          setCurrentUser(res?.ok ? res.data : null);
         }
       } catch (err) {
-        console.error(err);
-        localStorage.removeItem("auth_token");
-        setCurrentUser(null);
+        console.error("Failed to load current user", err);
+        clearAuthToken();
+        if (!cancelled) {
+          setCurrentUser(null);
+        }
       } finally {
-        setAuthLoading(false);
+        if (!cancelled) {
+          setAuthLoading(false);
+        }
       }
     }
 
     loadCurrentUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const addToCart = (product) => {
@@ -142,15 +180,27 @@ export function AppProvider({ children }) {
   };
 
   const loginUser = async (token) => {
-    localStorage.setItem("auth_token", token);
-    const res = await apiGet("/auth/me");
-    if (res.ok) {
-      setCurrentUser(res.data);
+    setAuthToken(token);
+
+    try {
+      const res = await apiGet("/auth/me");
+      if (res?.ok) {
+        setCurrentUser(res.data);
+        return res.data;
+      }
+
+      clearAuthToken();
+      setCurrentUser(null);
+      throw new Error("Failed to load authenticated user");
+    } catch (err) {
+      clearAuthToken();
+      setCurrentUser(null);
+      throw err;
     }
   };
 
   const logoutUser = () => {
-    localStorage.removeItem("auth_token");
+    clearAuthToken();
     setCurrentUser(null);
   };
 
@@ -196,5 +246,11 @@ export function AppProvider({ children }) {
 }
 
 export function useApp() {
-  return useContext(AppContext);
+  const context = useContext(AppContext);
+
+  if (!context) {
+    throw new Error("useApp must be used within AppProvider");
+  }
+
+  return context;
 }

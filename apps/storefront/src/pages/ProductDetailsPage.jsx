@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost } from "@rahba/shared";
 import { useApp } from "../context/AppContext";
 
 export default function ProductDetailsPage() {

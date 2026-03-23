@@ -5,6 +5,25 @@ import { requireRole } from "../middleware/roleGuard";
 
 export const catalogRouter = new Hono<import("../types").AppEnv>();
 
+function normalizeSlug(input: unknown): string {
+  return String(input || "").trim().toLowerCase();
+}
+
+function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9-]+$/.test(slug);
+}
+
+function parseNonNegativeNumber(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function parseNonNegativeInteger(value: unknown, fallback = 0): number | null {
+  const raw = value === undefined || value === null || value === "" ? fallback : value;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
 catalogRouter.get("/products", async (c) => {
   const sellerId = c.req.query("seller_id");
   const q = (c.req.query("q") || "").trim();
@@ -227,9 +246,61 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
   const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
 
-  if (!body?.title_ar || !body?.slug || !body?.price_mad) {
+  if (!body || typeof body !== "object") {
     return c.json(
-      { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
+      { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+      400
+    );
+  }
+
+  const titleAr = String(body.title_ar || "").trim();
+  const slug = normalizeSlug(body.slug);
+  const categoryId = String(body.category_id || "").trim();
+  const priceMad = parseNonNegativeNumber(body.price_mad);
+  const stock = parseNonNegativeInteger(body.stock, 0);
+
+  if (!titleAr) {
+    return c.json(
+      { ok: false, code: "INVALID_TITLE", message: "title_ar is required" },
+      400
+    );
+  }
+
+  if (!slug) {
+    return c.json(
+      { ok: false, code: "INVALID_SLUG", message: "slug is required" },
+      400
+    );
+  }
+
+  if (!isValidSlug(slug)) {
+    return c.json(
+      {
+        ok: false,
+        code: "INVALID_SLUG_FORMAT",
+        message: "slug must contain only lowercase latin letters, numbers, and dashes"
+      },
+      400
+    );
+  }
+
+  if (!categoryId) {
+    return c.json(
+      { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      400
+    );
+  }
+
+  if (priceMad === null) {
+    return c.json(
+      { ok: false, code: "INVALID_PRICE", message: "price_mad must be a non-negative number" },
+      400
+    );
+  }
+
+  if (stock === null) {
+    return c.json(
+      { ok: false, code: "INVALID_STOCK", message: "stock must be a non-negative integer" },
       400
     );
   }
@@ -248,6 +319,46 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
   }
 
   const sellerId = authUser.role === "admin" && body.seller_id ? body.seller_id : seller!.id;
+
+  const sellerExists = await c.env.DB.prepare(
+    `select id from sellers where id = ? limit 1`
+  )
+    .bind(sellerId)
+    .first();
+
+  if (!sellerExists) {
+    return c.json(
+      { ok: false, code: "INVALID_SELLER", message: "seller does not exist" },
+      400
+    );
+  }
+
+  const category = await c.env.DB.prepare(
+    `select id from categories where id = ? and is_active = 1 limit 1`
+  )
+    .bind(categoryId)
+    .first();
+
+  if (!category) {
+    return c.json(
+      { ok: false, code: "INVALID_CATEGORY", message: "category does not exist" },
+      400
+    );
+  }
+
+  const existingSlug = await c.env.DB.prepare(
+    `select id from products where slug = ? limit 1`
+  )
+    .bind(slug)
+    .first();
+
+  if (existingSlug) {
+    return c.json(
+      { ok: false, code: "SLUG_EXISTS", message: "slug already exists" },
+      409
+    );
+  }
+
   const id = crypto.randomUUID();
 
   await c.env.DB.prepare(
@@ -272,15 +383,15 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
     .bind(
       id,
       sellerId,
-      body.slug,
-      body.title_ar,
+      slug,
+      titleAr,
       body.description_ar || null,
       body.description_long_ar || null,
       body.landing_html_ar || null,
-      body.category_id || null,
+      categoryId,
       body.sku || null,
-      body.price_mad,
-      body.stock || 0,
+      priceMad,
+      stock,
       body.featured ? 1 : 0
     )
     .run();
@@ -382,10 +493,11 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       ok: true,
       data: {
         id,
-        slug: body.slug,
-        title_ar: body.title_ar,
-        price_mad: body.price_mad,
-        stock: body.stock || 0
+        slug,
+        title_ar: titleAr,
+        category_id: categoryId,
+        price_mad: priceMad,
+        stock
       }
     },
     201
@@ -397,9 +509,61 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
   const authUser = c.get("authUser");
   const body = await c.req.json().catch(() => null);
 
-  if (!body?.title_ar || !body?.price_mad) {
+  if (!body || typeof body !== "object") {
     return c.json(
-      { ok: false, code: "INVALID_BODY", message: "Missing required fields" },
+      { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+      400
+    );
+  }
+
+  const titleAr = String(body.title_ar || "").trim();
+  const slug = normalizeSlug(body.slug);
+  const categoryId = String(body.category_id || "").trim();
+  const priceMad = parseNonNegativeNumber(body.price_mad);
+  const stock = parseNonNegativeInteger(body.stock, 0);
+
+  if (!titleAr) {
+    return c.json(
+      { ok: false, code: "INVALID_TITLE", message: "title_ar is required" },
+      400
+    );
+  }
+
+  if (!slug) {
+    return c.json(
+      { ok: false, code: "INVALID_SLUG", message: "slug is required" },
+      400
+    );
+  }
+
+  if (!isValidSlug(slug)) {
+    return c.json(
+      {
+        ok: false,
+        code: "INVALID_SLUG_FORMAT",
+        message: "slug must contain only lowercase latin letters, numbers, and dashes"
+      },
+      400
+    );
+  }
+
+  if (!categoryId) {
+    return c.json(
+      { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      400
+    );
+  }
+
+  if (priceMad === null) {
+    return c.json(
+      { ok: false, code: "INVALID_PRICE", message: "price_mad must be a non-negative number" },
+      400
+    );
+  }
+
+  if (stock === null) {
+    return c.json(
+      { ok: false, code: "INVALID_STOCK", message: "stock must be a non-negative integer" },
       400
     );
   }
@@ -422,6 +586,32 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
     );
   }
 
+  const category = await c.env.DB.prepare(
+    `select id from categories where id = ? and is_active = 1 limit 1`
+  )
+    .bind(categoryId)
+    .first();
+
+  if (!category) {
+    return c.json(
+      { ok: false, code: "INVALID_CATEGORY", message: "category does not exist" },
+      400
+    );
+  }
+
+  const existingSlug = await c.env.DB.prepare(
+    `select id from products where slug = ? and id <> ? limit 1`
+  )
+    .bind(slug, id)
+    .first();
+
+  if (existingSlug) {
+    return c.json(
+      { ok: false, code: "SLUG_EXISTS", message: "slug already exists" },
+      409
+    );
+  }
+
   await c.env.DB.prepare(
     `update products
      set
@@ -438,15 +628,15 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
      where id = ?`
   )
     .bind(
-      body.title_ar,
-      body.slug || null,
+      titleAr,
+      slug,
       body.description_ar || null,
       body.description_long_ar || null,
       body.landing_html_ar || null,
-      body.category_id || null,
+      categoryId,
       body.sku || null,
-      body.price_mad,
-      body.stock || 0,
+      priceMad,
+      stock,
       body.featured ? 1 : 0,
       id
     )

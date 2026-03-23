@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { apiGet, apiPatch } from "../lib/api";
+import { apiGet, apiPatch } from "@rahba/shared";
 import { useSellerAuth } from "../context/SellerAuthContext";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];

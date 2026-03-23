@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost } from "../lib/api";
+import { apiGet, apiPost } from "@rahba/shared";
 
 const SellerAuthContext = createContext(null);
+const AUTH_TOKEN_KEY = "auth_token";
 
 function getStoredSellerToken() {
   try {
-    return localStorage.getItem("seller_auth_token") || "";
+    return localStorage.getItem(AUTH_TOKEN_KEY) || "";
   } catch {
     return "";
   }
@@ -14,9 +15,9 @@ function getStoredSellerToken() {
 function setStoredSellerToken(token) {
   try {
     if (token) {
-      localStorage.setItem("seller_auth_token", token);
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
     } else {
-      localStorage.removeItem("seller_auth_token");
+      localStorage.removeItem(AUTH_TOKEN_KEY);
     }
   } catch {
     // ignore storage errors
@@ -44,6 +45,15 @@ export function SellerAuthProvider({ children }) {
         return {
           ok: false,
           message: res?.message || "Failed to load seller"
+        };
+      }
+
+      if (res?.data?.role && !["seller", "admin"].includes(res.data.role)) {
+        setStoredSellerToken("");
+        setCurrentSeller(null);
+        return {
+          ok: false,
+          message: "Unauthorized seller account"
         };
       }
 
@@ -106,6 +116,14 @@ export function SellerAuthProvider({ children }) {
       if (!result?.ok || !result?.data?.token) {
         setCurrentSeller(null);
         return result;
+      }
+
+      if (result?.data?.user?.role && !["seller", "admin"].includes(result.data.user.role)) {
+        setCurrentSeller(null);
+        return {
+          ok: false,
+          message: "هذا الحساب ليس حساب بائع"
+        };
       }
 
       setStoredSellerToken(result.data.token);

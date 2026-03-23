@@ -1,5 +1,5 @@
 {
-  "name": "@souq/storefront",
+  "name": "@rahba/storefront",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -11,9 +11,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@souq/contracts": "workspace:*",
-    "@souq/shared": "workspace:*",
-    "@souq/ui": "workspace:*",
+    "@rahba/contracts": "workspace:*",
+    "@rahba/shared": "workspace:*",
+    "@rahba/ui": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.4.0"

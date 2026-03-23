@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "dev": "pnpm --parallel --filter @souq/storefront --filter @souq/admin --filter @souq/api dev",
+    "dev": "pnpm --parallel --filter @rahba/storefront --filter @rahba/admin --filter @rahba/api dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",

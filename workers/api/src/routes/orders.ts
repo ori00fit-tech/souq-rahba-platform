@@ -89,6 +89,78 @@ function normalizePaymentStatus(paymentMethod: string, orderStatus: string) {
  * - admin: يقدر يشوف الكل أو حسب buyer/seller
  */
 orderRouter.get("/orders", authMiddleware, async (c) => {
+  // ============================
+  // VALIDATION + SAFE CHECKOUT
+  // ============================
+
+  const body = await c.req.json().catch(() => null);
+
+  if (!body || typeof body !== "object") {
+    return c.json({ ok: false, code: "INVALID_BODY" }, 400);
+  }
+
+  const items = Array.isArray(body.items) ? body.items : [];
+
+  if (items.length === 0) {
+    return c.json({ ok: false, code: "EMPTY_CART" }, 400);
+  }
+
+  // guest validation
+  if (!body.buyer_name || !body.buyer_phone) {
+    return c.json({ ok: false, code: "BUYER_INFO_REQUIRED" }, 400);
+  }
+
+  let total = 0;
+  let sellerId = null;
+
+  const validatedItems = [];
+
+  for (const item of items) {
+    const qty = Number(item.quantity);
+
+    if (!item.product_id || !Number.isInteger(qty) || qty <= 0) {
+      return c.json({ ok: false, code: "INVALID_ITEM" }, 400);
+    }
+
+    const product = await c.env.DB.prepare(
+      `select id, price_mad, stock, status, seller_id from products where id = ? limit 1`
+    )
+      .bind(item.product_id)
+      .first();
+
+    if (!product) {
+      return c.json({ ok: false, code: "PRODUCT_NOT_FOUND" }, 404);
+    }
+
+    if (product.status !== "active") {
+      return c.json({ ok: false, code: "PRODUCT_INACTIVE" }, 400);
+    }
+
+    if (product.stock < qty) {
+      return c.json({ ok: false, code: "OUT_OF_STOCK" }, 400);
+    }
+
+    if (!sellerId) {
+      sellerId = product.seller_id;
+    }
+
+    // multi seller check (optional)
+    if (sellerId !== product.seller_id) {
+      return c.json({ ok: false, code: "MULTI_SELLER_NOT_ALLOWED" }, 400);
+    }
+
+    const lineTotal = product.price_mad * qty;
+    total += lineTotal;
+
+    validatedItems.push({
+      product_id: product.id,
+      quantity: qty,
+      unit_price: product.price_mad,
+      line_total: lineTotal
+    });
+  }
+
+
   try {
     const authUser = c.get("authUser");
     const sellerId = c.req.query("seller_id");

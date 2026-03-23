@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import DashboardPage from "./pages/DashboardPage";
 import ProductsPage from "./pages/ProductsPage";
@@ -58,6 +58,7 @@ function NavItem({ to, label, icon, isMobile }) {
 
 function Sidebar({ isMobile }) {
   const { currentSeller, logoutSeller } = useSellerAuth();
+  const navigate = useNavigate();
 
   return (
     <aside
@@ -119,7 +120,10 @@ function Sidebar({ isMobile }) {
       </nav>
 
       <button
-        onClick={logoutSeller}
+        onClick={() => {
+          logoutSeller();
+          navigate("/login", { replace: true });
+        }}
         style={{
           marginTop: "16px",
           width: "100%",
@@ -284,11 +288,68 @@ function ProtectedShell() {
   );
 }
 
+
+function GuestOnlyRoute({ children }) {
+  const { currentSeller, authLoading } = useSellerAuth();
+
+  if (authLoading) {
+    return <div style={{ padding: "40px", color: "var(--text-secondary)" }}>Loading...</div>;
+  }
+
+  if (!currentSeller) return children;
+
+  if (!currentSeller.id) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  if (currentSeller.kyc_status === "approved") {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Navigate to="/" replace />;
+}
+
+function OnboardingRoute({ children }) {
+  const { currentSeller, authLoading } = useSellerAuth();
+
+  if (authLoading) {
+    return <div style={{ padding: "40px", color: "var(--text-secondary)" }}>Loading...</div>;
+  }
+
+  if (!currentSeller) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!currentSeller.id) {
+    return children;
+  }
+
+  if (currentSeller.kyc_status === "approved") {
+    return <Navigate to="/" replace />;
+  }
+
+  return <Navigate to="/" replace />;
+}
+
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/onboarding" element={<OnboardingPage />} />
+      <Route
+        path="/login"
+        element={
+          <GuestOnlyRoute>
+            <LoginPage />
+          </GuestOnlyRoute>
+        }
+      />
+      <Route
+        path="/onboarding"
+        element={
+          <OnboardingRoute>
+            <OnboardingPage />
+          </OnboardingRoute>
+        }
+      />
       <Route path="/*" element={<ProtectedShell />} />
     </Routes>
   );

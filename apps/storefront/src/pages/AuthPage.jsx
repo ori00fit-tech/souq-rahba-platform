@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { apiPost } from "../lib/api";
+import { apiPost } from "@rahba/shared";
 import { useApp } from "../context/AppContext";
 import { API_BASE_URL } from "../lib/config";
 

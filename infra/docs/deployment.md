@@ -19,9 +19,9 @@
 ## Commands
 ```bash
 pnpm install
-pnpm --filter @souq/storefront build
-pnpm --filter @souq/admin build
-pnpm --filter @souq/api dev
+pnpm --filter @rahba/storefront build
+pnpm --filter @rahba/admin build
+pnpm --filter @rahba/api dev
 ```
 
 ## D1

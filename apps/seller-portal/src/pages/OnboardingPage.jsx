@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiGet } from "../lib/api";
+import { apiGet } from "@rahba/shared";
 
 const ONBOARDING_STATUS_ENDPOINT = "/marketplace/me";
 

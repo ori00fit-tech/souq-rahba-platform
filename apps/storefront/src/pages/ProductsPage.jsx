@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { apiGet } from "../lib/api";
+import { apiGet } from "@rahba/shared";
 import { useApp } from "../context/AppContext";
 
 const PAGE_LIMIT = 10;

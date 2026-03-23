@@ -1,7 +1,7 @@
 import { resolveImageUrl } from "../lib/media";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { apiGet, apiPut, apiUploadFile } from "../lib/api";
+import { apiGet, apiPut, apiUploadFile } from "@rahba/shared";
 
 function emptyImage() {
   return { url: "", alt_text: "", uploading: false };

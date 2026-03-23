@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { apiGet } from "../lib/api";
+import { apiGet } from "@rahba/shared";
 
 function formatMoney(value) {
   return `${Number(value || 0).toLocaleString("en-US")} MAD`;
