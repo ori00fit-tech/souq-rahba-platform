@@ -10,3 +10,9 @@ coverage
 .DS_Store
 *.log
 workers/api/.dev.vars
+
+# local audit reports
+D1_AUDIT_LITE.txt
+D1_HARDENING_AUDIT.txt
+RAHBA_AUDIT_LITE.txt
+RAHBA_AUDIT_REPORT.txt
