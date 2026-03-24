@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { requestId } from "./middleware/request-id";
 import { healthRouter } from "./routes/health";
 import { catalogRouter } from "./routes/catalog";
+import { productsRouter } from "./routes/products";
 import { sellerRouter } from "./routes/sellers";
 import { orderRouter } from "./routes/orders";
 import { uploadRouter } from "./routes/upload";
@@ -19,6 +20,7 @@ app.use("*", requestId);
 
 app.route("/", healthRouter);
 app.route("/auth", authRouter);
+app.route("/catalog/products", productsRouter);
 app.route("/catalog", catalogRouter);
 app.route("/marketplace", sellerRouter);
 app.route("/admin", adminRouter);
