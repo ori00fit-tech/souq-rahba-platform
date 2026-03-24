@@ -63,6 +63,8 @@ authRouter.post("/register", async (c) => {
     const fullName = String(body.full_name || "").trim();
     const phone = String(body.phone || "").trim();
     const locale = String(body.locale || "ar").trim() || "ar";
+    const requestedRole = String(body.role || "buyer").trim().toLowerCase();
+    const role = requestedRole === "seller" ? "seller" : "buyer";
 
     if (!email || !isValidEmail(email)) {
       return c.json(
@@ -109,7 +111,7 @@ authRouter.post("/register", async (c) => {
         email,
         fullName || null,
         phone || null,
-        "buyer",
+        role,
         locale,
         hashPassword(password)
       )
@@ -121,7 +123,7 @@ authRouter.post("/register", async (c) => {
         data: {
           id: userId,
           email,
-          role: "buyer"
+          role
         }
       },
       201
