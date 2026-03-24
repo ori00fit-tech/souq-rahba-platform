@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSellerAuth } from "../context/SellerAuthContext";
 import { apiPost } from "@rahba/shared";
 
 const SELLER_LOGIN_ENDPOINT = "/auth/login";
@@ -17,6 +19,8 @@ const STORE_CATEGORIES = [
 ];
 
 export default function LoginPage() {
+  const navigate = useNavigate();
+  const { loginSeller } = useSellerAuth();
   const [tab, setTab] = useState("login");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -107,29 +111,21 @@ export default function LoginPage() {
       setSubmitting(true);
       resetMessage();
 
-      const result = await apiPost(SELLER_LOGIN_ENDPOINT, {
-        email: loginForm.email.trim(),
-        password: loginForm.password
-      });
+      const result = await loginSeller(
+        loginForm.email.trim(),
+        loginForm.password
+      );
 
       if (!result?.ok) {
         showMessage(result?.message || "تعذر تسجيل الدخول", "error");
         return;
       }
 
-      const token = extractToken(result);
-
-      if (token && typeof window !== "undefined") {
-        localStorage.setItem("seller_auth_token", token);
-      }
-
       showMessage("تم تسجيل الدخول بنجاح، جاري تحويلك...", "success");
 
-      if (typeof window !== "undefined") {
-        setTimeout(() => {
-          window.location.href = "/dashboard";
-        }, 700);
-      }
+      setTimeout(() => {
+        navigate("/", { replace: true });
+      }, 500);
     } catch (error) {
       console.error(error);
       showMessage(error?.message || "حدث خطأ أثناء تسجيل الدخول", "error");
@@ -184,7 +180,7 @@ export default function LoginPage() {
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("seller_auth_token", token);
+        
       }
 
       // 3) إنشاء seller profile / onboarding
