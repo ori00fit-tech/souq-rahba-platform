@@ -6,7 +6,7 @@ import {
   apiDelete as sharedDelete,
   apiUpload as sharedUpload,
   apiUploadFile as sharedUploadFile,
-} from "../lib/api";
+} from "@rahba/shared";
 
 const tokenKey = "seller_auth_token";
 
