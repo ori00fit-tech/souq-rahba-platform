@@ -1,6 +1,28 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiPost, apiUploadFile } from "../lib/api";
+import { apiGet, apiPost, apiUploadFile } from "../lib/api";
+
+function emptyImage() {
+  return { url: "", alt_text: "", uploading: false };
+}
+
+function emptySpec() {
+  return { label_ar: "", value_ar: "" };
+}
+
+function emptyFaq() {
+  return { question_ar: "", answer_ar: "" };
+}
+
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 function resolveImageUrl(url) {
   if (!url) return "";
@@ -10,15 +32,6 @@ function resolveImageUrl(url) {
   return url;
 }
 
-function slugify(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-}
-
 export default function AddProductPage() {
   const navigate = useNavigate();
 
@@ -26,23 +39,43 @@ export default function AddProductPage() {
     title_ar: "",
     slug: "",
     description_ar: "",
+    description_long_ar: "",
+    landing_html_ar: "",
+    category_id: "",
+    sku: "",
     price_mad: "",
     stock: "",
     status: "active",
-    featured: false
+    featured: false,
+    images: [emptyImage()],
+    specs: [emptySpec()],
+    faqs: [emptyFaq()]
   });
 
-  const [images, setImages] = useState([
-    {
-      image_url: "",
-      alt_text: "",
-      uploading: false
-    }
-  ]);
-
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
-  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        setCategoriesLoading(true);
+        const res = await apiGet("/catalog/categories");
+        const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+        setCategories(list);
+      } catch (err) {
+        console.error(err);
+        setMessage("تعذر تحميل الفئات");
+        setMessageType("error");
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
 
   const canSubmit = useMemo(() => {
     return (
@@ -50,7 +83,8 @@ export default function AddProductPage() {
       form.slug.trim() &&
       form.description_ar.trim() &&
       String(form.price_mad).trim() &&
-      String(form.stock).trim()
+      String(form.stock).trim() &&
+      form.category_id.trim()
     );
   }, [form]);
 
@@ -58,56 +92,58 @@ export default function AddProductPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  function updateImage(index, patch) {
-    setImages((prev) =>
-      prev.map((img, i) => (i === index ? { ...img, ...patch } : img))
-    );
-  }
-
-  function addImageBlock() {
-    setImages((prev) => [
-      ...prev,
-      { image_url: "", alt_text: "", uploading: false }
-    ]);
-  }
-
-  function removeImageBlock(index) {
-    setImages((prev) => {
-      if (prev.length === 1) {
-        return [{ image_url: "", alt_text: "", uploading: false }];
-      }
-      return prev.filter((_, i) => i !== index);
+  function updateArrayItem(key, index, field, value) {
+    setForm((prev) => {
+      const next = [...prev[key]];
+      next[index] = { ...next[index], [field]: value };
+      return { ...prev, [key]: next };
     });
   }
 
-  async function handleUpload(index, file) {
+  function addArrayItem(key, factory) {
+    setForm((prev) => ({ ...prev, [key]: [...prev[key], factory()] }));
+  }
+
+  function removeArrayItem(key, index) {
+    setForm((prev) => {
+      const next = prev[key].filter((_, i) => i !== index);
+      return {
+        ...prev,
+        [key]: next.length
+          ? next
+          : [key === "images" ? emptyImage() : key === "specs" ? emptySpec() : emptyFaq()]
+      };
+    });
+  }
+
+  async function handleImageUpload(index, file) {
     if (!file) return;
 
     try {
-      updateImage(index, { uploading: true });
       setMessage("");
+      updateArrayItem("images", index, "uploading", true);
 
       const res = await apiUploadFile(file);
-
-      const uploadedUrl =
-        res?.data?.url || res?.url || res?.data?.file_url || "";
+      const uploadedUrl = res?.url || res?.data?.url || res?.data?.file_url || "";
 
       if (!uploadedUrl) {
         throw new Error("لم يتم إرجاع رابط الصورة");
       }
 
-      updateImage(index, {
-        image_url: uploadedUrl,
-        uploading: false
-      });
+      updateArrayItem("images", index, "url", uploadedUrl);
 
-      setMessageType("success");
+      if (!form.images[index]?.alt_text) {
+        updateArrayItem("images", index, "alt_text", form.title_ar || file.name);
+      }
+
       setMessage("تم رفع الصورة بنجاح");
+      setMessageType("success");
     } catch (err) {
       console.error(err);
-      updateImage(index, { uploading: false });
+      setMessage(err?.message || "حدث خطأ أثناء رفع الصورة");
       setMessageType("error");
-      setMessage(err?.message || "فشل رفع الصورة");
+    } finally {
+      updateArrayItem("images", index, "uploading", false);
     }
   }
 
@@ -115,8 +151,8 @@ export default function AddProductPage() {
     e.preventDefault();
 
     if (!canSubmit) {
+      setMessage("يرجى ملء جميع الحقول الأساسية بما فيها الفئة");
       setMessageType("error");
-      setMessage("يرجى ملء جميع الحقول الأساسية");
       return;
     }
 
@@ -124,53 +160,69 @@ export default function AddProductPage() {
       setSaving(true);
       setMessage("");
 
-      const validImages = images.filter(
-        (img) => img.image_url && img.image_url.trim()
-      );
-
       const payload = {
         title_ar: form.title_ar.trim(),
         slug: form.slug.trim(),
         description_ar: form.description_ar.trim(),
-        price_mad: Number(form.price_mad),
-        stock: Number(form.stock),
+        description_long_ar: form.description_long_ar.trim(),
+        landing_html_ar: form.landing_html_ar.trim(),
+        category_id: form.category_id.trim(),
+        sku: form.sku.trim() || null,
+        price_mad: Number(form.price_mad || 0),
+        stock: Number(form.stock || 0),
         status: form.status,
         featured: form.featured ? 1 : 0,
-        image_url: validImages[0]?.image_url || "",
-        images: validImages.map((img) => ({
-          url: img.image_url.trim(),
-          alt_text: img.alt_text?.trim() || form.title_ar.trim()
-        }))
+        image_url: form.images.find((x) => x.url.trim())?.url || "",
+        images: form.images
+          .filter((x) => x.url.trim())
+          .map(({ url, alt_text }) => ({
+            url: url.trim(),
+            alt_text: (alt_text || form.title_ar).trim()
+          })),
+        specs: form.specs
+          .filter((x) => x.label_ar.trim() && x.value_ar.trim())
+          .map((x) => ({
+            label_ar: x.label_ar.trim(),
+            value_ar: x.value_ar.trim()
+          })),
+        faqs: form.faqs
+          .filter((x) => x.question_ar.trim() && x.answer_ar.trim())
+          .map((x) => ({
+            question_ar: x.question_ar.trim(),
+            answer_ar: x.answer_ar.trim()
+          }))
       };
 
       const res = await apiPost("/catalog/products", payload);
 
       if (!res?.ok) {
+        setMessage(res?.message || "تعذر إنشاء المنتج");
         setMessageType("error");
-        setMessage(res?.message || "تعذر إضافة المنتج");
         return;
       }
 
+      setMessage("تم إنشاء المنتج بنجاح");
       setMessageType("success");
-      setMessage("تمت إضافة المنتج بنجاح");
 
       setTimeout(() => {
         navigate("/products");
-      }, 900);
+      }, 800);
     } catch (err) {
       console.error(err);
+      setMessage(err?.message || "حدث خطأ أثناء إنشاء المنتج");
       setMessageType("error");
-      setMessage(err?.message || "حدث خطأ أثناء إضافة المنتج");
     } finally {
       setSaving(false);
     }
   }
 
+  const firstImage = resolveImageUrl(form.images[0]?.url || "");
+
   return (
     <section className="page-shell" dir="rtl">
       <div className="page-header">
         <h1>إضافة منتج جديد</h1>
-        <p>أضف منتجاً جديداً إلى متجرك مع الصور والمعلومات الأساسية</p>
+        <p>أضف منتجاً جديداً إلى متجرك مع الصور، الفئة، المواصفات والأسئلة الشائعة.</p>
       </div>
 
       {message ? (
@@ -201,7 +253,7 @@ export default function AddProductPage() {
                     updateField("slug", slugify(title));
                   }
                 }}
-                placeholder="مثلاً: ساعة ذكية Fit Max S2"
+                placeholder="مثلاً: Apple iPhone 17 Pro Max"
               />
             </label>
 
@@ -212,12 +264,12 @@ export default function AddProductPage() {
                 dir="ltr"
                 value={form.slug}
                 onChange={(e) => updateField("slug", slugify(e.target.value))}
-                placeholder="smart-watch-fit-max-s2"
+                placeholder="apple-iphone-17-pro-max"
               />
             </label>
 
             <label style={s.label}>
-              <span>وصف المنتج</span>
+              <span>الوصف المختصر</span>
               <textarea
                 style={s.textarea}
                 value={form.description_ar}
@@ -225,6 +277,57 @@ export default function AddProductPage() {
                 placeholder="اكتب وصفاً مختصراً وواضحاً للمنتج..."
               />
             </label>
+
+            <label style={s.label}>
+              <span>الوصف الطويل</span>
+              <textarea
+                style={s.textarea}
+                value={form.description_long_ar}
+                onChange={(e) => updateField("description_long_ar", e.target.value)}
+                placeholder="تفاصيل أكثر عن المنتج..."
+              />
+            </label>
+
+            <label style={s.label}>
+              <span>HTML Landing اختياري</span>
+              <textarea
+                style={{ ...s.textarea, minHeight: "180px", fontFamily: "monospace" }}
+                value={form.landing_html_ar}
+                onChange={(e) => updateField("landing_html_ar", e.target.value)}
+                placeholder="<section>...</section>"
+              />
+            </label>
+
+            <div style={s.grid2}>
+              <label style={s.label}>
+                <span>الفئة</span>
+                <select
+                  style={s.input}
+                  value={form.category_id}
+                  onChange={(e) => updateField("category_id", e.target.value)}
+                  disabled={categoriesLoading}
+                >
+                  <option value="">
+                    {categoriesLoading ? "جاري تحميل الفئات..." : "اختر الفئة"}
+                  </option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name_ar || cat.name || cat.slug}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label style={s.label}>
+                <span>SKU</span>
+                <input
+                  style={s.input}
+                  value={form.sku}
+                  onChange={(e) => updateField("sku", e.target.value)}
+                  placeholder="SKU-001"
+                />
+              </label>
+            </div>
 
             <div style={s.grid2}>
               <label style={s.label}>
@@ -285,8 +388,8 @@ export default function AddProductPage() {
             <div style={s.sectionTitle}>صور المنتج</div>
 
             <div style={s.imageStack}>
-              {images.map((img, index) => {
-                const previewUrl = resolveImageUrl(img.image_url);
+              {form.images.map((img, index) => {
+                const previewUrl = resolveImageUrl(img.url);
 
                 return (
                   <div key={index} style={s.imageBlock}>
@@ -294,10 +397,8 @@ export default function AddProductPage() {
                       <span>رابط الصورة {index + 1}</span>
                       <input
                         style={s.input}
-                        value={img.image_url}
-                        onChange={(e) =>
-                          updateImage(index, { image_url: e.target.value })
-                        }
+                        value={img.url}
+                        onChange={(e) => updateArrayItem("images", index, "url", e.target.value)}
                         placeholder="https://... أو /media/..."
                         dir="ltr"
                       />
@@ -309,7 +410,7 @@ export default function AddProductPage() {
                         style={s.input}
                         type="file"
                         accept="image/*"
-                        onChange={(e) => handleUpload(index, e.target.files?.[0])}
+                        onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
                       />
                     </label>
 
@@ -318,10 +419,8 @@ export default function AddProductPage() {
                       <input
                         style={s.input}
                         value={img.alt_text}
-                        onChange={(e) =>
-                          updateImage(index, { alt_text: e.target.value })
-                        }
-                        placeholder="مثلاً: ساعة ذكية Fit Max S2"
+                        onChange={(e) => updateArrayItem("images", index, "alt_text", e.target.value)}
+                        placeholder={form.title_ar || "وصف الصورة"}
                       />
                     </label>
 
@@ -342,7 +441,7 @@ export default function AddProductPage() {
                     <button
                       type="button"
                       style={s.secondaryButton}
-                      onClick={() => removeImageBlock(index)}
+                      onClick={() => removeArrayItem("images", index)}
                     >
                       حذف
                     </button>
@@ -351,8 +450,88 @@ export default function AddProductPage() {
               })}
             </div>
 
-            <button type="button" style={s.dashedButton} onClick={addImageBlock}>
+            <button type="button" style={s.dashedButton} onClick={() => addArrayItem("images", emptyImage)}>
               + إضافة صورة
+            </button>
+          </div>
+
+          <div style={s.card}>
+            <div style={s.sectionTitle}>المواصفات</div>
+
+            {form.specs.map((item, index) => (
+              <div key={index} style={s.rowBox}>
+                <label style={s.label}>
+                  <span>الاسم</span>
+                  <input
+                    style={s.input}
+                    value={item.label_ar}
+                    onChange={(e) => updateArrayItem("specs", index, "label_ar", e.target.value)}
+                    placeholder="مثلاً: الشاشة"
+                  />
+                </label>
+
+                <label style={s.label}>
+                  <span>القيمة</span>
+                  <input
+                    style={s.input}
+                    value={item.value_ar}
+                    onChange={(e) => updateArrayItem("specs", index, "value_ar", e.target.value)}
+                    placeholder="مثلاً: 6.9 بوصة"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => removeArrayItem("specs", index)}
+                  style={s.secondaryButton}
+                >
+                  حذف
+                </button>
+              </div>
+            ))}
+
+            <button type="button" style={s.dashedButton} onClick={() => addArrayItem("specs", emptySpec)}>
+              + إضافة مواصفة
+            </button>
+          </div>
+
+          <div style={s.card}>
+            <div style={s.sectionTitle}>الأسئلة الشائعة</div>
+
+            {form.faqs.map((item, index) => (
+              <div key={index} style={s.rowBox}>
+                <label style={s.label}>
+                  <span>السؤال</span>
+                  <input
+                    style={s.input}
+                    value={item.question_ar}
+                    onChange={(e) => updateArrayItem("faqs", index, "question_ar", e.target.value)}
+                    placeholder="مثلاً: هل المنتج أصلي؟"
+                  />
+                </label>
+
+                <label style={s.label}>
+                  <span>الجواب</span>
+                  <textarea
+                    style={s.textarea}
+                    value={item.answer_ar}
+                    onChange={(e) => updateArrayItem("faqs", index, "answer_ar", e.target.value)}
+                    placeholder="نعم، المنتج أصلي 100%"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => removeArrayItem("faqs", index)}
+                  style={s.secondaryButton}
+                >
+                  حذف
+                </button>
+              </div>
+            ))}
+
+            <button type="button" style={s.dashedButton} onClick={() => addArrayItem("faqs", emptyFaq)}>
+              + إضافة سؤال
             </button>
           </div>
         </div>
@@ -363,10 +542,10 @@ export default function AddProductPage() {
 
             <div style={s.summaryCard}>
               <div style={s.summaryImageWrap}>
-                {resolveImageUrl(images[0]?.image_url) ? (
+                {firstImage ? (
                   <img
-                    src={resolveImageUrl(images[0]?.image_url)}
-                    alt={images[0]?.alt_text || form.title_ar || "preview"}
+                    src={firstImage}
+                    alt={form.images[0]?.alt_text || form.title_ar || "preview"}
                     style={s.summaryImage}
                   />
                 ) : (
@@ -377,9 +556,7 @@ export default function AddProductPage() {
               <div style={s.summaryBody}>
                 <div style={s.badgeRow}>
                   <span style={s.badge}>{form.status || "active"}</span>
-                  {form.featured ? (
-                    <span style={s.badgeFeatured}>featured</span>
-                  ) : null}
+                  {form.featured ? <span style={s.badgeFeatured}>featured</span> : null}
                 </div>
 
                 <h3 style={s.summaryTitle}>
@@ -394,6 +571,10 @@ export default function AddProductPage() {
                   <div><strong>السعر:</strong> {form.price_mad || 0} MAD</div>
                   <div><strong>المخزون:</strong> {form.stock || 0}</div>
                   <div><strong>Slug:</strong> {form.slug || "—"}</div>
+                  <div>
+                    <strong>الفئة:</strong>{" "}
+                    {categories.find((x) => x.id === form.category_id)?.name_ar || form.category_id || "—"}
+                  </div>
                 </div>
               </div>
             </div>
@@ -492,6 +673,14 @@ const s = {
     gap: "16px"
   },
   imageBlock: {
+    border: "1px solid #e5e7eb",
+    borderRadius: "16px",
+    padding: "14px",
+    display: "grid",
+    gap: "12px",
+    background: "#fafafa"
+  },
+  rowBox: {
     border: "1px solid #e5e7eb",
     borderRadius: "16px",
     padding: "14px",
