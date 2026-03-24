@@ -148,13 +148,7 @@ catalogRouter.get("/products", async (c) => {
         order by pm.sort_order asc, pm.id asc
         limit 1
       ) as image_url,
-      (
-        select pm.url
-        from product_media pm
-        where pm.product_id = p.id
-        order by pm.sort_order asc
-        limit 1
-      ) as image_url,
+
       (
         select round(avg(r.rating), 1)
         from product_reviews r
@@ -873,13 +867,7 @@ catalogRouter.get("/home", async (c) => {
         limit 1
       ) as image_url,
       s.display_name as seller_name,
-      (
-        select pm.url
-        from product_media pm
-        where pm.product_id = p.id
-        order by pm.sort_order asc
-        limit 1
-      ) as image_url
+
     from products p
     left join sellers s on s.id = p.seller_id
     where p.status = 'active'
