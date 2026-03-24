@@ -911,7 +911,10 @@ catalogRouter.get("/products/:slug/reviews", async (c) => {
   ).bind(slug).first();
 
   if (!product) {
-    return c.json({ ok: false, message: "product not found" }, 404);
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      404
+    );
   }
 
   const reviews = await c.env.DB.prepare(`
@@ -949,7 +952,7 @@ catalogRouter.post(
 
     if (!body || !body.rating || !body.comment?.trim()) {
       return c.json(
-        { ok: false, message: "rating and comment required" },
+        { ok: false, code: "INVALID_REVIEW", message: "rating and comment are required" },
         400
       );
     }
@@ -959,7 +962,10 @@ catalogRouter.post(
     ).bind(slug).first();
 
     if (!product) {
-      return c.json({ ok: false, message: "product not found" }, 404);
+      return c.json(
+        { ok: false, code: "NOT_FOUND", message: "Product not found" },
+        404
+      );
     }
 
     const authUser = c.get("authUser");
@@ -976,10 +982,14 @@ catalogRouter.post(
       .first();
 
     if (!purchased) {
-      return c.json({
-        ok: false,
-        message: "يمكنك التقييم فقط بعد شراء المنتج"
-      }, 403);
+      return c.json(
+        {
+          ok: false,
+          code: "REVIEW_NOT_ALLOWED",
+          message: "يمكنك التقييم فقط بعد شراء المنتج"
+        },
+        403
+      );
     }
 
     const id = crypto.randomUUID();
@@ -1001,10 +1011,14 @@ catalogRouter.post(
         )
         .run();
     } catch (e) {
-      return c.json({
-        ok: false,
-        message: "review already exists"
-      }, 400);
+      return c.json(
+        {
+          ok: false,
+          code: "REVIEW_EXISTS",
+          message: "review already exists"
+        },
+        400
+      );
     }
 
     return c.json({
@@ -1026,7 +1040,10 @@ catalogRouter.get("/products/:slug/similar", async (c) => {
     .first();
 
   if (!product) {
-    return c.json({ ok: false }, 404);
+    return c.json(
+      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      404
+    );
   }
 
   const rows = await c.env.DB.prepare(`
