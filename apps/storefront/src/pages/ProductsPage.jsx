@@ -8,21 +8,35 @@ const PAGE_LIMIT = 10;
 const SORT_OPTIONS = [
   { value: "newest", label: "الأحدث" },
   { value: "featured", label: "مميزة" },
-  { value: "price_asc", label: "السعر ↑" },
-  { value: "price_desc", label: "السعر ↓" }
+  { value: "price_asc", label: "السعر: من الأقل" },
+  { value: "price_desc", label: "السعر: من الأعلى" }
 ];
 
-const CATEGORY_OPTIONS = [
-  { value: "", label: "كل الفئات" },
-  { value: "electronics", label: "إلكترونيات" },
-  { value: "appliances", label: "أجهزة" },
-  { value: "tools", label: "أدوات" },
-  { value: "agriculture", label: "فلاحة" },
-  { value: "fishing", label: "صيد" },
-  { value: "construction", label: "بناء" },
-  { value: "fashion", label: "أزياء" },
-  { value: "food", label: "غذاء" }
-];
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
+}
+
+function normalizeProduct(product) {
+  return {
+    id: product.id,
+    slug: product.slug,
+    name: product.title_ar || product.name || "",
+    price: Number(product.price_mad || product.price || 0),
+    seller_id: product.seller_id || null,
+    seller: product.seller_name || product.seller || product.brand || "RAHBA",
+    city: product.city || "",
+    rating: Number(product.rating_avg || product.rating || 0),
+    reviews: Number(product.reviews_count || product.reviews || 0),
+    stock: Number(product.stock || 0),
+    badge: product.featured ? "مميز" : product.status || "",
+    description: product.description_ar || product.description || "",
+    image_url: resolveImageUrl(product.image_url || "")
+  };
+}
 
 export default function ProductsPage() {
   const navigate = useNavigate();
@@ -30,9 +44,12 @@ export default function ProductsPage() {
   const { addToCart } = useApp();
 
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [draftQuery, setDraftQuery] = useState(searchParams.get("q") || "");
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const q = searchParams.get("q") || "";
   const category = searchParams.get("category") || "";
@@ -51,9 +68,32 @@ export default function ProductsPage() {
   }, [q]);
 
   useEffect(() => {
+    async function loadCategories() {
+      try {
+        setCategoriesLoading(true);
+        const result = await apiGet("/catalog/categories");
+        const items = Array.isArray(result?.data)
+          ? result.data
+          : Array.isArray(result)
+          ? result
+          : [];
+        setCategories(items);
+      } catch (err) {
+        console.error(err);
+        setCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+
+    loadCategories();
+  }, []);
+
+  useEffect(() => {
     async function loadProducts() {
       try {
         setLoading(true);
+        setErrorMessage("");
         setMessage("");
 
         const params = new URLSearchParams();
@@ -64,6 +104,7 @@ export default function ProductsPage() {
         params.set("limit", String(PAGE_LIMIT));
 
         const result = await apiGet(`/catalog/products?${params.toString()}`);
+
         const items = Array.isArray(result?.data?.items)
           ? result.data.items
           : Array.isArray(result?.data)
@@ -88,7 +129,7 @@ export default function ProductsPage() {
           total: 0,
           pages: 1
         });
-        setMessage("تعذر تحميل المنتجات");
+        setErrorMessage("تعذر تحميل المنتجات");
       } finally {
         setLoading(false);
       }
@@ -96,6 +137,16 @@ export default function ProductsPage() {
 
     loadProducts();
   }, [q, category, sort, page]);
+
+  const categoryOptions = useMemo(() => {
+    return [
+      { value: "", label: "كل الفئات" },
+      ...categories.map((cat) => ({
+        value: cat.slug || "",
+        label: cat.name_ar || cat.name || cat.slug || "فئة"
+      }))
+    ];
+  }, [categories]);
 
   function updateFilters(next) {
     const params = new URLSearchParams(searchParams);
@@ -118,34 +169,20 @@ export default function ProductsPage() {
   function clearFilters() {
     setDraftQuery("");
     setMessage("");
-    setSearchParams({});
+    setErrorMessage("");
+    setSearchParams({
+      sort: "newest",
+      page: "1"
+    });
   }
 
   function applySearch() {
     updateFilters({ q: draftQuery.trim(), page: 1 });
   }
 
-  function normalizeProduct(product) {
-    return {
-      id: product.id,
-      slug: product.slug,
-      name: product.title_ar || product.name || "",
-      price: Number(product.price_mad || product.price || 0),
-      seller_id: product.seller_id || null,
-      seller: product.seller_name || product.seller || "RAHBA",
-      city: product.city || "",
-      rating: Number(product.rating_avg || product.rating || 0),
-      reviews: Number(product.reviews_count || product.reviews || 0),
-      stock: Number(product.stock || 0),
-      badge: product.featured ? "مميز" : product.status || "",
-      description: product.description_ar || product.description || "",
-      image_url: product.image_url || ""
-    };
-  }
-
   function openProduct(product) {
     if (!product?.slug) {
-      setMessage("تعذر فتح المنتج");
+      setErrorMessage("تعذر فتح المنتج");
       return;
     }
     navigate(`/products/${product.slug}`);
@@ -165,7 +202,7 @@ export default function ProductsPage() {
     const items = [];
     if (q) items.push(`بحث: ${q}`);
     if (category) {
-      const cat = CATEGORY_OPTIONS.find((x) => x.value === category);
+      const cat = categoryOptions.find((x) => x.value === category);
       if (cat) items.push(cat.label);
     }
     if (sort && sort !== "newest") {
@@ -173,7 +210,7 @@ export default function ProductsPage() {
       if (s) items.push(`ترتيب: ${s.label}`);
     }
     return items;
-  }, [q, category, sort]);
+  }, [q, category, sort, categoryOptions]);
 
   return (
     <section className="container section-space" dir="rtl">
@@ -182,7 +219,7 @@ export default function ProductsPage() {
           <div className="ui-chip">RAHBA PRODUCTS</div>
           <h1 className="page-title">المنتجات</h1>
           <p className="page-subtitle">
-            تصفح المنتجات بسرعة من الهاتف، أضف للسلة، أو افتح التفاصيل قبل إتمام الطلب.
+            تصفح المنتجات، قارن بسرعة، أضف إلى السلة أو انتقل مباشرة إلى إتمام الطلب.
           </p>
         </div>
 
@@ -207,9 +244,10 @@ export default function ProductsPage() {
               value={category}
               onChange={(e) => updateFilters({ category: e.target.value, page: 1 })}
               className="ui-select"
+              disabled={categoriesLoading}
             >
-              {CATEGORY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
+              {categoryOptions.map((option) => (
+                <option key={`${option.value}-${option.label}`} value={option.value}>
                   {option.label}
                 </option>
               ))}
@@ -231,7 +269,7 @@ export default function ProductsPage() {
           <div style={styles.metaRow}>
             <div className="ui-chip">{pagination.total} منتج</div>
             <button onClick={clearFilters} className="btn btn-soft">
-              مسح
+              مسح الفلاتر
             </button>
           </div>
         </div>
@@ -247,6 +285,7 @@ export default function ProductsPage() {
         ) : null}
 
         {message ? <div className="message-box">{message}</div> : null}
+        {errorMessage ? <div className="message-box">{errorMessage}</div> : null}
 
         {loading ? (
           <div className="loading-state">جاري تحميل المنتجات...</div>
@@ -267,7 +306,7 @@ export default function ProductsPage() {
                     />
                   ) : (
                     <div className="product-card__image" style={styles.noImage}>
-                      No image
+                      لا توجد صورة
                     </div>
                   )}
 
@@ -321,7 +360,7 @@ export default function ProductsPage() {
                         disabled={item.stock <= 0}
                         className="btn btn-primary"
                       >
-                        Checkout
+                        إتمام الطلب
                       </button>
                     </div>
                   </div>

@@ -3,6 +3,19 @@ import { useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
+}
+
+function renderStars(value) {
+  const rounded = Math.max(0, Math.min(5, Math.round(Number(value || 0))));
+  return `${"★".repeat(rounded)}${"☆".repeat(5 - rounded)}`;
+}
+
 export default function ProductDetailsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -34,23 +47,24 @@ export default function ProductDetailsPage() {
         setReviewMessage("");
 
         const productRes = await apiGet(`/catalog/products/${slug}`);
-        if (productRes.ok) {
+        if (productRes?.ok && productRes?.data) {
           setProduct(productRes.data);
-          const firstMedia =
-            productRes.data?.media?.[0]?.url || productRes.data?.image_url || "";
-          setSelectedImage(firstMedia);
         } else {
           setMessage("تعذر تحميل المنتج");
         }
 
         const reviewsRes = await apiGet(`/catalog/products/${slug}/reviews`);
-        if (reviewsRes.ok) {
-          setReviews(reviewsRes.data || []);
+        if (reviewsRes?.ok) {
+          setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
+        } else {
+          setReviews([]);
         }
 
         const similarRes = await apiGet(`/catalog/products/${slug}/similar`);
-        if (similarRes.ok) {
-          setSimilar(similarRes.data || []);
+        if (similarRes?.ok) {
+          setSimilar(Array.isArray(similarRes.data) ? similarRes.data : []);
+        } else {
+          setSimilar([]);
         }
       } catch (err) {
         console.error(err);
@@ -64,25 +78,31 @@ export default function ProductDetailsPage() {
     loadAll();
   }, [slug]);
 
+  const galleryImages = useMemo(() => {
+    const mediaImages = Array.isArray(product?.media)
+      ? product.media.map((m) => resolveImageUrl(m.url || m.image_url || "")).filter(Boolean)
+      : [];
+
+    const reviewImages = reviews
+      .map((r) => resolveImageUrl(r.review_image_url || ""))
+      .filter(Boolean)
+      .slice(0, 4);
+
+    const fallback = product?.image_url ? [resolveImageUrl(product.image_url)] : [];
+
+    return [...new Set([...mediaImages, ...fallback, ...reviewImages])];
+  }, [product, reviews]);
+
+  useEffect(() => {
+    if (!selectedImage && galleryImages.length > 0) {
+      setSelectedImage(galleryImages[0]);
+    }
+  }, [galleryImages, selectedImage]);
+
   const ratingSummary = useMemo(() => {
     const count = Number(product?.reviews_count || reviews.length || 0);
     const avg = Number(product?.rating_avg || 0);
     return { count, avg };
-  }, [product, reviews]);
-
-  const galleryImages = useMemo(() => {
-    const mediaImages = Array.isArray(product?.media)
-      ? product.media.map((m) => m.url).filter(Boolean)
-      : [];
-
-    const reviewImages = reviews
-      .map((r) => r.review_image_url)
-      .filter(Boolean)
-      .slice(0, 4);
-
-    const fallback = product?.image_url ? [product.image_url] : [];
-
-    return [...new Set([...mediaImages, ...fallback, ...reviewImages])];
   }, [product, reviews]);
 
   const highlights = useMemo(() => {
@@ -142,12 +162,16 @@ export default function ProductDetailsPage() {
       },
       {
         question_ar: "كيف أشتري هذا المنتج؟",
-        answer_ar: "يمكنك إضافته إلى السلة أو الضغط على Checkout لإتمام الطلب بسرعة."
+        answer_ar: "يمكنك إضافته إلى السلة أو الضغط على إتمام الطلب للشراء بسرعة."
       }
     ];
   }, [product]);
 
   function normalizeProduct(p) {
+    const mediaImage = Array.isArray(p?.media) && p.media.length
+      ? resolveImageUrl(p.media[0]?.url || p.media[0]?.image_url || "")
+      : "";
+
     return {
       id: p.id,
       slug: p.slug,
@@ -161,7 +185,7 @@ export default function ProductDetailsPage() {
       stock: Number(p.stock || 0),
       badge: p.status || "",
       description: p.description_ar || "",
-      image_url: p.image_url || ""
+      image_url: resolveImageUrl(p.image_url || mediaImage || "")
     };
   }
 
@@ -213,8 +237,8 @@ export default function ProductDetailsPage() {
         review_image_url: reviewForm.review_image_url.trim() || null
       });
 
-      if (!result.ok) {
-        setReviewMessage(result.message || "تعذر إرسال التقييم");
+      if (!result?.ok) {
+        setReviewMessage(result?.message || "تعذر إرسال التقييم");
         return;
       }
 
@@ -227,12 +251,12 @@ export default function ProductDetailsPage() {
       });
 
       const reviewsRes = await apiGet(`/catalog/products/${slug}/reviews`);
-      if (reviewsRes.ok) {
-        setReviews(reviewsRes.data || []);
+      if (reviewsRes?.ok) {
+        setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
       }
 
       const productRes = await apiGet(`/catalog/products/${slug}`);
-      if (productRes.ok) {
+      if (productRes?.ok && productRes?.data) {
         setProduct(productRes.data);
       }
     } catch (err) {
@@ -272,9 +296,7 @@ export default function ProductDetailsPage() {
             <h1 className="page-title">{product.title_ar}</h1>
 
             <div style={styles.ratingLine}>
-              <span style={styles.stars}>
-                {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-              </span>
+              <span style={styles.stars}>{renderStars(ratingSummary.avg)}</span>
               <span>{ratingSummary.avg || 0}</span>
               <span>({ratingSummary.count || 0})</span>
             </div>
@@ -283,7 +305,7 @@ export default function ProductDetailsPage() {
               {selectedImage ? (
                 <img src={selectedImage} alt={product.title_ar} style={styles.mainImage} />
               ) : (
-                <div style={styles.noImage}>No image</div>
+                <div style={styles.noImage}>لا توجد صورة</div>
               )}
             </div>
 
@@ -383,9 +405,7 @@ export default function ProductDetailsPage() {
               <div>
                 <h2 className="section-title">مراجعات العملاء</h2>
                 <div style={styles.reviewSummary}>
-                  <span style={styles.stars}>
-                    {"★".repeat(Math.round(ratingSummary.avg || 0)) || "☆☆☆☆☆"}
-                  </span>
+                  <span style={styles.stars}>{renderStars(ratingSummary.avg)}</span>
                   <span>{ratingSummary.avg || 0} من 5</span>
                 </div>
                 <div style={styles.reviewCount}>{ratingSummary.count || 0} تقييم</div>
@@ -466,7 +486,7 @@ export default function ProductDetailsPage() {
                 reviews.map((review) => (
                   <article key={review.id} className="ui-card-soft" style={styles.reviewCard}>
                     <div style={styles.reviewCardTop}>
-                      <div style={styles.stars}>{"★".repeat(review.rating)}</div>
+                      <div style={styles.stars}>{renderStars(review.rating)}</div>
                       <div style={styles.reviewDate}>{review.created_at}</div>
                     </div>
 
@@ -482,7 +502,7 @@ export default function ProductDetailsPage() {
 
                     {review.review_image_url ? (
                       <img
-                        src={review.review_image_url}
+                        src={resolveImageUrl(review.review_image_url)}
                         alt="صورة المراجعة"
                         style={styles.reviewImage}
                       />
@@ -504,10 +524,14 @@ export default function ProductDetailsPage() {
                     onClick={() => navigate(`/products/${p.slug}`)}
                     style={{ cursor: "pointer" }}
                   >
-                    {p.image_url ? (
-                      <img src={p.image_url} alt={p.title_ar} className="product-card__image" />
+                    {resolveImageUrl(p.image_url) ? (
+                      <img
+                        src={resolveImageUrl(p.image_url)}
+                        alt={p.title_ar}
+                        className="product-card__image"
+                      />
                     ) : (
-                      <div className="product-card__image" style={styles.noImage}>No image</div>
+                      <div className="product-card__image" style={styles.noImage}>لا توجد صورة</div>
                     )}
 
                     <div className="product-card__body">
@@ -549,7 +573,7 @@ export default function ProductDetailsPage() {
                 disabled={product.stock <= 0}
                 className="btn btn-primary"
               >
-                Checkout
+                إتمام الطلب
               </button>
             </div>
           </div>
@@ -811,7 +835,8 @@ const styles = {
     bottom: 0,
     zIndex: 40,
     paddingBottom: "max(10px, env(safe-area-inset-bottom))",
-    background: "linear-gradient(180deg, rgba(245,241,232,0) 0%, rgba(245,241,232,0.96) 36%, rgba(245,241,232,1) 100%)"
+    background:
+      "linear-gradient(180deg, rgba(245,241,232,0) 0%, rgba(245,241,232,0.96) 36%, rgba(245,241,232,1) 100%)"
   },
   stickyBar: {
     marginTop: "10px",
