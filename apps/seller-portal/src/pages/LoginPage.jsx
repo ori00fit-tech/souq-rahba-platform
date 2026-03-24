@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useSellerAuth } from "../context/SellerAuthContext";
 import { apiPost } from "@rahba/shared";
 
-const SELLER_LOGIN_ENDPOINT = "/auth/login";
 const USER_REGISTER_ENDPOINT = "/auth/register";
 const SELLER_ONBOARDING_ENDPOINT = "/marketplace/onboarding";
 
@@ -18,9 +17,19 @@ const STORE_CATEGORIES = [
   "أخرى"
 ];
 
+function toSellerSlug(input) {
+  return String(input || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { loginSeller } = useSellerAuth();
+
   const [tab, setTab] = useState("login");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -78,24 +87,16 @@ export default function LoginPage() {
     if (!registerForm.email.trim()) return "يرجى إدخال البريد الإلكتروني";
     if (!registerForm.password.trim()) return "يرجى إدخال كلمة السر";
     if (registerForm.password.length < 6) return "كلمة السر يجب أن تكون 6 أحرف على الأقل";
+
     if (registerForm.password !== registerForm.confirm_password) {
       return "تأكيد كلمة السر غير مطابق";
     }
+
     if (!registerForm.accept_terms) {
       return "يجب الموافقة على الشروط قبل إرسال الطلب";
     }
 
     return "";
-  }
-
-  function extractToken(result) {
-    return (
-      result?.data?.token ||
-      result?.token ||
-      result?.data?.access_token ||
-      result?.access_token ||
-      ""
-    );
   }
 
   async function handleLogin(e) {
@@ -143,6 +144,13 @@ export default function LoginPage() {
       return;
     }
 
+    const sellerSlug = toSellerSlug(registerForm.store_name);
+
+    if (!sellerSlug) {
+      showMessage("اسم المتجر يجب أن ينتج slug لاتيني صالح مثل my-store", "error");
+      return;
+    }
+
     try {
       setSubmitting(true);
       resetMessage();
@@ -161,36 +169,24 @@ export default function LoginPage() {
         return;
       }
 
-      // 2) تسجيل الدخول مباشرة للحصول على التوكن
-      const loginResult = await apiPost(SELLER_LOGIN_ENDPOINT, {
-        email: registerForm.email.trim(),
-        password: registerForm.password
-      });
+      // 2) تسجيل الدخول عبر context للحصول على session صحيحة
+      const loginResult = await loginSeller(
+        registerForm.email.trim(),
+        registerForm.password
+      );
 
       if (!loginResult?.ok) {
-        showMessage(loginResult?.message || "تم إنشاء الحساب لكن تعذر تسجيل الدخول تلقائياً", "error");
+        showMessage(
+          loginResult?.message || "تم إنشاء الحساب لكن تعذر تسجيل الدخول تلقائياً",
+          "error"
+        );
         return;
-      }
-
-      const token = extractToken(loginResult);
-
-      if (!token) {
-        showMessage("تم إنشاء الحساب لكن لم يتم استلام توكن صالح", "error");
-        return;
-      }
-
-      if (typeof window !== "undefined") {
-        
       }
 
       // 3) إنشاء seller profile / onboarding
       const onboardingResult = await apiPost(SELLER_ONBOARDING_ENDPOINT, {
         display_name: registerForm.store_name.trim(),
-        slug: registerForm.store_name
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9\u0600-\u06FF]+/g, "-")
-          .replace(/^-+|-+$/g, ""),
+        slug: sellerSlug,
         city: registerForm.city.trim(),
         phone: registerForm.phone.trim(),
         category: registerForm.category,
@@ -200,6 +196,7 @@ export default function LoginPage() {
       if (!onboardingResult?.ok) {
         showMessage(
           onboardingResult?.message ||
+            onboardingResult?.code ||
             "تم إنشاء الحساب لكن تعذر إكمال ملف البائع. يمكنك المتابعة من صفحة الدخول.",
           "error"
         );
@@ -211,11 +208,9 @@ export default function LoginPage() {
         "success"
       );
 
-      if (typeof window !== "undefined") {
-        setTimeout(() => {
-          window.location.href = "/onboarding";
-        }, 900);
-      }
+      setTimeout(() => {
+        navigate("/onboarding", { replace: true });
+      }, 700);
     } catch (error) {
       console.error(error);
       showMessage(error?.message || "حدث خطأ أثناء تسجيل البائع الجديد", "error");
@@ -327,7 +322,7 @@ export default function LoginPage() {
                   onChange={(e) =>
                     setRegisterForm((prev) => ({ ...prev, store_name: e.target.value }))
                   }
-                  placeholder="مثلاً: Inwi Home"
+                  placeholder="مثلاً: My Tech Store"
                   style={s.input}
                 />
               </label>
