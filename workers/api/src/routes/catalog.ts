@@ -24,6 +24,30 @@ function parseNonNegativeInteger(value: unknown, fallback = 0): number | null {
   return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
+catalogRouter.get("/categories", async (c) => {
+  const result = await c.env.DB.prepare(
+    `
+    select
+      id,
+      slug,
+      name_ar,
+      name_fr,
+      name_en,
+      parent_id,
+      sort_order,
+      is_active
+    from categories
+    where is_active = 1
+    order by sort_order asc, name_ar asc, id asc
+    `
+  ).all();
+
+  return c.json({
+    ok: true,
+    data: result.results || []
+  });
+});
+
 catalogRouter.get("/products", async (c) => {
   const sellerId = c.req.query("seller_id");
   const q = (c.req.query("q") || "").trim();
