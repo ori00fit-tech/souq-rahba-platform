@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { apiGet, apiPost } from "@rahba/shared";
+import { apiGet, apiPost } from "../lib/api";
 
 const AdminAuthContext = createContext(null);
-const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_TOKEN_KEY = "admin_auth_token";
 
 function getStoredAdminToken() {
   try {

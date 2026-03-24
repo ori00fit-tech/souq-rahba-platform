@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSellerAuth } from "../context/SellerAuthContext";
-import { apiPost } from "@rahba/shared";
+import { apiPost } from "../lib/api";
 
 const USER_REGISTER_ENDPOINT = "/auth/register";
 const SELLER_ONBOARDING_ENDPOINT = "/marketplace/onboarding";

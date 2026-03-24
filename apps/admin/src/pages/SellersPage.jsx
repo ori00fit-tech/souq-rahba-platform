@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiGet, apiPatch } from "@rahba/shared";
+import { apiGet, apiPatch } from "../lib/api";
 
 export default function SellersPage() {
   const [sellers, setSellers] = useState([]);

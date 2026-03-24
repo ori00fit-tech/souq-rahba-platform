@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { apiGet, apiPost } from "@rahba/shared";
+import { apiGet, apiPost } from "../lib/api";
 
 const SellerAuthContext = createContext(null);
-const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_TOKEN_KEY = "seller_auth_token";
 
 function getStoredSellerToken() {
   try {

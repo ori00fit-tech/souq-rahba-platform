@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { translations } from "../data/site";
-import { apiGet } from "@rahba/shared";
+import { apiGet } from "../lib/api";
 
 const AppContext = createContext(null);
 
 const CART_STORAGE_KEY = "rahba_cart_v1";
-const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_TOKEN_KEY = "buyer_auth_token";
 
 function getAuthToken() {
   try {

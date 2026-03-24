@@ -3,16 +3,18 @@ const DEFAULT_API_BASE_URL =
     ? import.meta.env.VITE_API_BASE_URL
     : "";
 
-function readToken() {
+const DEFAULT_TOKEN_KEY = "auth_token";
+
+function readToken(tokenKey = DEFAULT_TOKEN_KEY) {
   try {
-    return localStorage.getItem("auth_token") || "";
+    return localStorage.getItem(tokenKey) || "";
   } catch {
     return "";
   }
 }
 
-function buildHeaders(extra = {}, withJson = true) {
-  const token = readToken();
+function buildHeaders(extra = {}, withJson = true, tokenKey = DEFAULT_TOKEN_KEY) {
+  const token = readToken(tokenKey);
   return {
     ...(withJson ? { "Content-Type": "application/json" } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -45,7 +47,8 @@ async function parseResponse(response) {
 
 async function request(path, options = {}) {
   const baseUrl = options.baseUrl ?? DEFAULT_API_BASE_URL;
-  const headers = buildHeaders(options.headers || {}, options.withJson !== false);
+  const tokenKey = options.tokenKey ?? DEFAULT_TOKEN_KEY;
+  const headers = buildHeaders(options.headers || {}, options.withJson !== false, tokenKey);
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -94,13 +97,15 @@ export function apiDelete(path, options = {}) {
 }
 
 export async function apiUpload(path, formData, options = {}) {
-  const token = readToken();
+  const baseUrl = options.baseUrl ?? DEFAULT_API_BASE_URL;
+  const tokenKey = options.tokenKey ?? DEFAULT_TOKEN_KEY;
+  const token = readToken(tokenKey);
+
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 
-  const baseUrl = options.baseUrl ?? DEFAULT_API_BASE_URL;
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     method: options.method || "POST",

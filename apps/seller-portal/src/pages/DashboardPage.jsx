@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiGet } from "@rahba/shared";
+import { apiGet } from "../lib/api";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({

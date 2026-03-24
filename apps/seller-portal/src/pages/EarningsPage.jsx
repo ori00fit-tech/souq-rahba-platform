@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiGet } from "@rahba/shared";
+import { apiGet } from "../lib/api";
 
 function formatMoney(value) {
   return `${Number(value || 0).toLocaleString("en-US")} MAD`;

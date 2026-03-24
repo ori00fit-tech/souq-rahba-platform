@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiPost, apiUploadFile } from "@rahba/shared";
+import { apiPost, apiUploadFile } from "../lib/api";
 
 function resolveImageUrl(url) {
   if (!url) return "";
