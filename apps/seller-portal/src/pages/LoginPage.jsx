@@ -155,7 +155,7 @@ export default function LoginPage() {
       setSubmitting(true);
       resetMessage();
 
-      // 1) إنشاء حساب user بدور seller
+      // 1) إنشاء حساب seller user
       const registerResult = await apiPost(USER_REGISTER_ENDPOINT, {
         email: registerForm.email.trim(),
         password: registerForm.password,
@@ -169,11 +169,11 @@ export default function LoginPage() {
         return;
       }
 
-      // 2) تسجيل الدخول عبر context للحصول على session صحيحة
-      const loginResult = await loginSeller(
-        registerForm.email.trim(),
-        registerForm.password
-      );
+      // 2) login عادي، بدون loginSeller لأن seller row مازال ما تخلقش
+      const loginResult = await apiPost("/auth/login", {
+        email: registerForm.email.trim(),
+        password: registerForm.password
+      });
 
       if (!loginResult?.ok) {
         showMessage(
@@ -183,7 +183,21 @@ export default function LoginPage() {
         return;
       }
 
-      // 3) إنشاء seller profile / onboarding
+      const token =
+        loginResult?.data?.token ||
+        loginResult?.token ||
+        loginResult?.data?.access_token ||
+        loginResult?.access_token ||
+        "";
+
+      if (!token) {
+        showMessage("تم إنشاء الحساب لكن لم يتم استلام توكن صالح", "error");
+        return;
+      }
+
+      localStorage.setItem("seller_auth_token", token);
+
+      // 3) إنشاء seller profile
       const onboardingResult = await apiPost(SELLER_ONBOARDING_ENDPOINT, {
         display_name: registerForm.store_name.trim(),
         slug: sellerSlug,
@@ -204,12 +218,13 @@ export default function LoginPage() {
       }
 
       showMessage(
-        "تم إنشاء حساب البائع بنجاح. جاري تحويلك إلى مرحلة المراجعة.",
+        "تم إنشاء حساب البائع بنجاح. جاري تحويلك...",
         "success"
       );
 
+      // 4) reload مقصود باش SellerAuthContext يعاود bootstrap من token الجديد
       setTimeout(() => {
-        navigate("/onboarding", { replace: true });
+        window.location.href = "/";
       }, 700);
     } catch (error) {
       console.error(error);
