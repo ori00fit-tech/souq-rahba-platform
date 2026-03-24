@@ -24,6 +24,15 @@ function parseNonNegativeInteger(value: unknown, fallback = 0): number | null {
   return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
+function normalizeProductStatus(input: unknown): "active" | "draft" | "archived" | null {
+  const status = String(input || "").trim().toLowerCase();
+  if (!status) return "active";
+  if (status === "active" || status === "draft" || status === "archived") {
+    return status;
+  }
+  return null;
+}
+
 catalogRouter.get("/categories", async (c) => {
   const result = await c.env.DB.prepare(
     `
@@ -280,6 +289,7 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
   const titleAr = String(body.title_ar || "").trim();
   const slug = normalizeSlug(body.slug);
   const categoryId = String(body.category_id || "").trim();
+  const status = normalizeProductStatus(body.status);
   const priceMad = parseNonNegativeNumber(body.price_mad);
   const stock = parseNonNegativeInteger(body.stock, 0);
 
@@ -311,6 +321,13 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
   if (!categoryId) {
     return c.json(
       { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      400
+    );
+  }
+
+  if (status === null) {
+    return c.json(
+      { ok: false, code: "INVALID_STATUS", message: "status must be active, draft, or archived" },
       400
     );
   }
@@ -402,7 +419,7 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       stock,
       status,
       featured
-    ) values (?, ?, ?, ?, ?, ?, ?, ?, 'physical', 'new', ?, ?, ?, 'active', ?)`
+    ) values (?, ?, ?, ?, ?, ?, ?, ?, 'physical', 'new', ?, ?, ?, ?, ?)`
   )
     .bind(
       id,
@@ -416,6 +433,7 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       body.sku || null,
       priceMad,
       stock,
+      status,
       body.featured ? 1 : 0
     )
     .run();
@@ -543,6 +561,7 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
   const titleAr = String(body.title_ar || "").trim();
   const slug = normalizeSlug(body.slug);
   const categoryId = String(body.category_id || "").trim();
+  const status = normalizeProductStatus(body.status);
   const priceMad = parseNonNegativeNumber(body.price_mad);
   const stock = parseNonNegativeInteger(body.stock, 0);
 
@@ -574,6 +593,13 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
   if (!categoryId) {
     return c.json(
       { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      400
+    );
+  }
+
+  if (status === null) {
+    return c.json(
+      { ok: false, code: "INVALID_STATUS", message: "status must be active, draft, or archived" },
       400
     );
   }
@@ -648,6 +674,7 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
        sku = ?,
        price_mad = ?,
        stock = ?,
+       status = ?,
        featured = ?
      where id = ?`
   )
@@ -661,6 +688,7 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
       body.sku || null,
       priceMad,
       stock,
+      status,
       body.featured ? 1 : 0,
       id
     )
