@@ -5,6 +5,7 @@ import ProductsPage from "./pages/ProductsPage";
 import OrdersPage from "./pages/OrdersPage";
 import EarningsPage from "./pages/EarningsPage";
 import SettingsPage from "./pages/SettingsPage";
+import LogisticsPage from "./pages/LogisticsPage";
 import AddProductPage from "./pages/AddProductPage";
 import EditProductPage from "./pages/EditProductPage";
 import OrderDetailsPage from "./pages/OrderDetailsPage";
@@ -116,6 +117,7 @@ function Sidebar({ isMobile }) {
         <NavItem to="/products" label="Products" icon="📦" isMobile={isMobile} />
         <NavItem to="/orders" label="Orders" icon="🧾" isMobile={isMobile} />
         <NavItem to="/earnings" label="Earnings" icon="💰" isMobile={isMobile} />
+        <NavItem to="/logistics" label="Logistics" icon="🚚" isMobile={isMobile} />
         <NavItem to="/settings" label="Settings" icon="⚙️" isMobile={isMobile} />
       </nav>
 
@@ -281,6 +283,7 @@ function ProtectedShell() {
             <Route path="/orders/:id" element={<OrderDetailsPage />} />
             <Route path="/earnings" element={<EarningsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/logistics" element={<LogisticsPage />} />
           </Routes>
         </main>
       </div>
