@@ -44,7 +44,7 @@ export function SellerAuthProvider({ children }) {
         setCurrentSeller(null);
         return {
           ok: false,
-          message: res?.message || "Failed to load seller"
+          message: res?.error?.message || "Failed to load seller"
         };
       }
 
@@ -113,12 +113,18 @@ export function SellerAuthProvider({ children }) {
         password
       });
 
-      if (!result?.ok || !result?.data?.token) {
+      const token = result?.data?.token;
+      const user = result?.data?.user;
+
+      if (!result?.ok || !token || !user) {
         setCurrentSeller(null);
-        return result;
+        return {
+          ok: false,
+          message: result?.error?.message || "فشل تسجيل الدخول"
+        };
       }
 
-      if (result?.data?.user?.role && !["seller", "admin"].includes(result.data.user.role)) {
+      if (user.role && !["seller", "admin"].includes(user.role)) {
         setCurrentSeller(null);
         return {
           ok: false,
@@ -126,7 +132,7 @@ export function SellerAuthProvider({ children }) {
         };
       }
 
-      setStoredSellerToken(result.data.token);
+      setStoredSellerToken(token);
 
       const me = await refreshSeller();
 

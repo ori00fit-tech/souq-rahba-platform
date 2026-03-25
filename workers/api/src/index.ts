@@ -11,6 +11,7 @@ import { mediaRouter } from "./routes/media";
 import { authRouter } from "./routes/auth";
 import { whatsappRouter } from "./routes/whatsapp";
 import { adminRouter } from "./routes/admin";
+import { fail } from "./utils/response";
 import type { AppEnv } from "./types";
 
 const app = new Hono<AppEnv>();
@@ -31,7 +32,7 @@ app.route("/", whatsappRouter);
 
 app.notFound((c) =>
   c.json(
-    { ok: false, code: "NOT_FOUND", message: "Route not found" },
+    fail("NOT_FOUND", "Route not found"),
     404
   )
 );

@@ -103,7 +103,7 @@ export function AppProvider({ children }) {
       try {
         const res = await apiGet("/auth/me");
         if (!cancelled) {
-          setCurrentUser(res?.ok ? res.data : null);
+          setCurrentUser(res?.data?.user || null);
         }
       } catch (err) {
         console.error("Failed to load current user", err);
@@ -184,9 +184,11 @@ export function AppProvider({ children }) {
 
     try {
       const res = await apiGet("/auth/me");
-      if (res?.ok) {
-        setCurrentUser(res.data);
-        return res.data;
+      const user = res?.data?.user || null;
+
+      if (user) {
+        setCurrentUser(user);
+        return user;
       }
 
       clearAuthToken();

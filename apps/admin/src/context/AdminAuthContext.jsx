@@ -44,10 +44,11 @@ export function AdminAuthProvider({ children }) {
 
       try {
         const res = await apiGet("/auth/me");
+        const user = res?.data?.user;
 
-        if (res?.ok && res.data?.role === "admin") {
+        if (res?.ok && user?.role === "admin") {
           if (mounted) {
-            setCurrentAdmin(res.data);
+            setCurrentAdmin(user);
           }
         } else {
           setStoredAdminToken("");
@@ -80,23 +81,26 @@ export function AdminAuthProvider({ children }) {
       setAuthLoading(true);
 
       const result = await apiPost("/auth/login", { email, password });
+      const token = result?.data?.token;
+      const user = result?.data?.user;
 
-      if (!result?.ok || !result?.data?.token) {
+      if (!result?.ok || !token || !user) {
+        setCurrentAdmin(null);
+        throw new Error(result?.error?.message || "Admin access required");
+      }
+
+      if (user.role !== "admin") {
         setCurrentAdmin(null);
         throw new Error("Admin access required");
       }
 
-      if (result?.data?.user?.role !== "admin") {
-        setCurrentAdmin(null);
-        throw new Error("Admin access required");
-      }
-
-      setStoredAdminToken(result.data.token);
+      setStoredAdminToken(token);
 
       const me = await apiGet("/auth/me");
+      const meUser = me?.data?.user;
 
-      if (me?.ok && me.data?.role === "admin") {
-        setCurrentAdmin(me.data);
+      if (me?.ok && meUser?.role === "admin") {
+        setCurrentAdmin(meUser);
         return result;
       }
 

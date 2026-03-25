@@ -1,4 +1,5 @@
 import type { Context, Next } from "hono";
+import { AuthErrors } from "../utils/auth-errors";
 
 type SessionRow = {
   id: string;
@@ -21,12 +22,19 @@ export async function authMiddleware(c: Context, next: Next) {
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return c.json(
-      { ok: false, code: "UNAUTHORIZED", message: "Missing token" },
+      AuthErrors.unauthorized("Missing token"),
       401
     );
   }
 
   const token = authHeader.slice("Bearer ".length).trim();
+
+  if (!token) {
+    return c.json(
+      AuthErrors.unauthorized("Missing token"),
+      401
+    );
+  }
 
   const session = await c.env.DB.prepare(
     `select
@@ -46,7 +54,7 @@ export async function authMiddleware(c: Context, next: Next) {
 
   if (!session) {
     return c.json(
-      { ok: false, code: "UNAUTHORIZED", message: "Invalid token" },
+      AuthErrors.unauthorized("Invalid token"),
       401
     );
   }
@@ -57,7 +65,7 @@ export async function authMiddleware(c: Context, next: Next) {
       .run();
 
     return c.json(
-      { ok: false, code: "SESSION_EXPIRED", message: "Session expired" },
+      AuthErrors.sessionExpired(),
       401
     );
   }
