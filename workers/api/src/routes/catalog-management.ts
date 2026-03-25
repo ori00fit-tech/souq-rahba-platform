@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 
 export const catalogManagementRouter = new Hono<import("../types").AppEnv>();
 
@@ -75,7 +76,7 @@ catalogManagementRouter.get("/products/id/:id", authMiddleware, requireRole("sel
 
   if (!result) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
@@ -101,15 +102,14 @@ catalogManagementRouter.get("/products/id/:id", authMiddleware, requireRole("sel
     order by sort_order asc, id asc
   `).bind(id).all();
 
-  return c.json({
-    ok: true,
-    data: {
+  return c.json(
+    ok({
       ...result,
       media: media.results || [],
       specs: specs.results || [],
       faqs: faqs.results || []
-    }
-  });
+    })
+  );
 });
 
 catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", "admin"), async (c) => {
@@ -118,7 +118,7 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
 
   if (!body || typeof body !== "object") {
     return c.json(
-      { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+      fail("INVALID_BODY", "Invalid JSON body"),
       400
     );
   }
@@ -132,53 +132,49 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
 
   if (!titleAr) {
     return c.json(
-      { ok: false, code: "INVALID_TITLE", message: "title_ar is required" },
+      fail("INVALID_TITLE", "title_ar is required"),
       400
     );
   }
 
   if (!slug) {
     return c.json(
-      { ok: false, code: "INVALID_SLUG", message: "slug is required" },
+      fail("INVALID_SLUG", "slug is required"),
       400
     );
   }
 
   if (!isValidSlug(slug)) {
     return c.json(
-      {
-        ok: false,
-        code: "INVALID_SLUG_FORMAT",
-        message: "slug must contain only lowercase latin letters, numbers, and dashes"
-      },
+      fail("INVALID_SLUG_FORMAT", "slug must contain only lowercase latin letters, numbers, and dashes"),
       400
     );
   }
 
   if (!categoryId) {
     return c.json(
-      { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      fail("CATEGORY_REQUIRED", "category_id is required"),
       400
     );
   }
 
   if (status === null) {
     return c.json(
-      { ok: false, code: "INVALID_STATUS", message: "status must be active, draft, or archived" },
+      fail("INVALID_STATUS", "status must be active, draft, or archived"),
       400
     );
   }
 
   if (priceMad === null) {
     return c.json(
-      { ok: false, code: "INVALID_PRICE", message: "price_mad must be a non-negative number" },
+      fail("INVALID_PRICE", "price_mad must be a non-negative number"),
       400
     );
   }
 
   if (stock === null) {
     return c.json(
-      { ok: false, code: "INVALID_STOCK", message: "stock must be a non-negative integer" },
+      fail("INVALID_STOCK", "stock must be a non-negative integer"),
       400
     );
   }
@@ -187,11 +183,11 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
     `select id from sellers where owner_user_id = ? limit 1`
   )
     .bind(authUser.user_id)
-    .first();
+    .first<{ id: string }>();
 
   if (!seller && authUser.role !== "admin") {
     return c.json(
-      { ok: false, code: "SELLER_NOT_FOUND", message: "Seller profile not found" },
+      fail("SELLER_NOT_FOUND", "Seller profile not found"),
       404
     );
   }
@@ -202,11 +198,11 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
     `select id from sellers where id = ? limit 1`
   )
     .bind(sellerId)
-    .first();
+    .first<{ id: string }>();
 
   if (!sellerExists) {
     return c.json(
-      { ok: false, code: "INVALID_SELLER", message: "seller does not exist" },
+      fail("INVALID_SELLER", "seller does not exist"),
       400
     );
   }
@@ -215,11 +211,11 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
     `select id from categories where id = ? and is_active = 1 limit 1`
   )
     .bind(categoryId)
-    .first();
+    .first<{ id: string }>();
 
   if (!category) {
     return c.json(
-      { ok: false, code: "INVALID_CATEGORY", message: "category does not exist" },
+      fail("INVALID_CATEGORY", "category does not exist"),
       400
     );
   }
@@ -228,11 +224,11 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
     `select id from products where slug = ? limit 1`
   )
     .bind(slug)
-    .first();
+    .first<{ id: string }>();
 
   if (existingSlug) {
     return c.json(
-      { ok: false, code: "SLUG_EXISTS", message: "slug already exists" },
+      fail("SLUG_EXISTS", "slug already exists"),
       409
     );
   }
@@ -368,17 +364,14 @@ catalogManagementRouter.post("/products", authMiddleware, requireRole("seller", 
   }
 
   return c.json(
-    {
-      ok: true,
-      data: {
-        id,
-        slug,
-        title_ar: titleAr,
-        category_id: categoryId,
-        price_mad: priceMad,
-        stock
-      }
-    },
+    ok({
+      id,
+      slug,
+      title_ar: titleAr,
+      category_id: categoryId,
+      price_mad: priceMad,
+      stock
+    }),
     201
   );
 });
@@ -390,7 +383,7 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
 
   if (!body || typeof body !== "object") {
     return c.json(
-      { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+      fail("INVALID_BODY", "Invalid JSON body"),
       400
     );
   }
@@ -404,53 +397,49 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
 
   if (!titleAr) {
     return c.json(
-      { ok: false, code: "INVALID_TITLE", message: "title_ar is required" },
+      fail("INVALID_TITLE", "title_ar is required"),
       400
     );
   }
 
   if (!slug) {
     return c.json(
-      { ok: false, code: "INVALID_SLUG", message: "slug is required" },
+      fail("INVALID_SLUG", "slug is required"),
       400
     );
   }
 
   if (!isValidSlug(slug)) {
     return c.json(
-      {
-        ok: false,
-        code: "INVALID_SLUG_FORMAT",
-        message: "slug must contain only lowercase latin letters, numbers, and dashes"
-      },
+      fail("INVALID_SLUG_FORMAT", "slug must contain only lowercase latin letters, numbers, and dashes"),
       400
     );
   }
 
   if (!categoryId) {
     return c.json(
-      { ok: false, code: "CATEGORY_REQUIRED", message: "category_id is required" },
+      fail("CATEGORY_REQUIRED", "category_id is required"),
       400
     );
   }
 
   if (status === null) {
     return c.json(
-      { ok: false, code: "INVALID_STATUS", message: "status must be active, draft, or archived" },
+      fail("INVALID_STATUS", "status must be active, draft, or archived"),
       400
     );
   }
 
   if (priceMad === null) {
     return c.json(
-      { ok: false, code: "INVALID_PRICE", message: "price_mad must be a non-negative number" },
+      fail("INVALID_PRICE", "price_mad must be a non-negative number"),
       400
     );
   }
 
   if (stock === null) {
     return c.json(
-      { ok: false, code: "INVALID_STOCK", message: "stock must be a non-negative integer" },
+      fail("INVALID_STOCK", "stock must be a non-negative integer"),
       400
     );
   }
@@ -464,11 +453,11 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
      limit 1`
   )
     .bind(id, authUser.role, authUser.user_id)
-    .first();
+    .first<{ id: string }>();
 
   if (!existing) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
@@ -477,11 +466,11 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
     `select id from categories where id = ? and is_active = 1 limit 1`
   )
     .bind(categoryId)
-    .first();
+    .first<{ id: string }>();
 
   if (!category) {
     return c.json(
-      { ok: false, code: "INVALID_CATEGORY", message: "category does not exist" },
+      fail("INVALID_CATEGORY", "category does not exist"),
       400
     );
   }
@@ -490,11 +479,11 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
     `select id from products where slug = ? and id <> ? limit 1`
   )
     .bind(slug, id)
-    .first();
+    .first<{ id: string }>();
 
   if (existingSlug) {
     return c.json(
-      { ok: false, code: "SLUG_EXISTS", message: "slug already exists" },
+      fail("SLUG_EXISTS", "slug already exists"),
       409
     );
   }
@@ -641,7 +630,9 @@ catalogManagementRouter.put("/products/:id", authMiddleware, requireRole("seller
     .bind(id)
     .first();
 
-  return c.json({ ok: true, data: updated });
+  return c.json(
+    ok(updated)
+  );
 });
 
 catalogManagementRouter.delete("/products/:id", authMiddleware, requireRole("seller", "admin"), async (c) => {
@@ -657,11 +648,11 @@ catalogManagementRouter.delete("/products/:id", authMiddleware, requireRole("sel
      limit 1`
   )
     .bind(id, authUser.role, authUser.user_id)
-    .first();
+    .first<{ id: string }>();
 
   if (!existing) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
@@ -671,8 +662,9 @@ catalogManagementRouter.delete("/products/:id", authMiddleware, requireRole("sel
   await c.env.DB.prepare(`delete from product_faqs where product_id = ?`).bind(id).run();
   await c.env.DB.prepare(`delete from products where id = ?`).bind(id).run();
 
-  return c.json({
-    ok: true,
-    message: "Product deleted"
-  });
+  return c.json(
+    ok({
+      message: "Product deleted"
+    })
+  );
 });
