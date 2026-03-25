@@ -17,3 +17,8 @@ D1_HARDENING_AUDIT.txt
 RAHBA_AUDIT_LITE.txt
 RAHBA_AUDIT_REPORT.txt
 souq-audit-out/
+<<<<<<< HEAD
+=======
+
+souq-audit-out/
+>>>>>>> 49c5c9f (Remove audit files and ignore them)
