@@ -71,12 +71,14 @@ export default function ProductsPage() {
     async function loadCategories() {
       try {
         setCategoriesLoading(true);
+
         const result = await apiGet("/catalog/categories");
         const items = Array.isArray(result?.data)
           ? result.data
           : Array.isArray(result)
           ? result
           : [];
+
         setCategories(items);
       } catch (err) {
         console.error(err);
@@ -139,13 +141,12 @@ export default function ProductsPage() {
   }, [q, category, sort, page]);
 
   const categoryOptions = useMemo(() => {
-    return [
-      { value: "", label: "كل الفئات" },
-      ...categories.map((cat) => ({
-        value: cat.slug || "",
-        label: cat.name_ar || cat.name || cat.slug || "فئة"
-      }))
-    ];
+    const dynamic = categories.map((cat) => ({
+      value: cat.slug || "",
+      label: cat.name_ar || cat.name || cat.slug || "فئة"
+    }));
+
+    return [{ value: "", label: "كل الفئات" }, ...dynamic];
   }, [categories]);
 
   function updateFilters(next) {
@@ -185,6 +186,7 @@ export default function ProductsPage() {
       setErrorMessage("تعذر فتح المنتج");
       return;
     }
+
     navigate(`/products/${product.slug}`);
   }
 
@@ -200,15 +202,25 @@ export default function ProductsPage() {
 
   const activeFilters = useMemo(() => {
     const items = [];
-    if (q) items.push(`بحث: ${q}`);
+
+    if (q) {
+      items.push(`بحث: ${q}`);
+    }
+
     if (category) {
       const cat = categoryOptions.find((x) => x.value === category);
-      if (cat) items.push(cat.label);
+      if (cat) {
+        items.push(cat.label);
+      }
     }
+
     if (sort && sort !== "newest") {
       const s = SORT_OPTIONS.find((x) => x.value === sort);
-      if (s) items.push(`ترتيب: ${s.label}`);
+      if (s) {
+        items.push(`ترتيب: ${s.label}`);
+      }
     }
+
     return items;
   }, [q, category, sort, categoryOptions]);
 
@@ -229,7 +241,9 @@ export default function ProductsPage() {
               value={draftQuery}
               onChange={(e) => setDraftQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") applySearch();
+                if (e.key === "Enter") {
+                  applySearch();
+                }
               }}
               placeholder="ابحث عن منتج..."
               className="ui-input"
@@ -267,7 +281,13 @@ export default function ProductsPage() {
           </div>
 
           <div style={styles.metaRow}>
-            <div className="ui-chip">{pagination.total} منتج</div>
+            <div style={styles.metaLeft}>
+              <div className="ui-chip">{pagination.total} منتج</div>
+              {categoriesLoading ? (
+                <div className="ui-chip">جاري تحميل الفئات...</div>
+              ) : null}
+            </div>
+
             <button onClick={clearFilters} className="btn btn-soft">
               مسح الفلاتر
             </button>
@@ -425,7 +445,14 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "10px"
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+  metaLeft: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    flexWrap: "wrap"
   },
   chipsWrap: {
     display: "flex",
