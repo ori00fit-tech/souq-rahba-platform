@@ -33,6 +33,19 @@ function normalizeProductStatus(input: unknown): "active" | "draft" | "archived"
   return null;
 }
 
+function sanitizeHtml(input: unknown): string | null {
+  const html = String(input || "").trim();
+  if (!html) return null;
+
+  return html
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<(iframe|object|embed|link|meta)[^>]*?>[\s\S]*?<\/(iframe|object|embed)>/gi, "")
+    .replace(/<(iframe|object|embed|link|meta)[^>]*?\/?>/gi, "")
+    .replace(/\son\w+\s*=\s*(['"]).*?\1/gi, "")
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "")
+    .replace(/javascript:/gi, "");
+}
+
 catalogRouter.get("/categories", async (c) => {
   const result = await c.env.DB.prepare(
     `
@@ -422,7 +435,7 @@ catalogRouter.post("/products", authMiddleware, requireRole("seller", "admin"), 
       titleAr,
       body.description_ar || null,
       body.description_long_ar || null,
-      body.landing_html_ar || null,
+      sanitizeHtml(body.landing_html_ar),
       categoryId,
       body.sku || null,
       priceMad,
@@ -677,7 +690,7 @@ catalogRouter.put("/products/:id", authMiddleware, requireRole("seller", "admin"
       slug,
       body.description_ar || null,
       body.description_long_ar || null,
-      body.landing_html_ar || null,
+      sanitizeHtml(body.landing_html_ar),
       categoryId,
       body.sku || null,
       priceMad,
