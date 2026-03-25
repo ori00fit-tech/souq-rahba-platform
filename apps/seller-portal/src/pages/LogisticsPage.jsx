@@ -15,6 +15,43 @@ function emptyMethod(method, zone) {
   };
 }
 
+function providerTags(provider) {
+  const code = String(provider?.code || "").toLowerCase();
+  const name = String(provider?.name || "").toLowerCase();
+  const raw = `${code} ${name}`;
+
+  const tags = [];
+
+  if (raw.includes("jibli")) tags.push("محلي");
+  if (
+    raw.includes("amana") ||
+    raw.includes("aramex") ||
+    raw.includes("ctm") ||
+    raw.includes("ozon") ||
+    raw.includes("cathedis")
+  ) {
+    tags.push("وطني");
+  }
+  if (raw.includes("dhl") || raw.includes("fedex") || raw.includes("express")) {
+    tags.push("سريع");
+  }
+
+  if (tags.length === 0) tags.push("شحن");
+  return tags;
+}
+
+function methodTags(method) {
+  const code = String(method?.code || "").toLowerCase();
+  const name = String(method?.name || "").toLowerCase();
+  const raw = `${code} ${name}`;
+
+  const tags = [];
+  if (raw.includes("express")) tags.push("سريع");
+  if (raw.includes("standard")) tags.push("قياسي");
+  if (tags.length === 0) tags.push("طريقة شحن");
+  return tags;
+}
+
 function buildForm(providers, zones, settings) {
   return (providers || []).map((provider) => {
     const savedProvider = (settings || []).find(
@@ -249,6 +286,12 @@ export default function LogisticsPage() {
                   <div style={s.providerSubTitle}>
                     {(providerMeta?.methods || []).length} طرق شحن · {activeMethodsCount} مفعلة
                   </div>
+
+                  <div style={s.badgesRow}>
+                    {providerTags(providerMeta || provider).map((tag) => (
+                      <span key={tag} style={s.neutralBadge}>{tag}</span>
+                    ))}
+                  </div>
                 </div>
 
                 <span style={s.chevron}>{provider.expanded ? "▾" : "▸"}</span>
@@ -312,6 +355,11 @@ export default function LogisticsPage() {
                             <div style={s.methodName}>{method.name}</div>
                             <div style={s.methodMeta}>
                               {method.description || "Shipping method"} · {method.estimated_min_days ?? "-"} - {method.estimated_max_days ?? "-"} أيام
+                            </div>
+                            <div style={s.badgesRow}>
+                              {methodTags(method).map((tag) => (
+                                <span key={tag} style={s.softBadge}>{tag}</span>
+                              ))}
                             </div>
                           </div>
                         </div>
@@ -550,6 +598,30 @@ const s = {
     color: "#64748b",
     fontSize: "13px",
     marginTop: "6px"
+  },
+  badgesRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    marginTop: "10px"
+  },
+  neutralBadge: {
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    border: "1px solid #bfdbfe",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "800"
+  },
+  softBadge: {
+    background: "#f0fdf4",
+    color: "#166534",
+    border: "1px solid #bbf7d0",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "800"
   },
   badgeActive: {
     background: "#dcfce7",
