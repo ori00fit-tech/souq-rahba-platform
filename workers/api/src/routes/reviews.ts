@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 import type { AppEnv } from "../types";
 
 export const reviewsRouter = new Hono<AppEnv>();
@@ -14,7 +15,7 @@ reviewsRouter.get("/products/:slug/reviews", async (c) => {
 
   if (!product) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
@@ -38,10 +39,9 @@ reviewsRouter.get("/products/:slug/reviews", async (c) => {
     .bind(product.id)
     .all();
 
-  return c.json({
-    ok: true,
-    data: reviews.results || []
-  });
+  return c.json(
+    ok(reviews.results || [])
+  );
 });
 
 reviewsRouter.post(
@@ -54,7 +54,7 @@ reviewsRouter.post(
 
     if (!body || !body.rating || !body.comment?.trim()) {
       return c.json(
-        { ok: false, code: "INVALID_REVIEW", message: "rating and comment are required" },
+        fail("INVALID_REVIEW", "rating and comment are required"),
         400
       );
     }
@@ -65,7 +65,7 @@ reviewsRouter.post(
 
     if (!product) {
       return c.json(
-        { ok: false, code: "NOT_FOUND", message: "Product not found" },
+        fail("NOT_FOUND", "Product not found"),
         404
       );
     }
@@ -85,11 +85,7 @@ reviewsRouter.post(
 
     if (!purchased) {
       return c.json(
-        {
-          ok: false,
-          code: "REVIEW_NOT_ALLOWED",
-          message: "يمكنك التقييم فقط بعد شراء المنتج"
-        },
+        fail("REVIEW_NOT_ALLOWED", "يمكنك التقييم فقط بعد شراء المنتج"),
         403
       );
     }
@@ -114,19 +110,14 @@ reviewsRouter.post(
         .run();
     } catch {
       return c.json(
-        {
-          ok: false,
-          code: "REVIEW_EXISTS",
-          message: "review already exists"
-        },
+        fail("REVIEW_EXISTS", "review already exists"),
         400
       );
     }
 
-    return c.json({
-      ok: true,
-      data: { id }
-    });
+    return c.json(
+      ok({ id })
+    );
   }
 );
 
@@ -143,7 +134,7 @@ reviewsRouter.get("/products/:slug/similar", async (c) => {
 
   if (!product) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
@@ -172,8 +163,7 @@ reviewsRouter.get("/products/:slug/similar", async (c) => {
     .bind(product.category_id, product.id)
     .all();
 
-  return c.json({
-    ok: true,
-    data: rows.results || []
-  });
+  return c.json(
+    ok(rows.results || [])
+  );
 });
