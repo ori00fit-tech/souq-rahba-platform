@@ -1,0 +1,24 @@
+Souq Rahba Project Audit Summary
+========================================
+
+Root: /data/data/com.termux/files/home/downloads/souq-rahba-platform
+Total files scanned: 147
+Code files scanned: 88
+
+Generated reports:
+- 01_workspace.txt
+- 02_routes_backend.txt
+- 03_frontend_pages.txt
+- 04_auth_tokens.txt
+- 05_api_usage.txt
+- 06_uploads_media.txt
+- 07_catalog_reviews.txt
+- 08_risky_patterns.txt
+- 09_file_tree.txt
+
+Suggested upload order to ChatGPT:
+1) 00_summary.txt
+2) 02_routes_backend.txt
+3) 03_frontend_pages.txt
+4) 07_catalog_reviews.txt
+5) أي ملف إضافي فيه errors أو risk

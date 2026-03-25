@@ -1,0 +1,110 @@
+## File tree
+
+- .github/
+  - workflows/
+    - ci.yml
+- apps/
+  - admin/
+    - src/
+      - context/
+      - lib/
+      - pages/
+      - App.jsx
+      - main.jsx
+      - styles.css
+    - index.html
+    - package.json
+    - tsconfig.json
+    - vite.config.js
+  - seller-portal/
+    - src/
+      - context/
+      - lib/
+      - pages/
+      - styles/
+      - App.jsx
+      - main.jsx
+    - index.html
+    - package.json
+    - vite.config.js
+  - storefront/
+    - public/
+      - brand/
+    - src/
+      - components/
+      - context/
+      - data/
+      - lib/
+      - pages/
+      - styles/
+      - App.jsx
+      - main.jsx
+    - index.html
+    - package.json
+    - tsconfig.json
+    - vite.config.js
+    - wrangler.toml
+- infra/
+  - d1/
+    - schema.sql
+    - seed.sql
+  - docs/
+    - architecture.md
+    - deployment.md
+    - production-checklist.md
+    - repository-structure.md
+- packages/
+  - config/
+    - src/
+      - index.ts
+    - package.json
+    - tsconfig.json
+  - contracts/
+    - src/
+      - index.ts
+    - package.json
+    - tsconfig.json
+  - shared/
+    - src/
+      - api.js
+      - index.js
+      - index.ts
+    - package.json
+    - tsconfig.json
+  - ui/
+    - src/
+      - index.jsx
+    - package.json
+- souq-audit-out/
+- workers/
+  - api/
+    - src/
+      - lib/
+      - middleware/
+      - repositories/
+      - routes/
+      - index.ts
+      - types.ts
+    - package.json
+    - tsconfig.json
+    - wrangler.toml
+  - webhooks/
+    - src/
+      - index.ts
+    - package.json
+    - tsconfig.json
+    - wrangler.toml
+- .editorconfig
+- .env.example
+- .gitignore
+- D1_AUDIT_LITE.txt
+- D1_HARDENING_AUDIT.txt
+- FETCH_HEAD
+- package.json
+- pnpm-lock.yaml
+- pnpm-workspace.yaml
+- RAHBA_AUDIT_LITE.txt
+- RAHBA_AUDIT_REPORT.txt
+- README.md
+- turbo.json
+- vite
