@@ -25,7 +25,6 @@ export default function ProductDetailsPage() {
   const [reviews, setReviews] = useState([]);
   const [similar, setSimilar] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [submittingReview, setSubmittingReview] = useState(false);
   const [message, setMessage] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
@@ -38,49 +37,45 @@ export default function ProductDetailsPage() {
     review_image_url: ""
   });
 
-  useEffect(() => {
-    async function loadAll() {
-      try {
-        setLoading(true);
-        setReviewsLoading(true);
-        setMessage("");
-        setReviewMessage("");
+  async function loadProductPage() {
+    try {
+      setLoading(true);
+      setMessage("");
+      setReviewMessage("");
 
-        const productRes = await apiGet(`/catalog/products/${slug}`);
-        if (productRes?.ok && productRes?.data) {
-          setProduct(productRes.data);
-        } else {
-          setMessage("تعذر تحميل المنتج");
-        }
+      const result = await apiGet(`/catalog/products/${slug}/full`);
 
-        const reviewsRes = await apiGet(`/catalog/products/${slug}/reviews`);
-        if (reviewsRes?.ok) {
-          setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
-        } else {
-          setReviews([]);
-        }
-
-        const similarRes = await apiGet(`/catalog/products/${slug}/similar`);
-        if (similarRes?.ok) {
-          setSimilar(Array.isArray(similarRes.data) ? similarRes.data : []);
-        } else {
-          setSimilar([]);
-        }
-      } catch (err) {
-        console.error(err);
-        setMessage("حدث خطأ أثناء تحميل المنتج");
-      } finally {
-        setLoading(false);
-        setReviewsLoading(false);
+      if (!result?.ok || !result?.data?.product) {
+        setProduct(null);
+        setReviews([]);
+        setSimilar([]);
+        setMessage(result?.message || "تعذر تحميل المنتج");
+        return;
       }
-    }
 
-    loadAll();
+      setProduct(result.data.product);
+      setReviews(Array.isArray(result.data.reviews) ? result.data.reviews : []);
+      setSimilar(Array.isArray(result.data.similar) ? result.data.similar : []);
+    } catch (err) {
+      console.error(err);
+      setProduct(null);
+      setReviews([]);
+      setSimilar([]);
+      setMessage("حدث خطأ أثناء تحميل المنتج");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProductPage();
   }, [slug]);
 
   const galleryImages = useMemo(() => {
     const mediaImages = Array.isArray(product?.media)
-      ? product.media.map((m) => resolveImageUrl(m.url || m.image_url || "")).filter(Boolean)
+      ? product.media
+          .map((m) => resolveImageUrl(m.url || m.image_url || ""))
+          .filter(Boolean)
       : [];
 
     const reviewImages = reviews
@@ -94,10 +89,14 @@ export default function ProductDetailsPage() {
   }, [product, reviews]);
 
   useEffect(() => {
-    if (!selectedImage && galleryImages.length > 0) {
-      setSelectedImage(galleryImages[0]);
+    if (galleryImages.length > 0) {
+      setSelectedImage((current) =>
+        current && galleryImages.includes(current) ? current : galleryImages[0]
+      );
+    } else {
+      setSelectedImage("");
     }
-  }, [galleryImages, selectedImage]);
+  }, [galleryImages]);
 
   const ratingSummary = useMemo(() => {
     const count = Number(product?.reviews_count || reviews.length || 0);
@@ -168,9 +167,10 @@ export default function ProductDetailsPage() {
   }, [product]);
 
   function normalizeProduct(p) {
-    const mediaImage = Array.isArray(p?.media) && p.media.length
-      ? resolveImageUrl(p.media[0]?.url || p.media[0]?.image_url || "")
-      : "";
+    const mediaImage =
+      Array.isArray(p?.media) && p.media.length
+        ? resolveImageUrl(p.media[0]?.url || p.media[0]?.image_url || "")
+        : "";
 
     return {
       id: p.id,
@@ -238,7 +238,11 @@ export default function ProductDetailsPage() {
       });
 
       if (!result?.ok) {
-        setReviewMessage(result?.message || "تعذر إرسال التقييم");
+        setReviewMessage(
+          result?.error?.message ||
+            result?.message ||
+            "تعذر إرسال التقييم"
+        );
         return;
       }
 
@@ -250,15 +254,7 @@ export default function ProductDetailsPage() {
         review_image_url: ""
       });
 
-      const reviewsRes = await apiGet(`/catalog/products/${slug}/reviews`);
-      if (reviewsRes?.ok) {
-        setReviews(Array.isArray(reviewsRes.data) ? reviewsRes.data : []);
-      }
-
-      const productRes = await apiGet(`/catalog/products/${slug}`);
-      if (productRes?.ok && productRes?.data) {
-        setProduct(productRes.data);
-      }
+      await loadProductPage();
     } catch (err) {
       console.error(err);
       setReviewMessage("حدث خطأ أثناء إرسال التقييم");
@@ -346,7 +342,9 @@ export default function ProductDetailsPage() {
 
               <div style={styles.sellerBox}>
                 <div style={styles.sellerLabel}>البائع</div>
-                <div style={styles.sellerValue}>{product.seller_name || product.brand || "RAHBA"}</div>
+                <div style={styles.sellerValue}>
+                  {product.seller_name || product.brand || "RAHBA"}
+                </div>
               </div>
             </div>
           </div>
@@ -478,9 +476,7 @@ export default function ProductDetailsPage() {
             </form>
 
             <div style={styles.reviewsList}>
-              {reviewsLoading ? (
-                <div className="loading-state">جاري تحميل المراجعات...</div>
-              ) : reviews.length === 0 ? (
+              {reviews.length === 0 ? (
                 <div className="empty-state">لا توجد مراجعات بعد</div>
               ) : (
                 reviews.map((review) => (
