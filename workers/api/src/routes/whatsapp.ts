@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { ok, fail } from "../utils/response";
 import type { AppEnv } from "../types";
 
 export const whatsappRouter = new Hono<AppEnv>();
@@ -32,13 +33,28 @@ whatsappRouter.post("/whatsapp/register", async (c) => {
 
     const data = await res.json().catch(() => ({}));
 
+    if (!res.ok) {
+      return c.json(
+        fail("WHATSAPP_REGISTER_FAILED", "Failed to register WhatsApp phone number", {
+          status: res.status,
+          data
+        }),
+        400
+      );
+    }
+
     return c.json(
-      { ok: res.ok, status: res.status, data },
-      res.ok ? 200 : 400
+      ok({
+        status: res.status,
+        data
+      })
     );
   } catch (error) {
     console.error(error);
-    return c.json({ ok: false, message: "Failed to register WhatsApp phone number" }, 500);
+    return c.json(
+      fail("WHATSAPP_REGISTER_FAILED", "Failed to register WhatsApp phone number"),
+      500
+    );
   }
 });
 
@@ -51,7 +67,10 @@ whatsappRouter.post("/whatsapp/test", async (c) => {
     );
 
     if (!to) {
-      return c.json({ ok: false, message: "Phone is required" }, 400);
+      return c.json(
+        fail("PHONE_REQUIRED", "Phone is required"),
+        400
+      );
     }
 
     const orderNumber = body?.order_number || "RB-2026-TEST1234";
@@ -91,13 +110,28 @@ whatsappRouter.post("/whatsapp/test", async (c) => {
 
     const data = await res.json().catch(() => ({}));
 
+    if (!res.ok) {
+      return c.json(
+        fail("WHATSAPP_TEST_FAILED", "Failed to send WhatsApp test message", {
+          status: res.status,
+          data
+        }),
+        400
+      );
+    }
+
     return c.json(
-      { ok: res.ok, status: res.status, data },
-      res.ok ? 200 : 400
+      ok({
+        status: res.status,
+        data
+      })
     );
   } catch (error) {
     console.error(error);
-    return c.json({ ok: false, message: "Failed to send WhatsApp test message" }, 500);
+    return c.json(
+      fail("WHATSAPP_TEST_FAILED", "Failed to send WhatsApp test message"),
+      500
+    );
   }
 });
 
