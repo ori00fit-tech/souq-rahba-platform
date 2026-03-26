@@ -159,6 +159,29 @@ export default function BuyerOrderDetailsPage() {
   const items = Array.isArray(order.items) ? order.items : [];
   const shipping = order.shipping || null;
 
+  function getShippingStatusMeta(status) {
+    const s = String(status || "").toLowerCase();
+
+    if (s === "pending") {
+      return { label: "قيد الانتظار", bg: "#fff7ed", color: "#9a4f18", border: "#fed7aa" };
+    }
+    if (s === "processing") {
+      return { label: "قيد المعالجة", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
+    }
+    if (s === "shipped") {
+      return { label: "تم الشحن", bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" };
+    }
+    if (s === "delivered") {
+      return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
+    }
+    if (s === "cancelled") {
+      return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+    }
+
+    return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
+  };
+
+
   return (
     <section className="container section-space" dir="rtl">
       <div className="page-stack">
@@ -189,7 +212,21 @@ export default function BuyerOrderDetailsPage() {
               <div style={s.shippingTitleRow}>
                 <strong style={s.shippingTitle}>الشحن والتتبع</strong>
                 <span style={s.shippingStatusBadge}>
-                  {shipping.shipping_status || "pending"}
+                  {(() => {
+                    const meta = getShippingStatusMeta(shipping.shipping_status);
+                    return (
+                      <span
+                        style={{
+                          ...s.shippingStatusBadge,
+                          background: meta.bg,
+                          color: meta.color,
+                          border: `1px solid ${meta.border}`
+                        }}
+                      >
+                        {meta.label}
+                      </span>
+                    );
+                  })()}
                 </span>
               </div>
 
