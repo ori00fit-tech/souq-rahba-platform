@@ -189,6 +189,34 @@ export default function BuyerOrderDetailsPage() {
     }));
   }
 
+  function getTrackingUrl(shipping) {
+    const trackingNumber = String(shipping?.tracking_number || "").trim();
+    const providerId = String(shipping?.provider_id || "").trim().toLowerCase();
+    const providerName = String(shipping?.provider_name || "").trim().toLowerCase();
+
+    if (!trackingNumber) return null;
+
+    const raw = `${providerId} ${providerName}`;
+
+    if (raw.includes("aramex")) {
+      return `https://www.aramex.com/track/shipments?ShipmentNumber=${encodeURIComponent(trackingNumber)}`;
+    }
+
+    if (raw.includes("dhl")) {
+      return `https://www.dhl.com/ma-en/home/tracking.html?tracking-id=${encodeURIComponent(trackingNumber)}`;
+    }
+
+    if (raw.includes("fedex")) {
+      return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(trackingNumber)}`;
+    }
+
+    if (raw.includes("amana") || raw.includes("poste")) {
+      return `https://www.poste.ma/`;
+    }
+
+    return null;
+  }
+
   function getShippingStatusMeta(status) {
     const s = String(status || "").toLowerCase();
 
@@ -324,7 +352,22 @@ export default function BuyerOrderDetailsPage() {
 
                 <div style={s.shippingItem}>
                   <span style={s.shippingLabel}>رقم التتبع</span>
-                  <strong style={s.shippingValue}>{shipping.tracking_number || "—"}</strong>
+                  {shipping.tracking_number ? (
+                    getTrackingUrl(shipping) ? (
+                      <a
+                        href={getTrackingUrl(shipping)}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={s.trackingLink}
+                      >
+                        {shipping.tracking_number}
+                      </a>
+                    ) : (
+                      <strong style={s.shippingValue}>{shipping.tracking_number}</strong>
+                    )
+                  ) : (
+                    <strong style={s.shippingValue}>—</strong>
+                  )}
                 </div>
               </div>
             </div>
@@ -627,6 +670,13 @@ const s = {
     color: "#0f172a",
     fontSize: "14px",
     fontWeight: 900
+  },
+  trackingLink: {
+    color: "#1d4ed8",
+    fontSize: "14px",
+    fontWeight: 900,
+    textDecoration: "underline",
+    wordBreak: "break-word"
   },
   orderMetaCard: {
     padding: "14px",
