@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 import type { AppEnv } from "../types";
 import { notifyNewOrder } from "../lib/notifications";
 
@@ -110,13 +111,13 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .bind(authUser.user_id)
         .all();
 
-      return c.json({ ok: true, data: rows.results || [] });
+      return c.json(ok(rows.results || []));
     }
 
     if (authUser.role === "seller") {
       if (!sellerId) {
         return c.json(
-          { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+          fail("SELLER_ID_REQUIRED", "seller_id is required"),
           400
         );
       }
@@ -128,7 +129,10 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .first();
 
       if (!sellerAccess) {
-        return c.json({ ok: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
+        return c.json(
+          fail("FORBIDDEN", "Forbidden"),
+          403
+        );
       }
 
       const rows = await c.env.DB.prepare(
@@ -146,7 +150,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .bind(sellerId)
         .all();
 
-      return c.json({ ok: true, data: rows.results || [] });
+      return c.json(ok(rows.results || []));
     }
 
     if (sellerId) {
@@ -165,7 +169,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .bind(sellerId)
         .all();
 
-      return c.json({ ok: true, data: rows.results || [] });
+      return c.json(ok(rows.results || []));
     }
 
     if (buyerUserId) {
@@ -184,7 +188,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .bind(buyerUserId)
         .all();
 
-      return c.json({ ok: true, data: rows.results || [] });
+      return c.json(ok(rows.results || []));
     }
 
     const rows = await c.env.DB.prepare(
@@ -200,11 +204,11 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
       `
     ).all();
 
-    return c.json({ ok: true, data: rows.results || [] });
+    return c.json(ok(rows.results || []));
   } catch (error) {
     console.error("GET /orders failed", error);
     return c.json(
-      { ok: false, code: "ORDERS_LIST_FAILED", message: "Failed to load orders" },
+      fail("ORDERS_LIST_FAILED", "Failed to load orders"),
       500
     );
   }
@@ -217,7 +221,7 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
 
     if (!sellerId) {
       return c.json(
-        { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+        fail("SELLER_ID_REQUIRED", "seller_id is required"),
         400
       );
     }
@@ -230,7 +234,10 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
         .first();
 
       if (!sellerAccess) {
-        return c.json({ ok: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
+        return c.json(
+          fail("FORBIDDEN", "Forbidden"),
+          403
+        );
       }
     }
 
@@ -248,19 +255,18 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
       .bind(sellerId)
       .first();
 
-    return c.json({
-      ok: true,
-      data: {
+    return c.json(
+      ok({
         total_orders: Number(stats?.total_orders || 0),
         total_revenue: Number(stats?.total_revenue || 0),
         pending_orders: Number(stats?.pending_orders || 0),
         confirmed_orders: Number(stats?.confirmed_orders || 0),
-      }
-    });
+      })
+    );
   } catch (error) {
     console.error("GET /stats failed", error);
     return c.json(
-      { ok: false, code: "STATS_FETCH_FAILED", message: "Failed to load stats" },
+      fail("STATS_FETCH_FAILED", "Failed to load stats"),
       500
     );
   }
@@ -277,7 +283,7 @@ orderRouter.post("/orders", async (c) => {
 
     if (!body) {
       return c.json(
-        { ok: false, code: "INVALID_JSON", message: "Invalid request body" },
+        fail("INVALID_JSON", "Invalid request body"),
         400
       );
     }
@@ -305,53 +311,49 @@ orderRouter.post("/orders", async (c) => {
 
     if (!sellerId) {
       return c.json(
-        { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+        fail("SELLER_ID_REQUIRED", "seller_id is required"),
         400
       );
     }
 
     if (!items.length) {
       return c.json(
-        { ok: false, code: "ITEMS_REQUIRED", message: "Order items are required" },
+        fail("ITEMS_REQUIRED", "Order items are required"),
         400
       );
     }
 
     if (!buyerName) {
       return c.json(
-        { ok: false, code: "BUYER_NAME_REQUIRED", message: "Buyer name is required" },
+        fail("BUYER_NAME_REQUIRED", "Buyer name is required"),
         400
       );
     }
 
     if (!buyerPhone) {
       return c.json(
-        { ok: false, code: "BUYER_PHONE_REQUIRED", message: "Buyer phone is required" },
+        fail("BUYER_PHONE_REQUIRED", "Buyer phone is required"),
         400
       );
     }
 
     if (!buyerCity) {
       return c.json(
-        { ok: false, code: "BUYER_CITY_REQUIRED", message: "Buyer city is required" },
+        fail("BUYER_CITY_REQUIRED", "Buyer city is required"),
         400
       );
     }
 
     if (!buyerAddress) {
       return c.json(
-        { ok: false, code: "BUYER_ADDRESS_REQUIRED", message: "Buyer address is required" },
+        fail("BUYER_ADDRESS_REQUIRED", "Buyer address is required"),
         400
       );
     }
 
     if (paymentMethod !== "cod") {
       return c.json(
-        {
-          ok: false,
-          code: "PAYMENT_METHOD_NOT_SUPPORTED",
-          message: "Only cash on delivery is supported حاليا"
-        },
+        fail("PAYMENT_METHOD_NOT_SUPPORTED", "Only cash on delivery is supported حاليا"),
         400
       );
     }
@@ -364,7 +366,7 @@ orderRouter.post("/orders", async (c) => {
 
     if (!seller) {
       return c.json(
-        { ok: false, code: "SELLER_NOT_FOUND", message: "Seller not found" },
+        fail("SELLER_NOT_FOUND", "Seller not found"),
         404
       );
     }
@@ -385,7 +387,7 @@ orderRouter.post("/orders", async (c) => {
 
       if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
         return c.json(
-          { ok: false, code: "INVALID_ITEM", message: "Invalid order item" },
+          fail("INVALID_ITEM", "Invalid order item"),
           400
         );
       }
@@ -416,40 +418,28 @@ orderRouter.post("/orders", async (c) => {
 
       if (!product) {
         return c.json(
-          { ok: false, code: "PRODUCT_NOT_FOUND", message: "Invalid product" },
+          fail("PRODUCT_NOT_FOUND", "Invalid product"),
           404
         );
       }
 
       if (product.seller_id !== sellerId) {
         return c.json(
-          {
-            ok: false,
-            code: "MIXED_SELLER_NOT_ALLOWED",
-            message: "All products must belong to the same seller"
-          },
+          fail("MIXED_SELLER_NOT_ALLOWED", "All products must belong to the same seller"),
           400
         );
       }
 
       if (product.status && product.status !== "active") {
         return c.json(
-          {
-            ok: false,
-            code: "PRODUCT_NOT_ACTIVE",
-            message: "One or more products are not available"
-          },
+          fail("PRODUCT_NOT_ACTIVE", "One or more products are not available"),
           400
         );
       }
 
       if (product.stock !== null && Number(product.stock) < quantity) {
         return c.json(
-          {
-            ok: false,
-            code: "INSUFFICIENT_STOCK",
-            message: "Insufficient stock for one or more products"
-          },
+          fail("INSUFFICIENT_STOCK", "Insufficient stock for one or more products"),
           400
         );
       }
@@ -474,11 +464,7 @@ orderRouter.post("/orders", async (c) => {
 
       if (!Number.isFinite(parsedShipping) || parsedShipping < 0) {
         return c.json(
-          {
-            ok: false,
-            code: "INVALID_SHIPPING_PRICE",
-            message: "Invalid shipping price"
-          },
+          fail("INVALID_SHIPPING_PRICE", "Invalid shipping price"),
           400
         );
       }
@@ -611,11 +597,11 @@ orderRouter.post("/orders", async (c) => {
           buyer_phone: buyerPhone,
           buyer_city: buyerCity,
           total_mad: totalMad,
-        subtotal_mad: subtotalMad,
-        shipping_mad: shippingMad,
-        shipping_provider_id: shippingProviderId,
-        shipping_method_id: shippingMethodId,
-        shipping_method_label: shippingMethodLabel,
+          subtotal_mad: subtotalMad,
+          shipping_mad: shippingMad,
+          shipping_provider_id: shippingProviderId,
+          shipping_method_id: shippingMethodId,
+          shipping_method_label: shippingMethodLabel,
           items: validatedItems.map((item) => ({
             name: item.product_name,
             quantity: item.quantity
@@ -626,9 +612,8 @@ orderRouter.post("/orders", async (c) => {
       )
     );
 
-    return c.json({
-      ok: true,
-      data: {
+    return c.json(
+      ok({
         id: orderId,
         order_number: orderNumber,
         total_mad: totalMad,
@@ -638,12 +623,12 @@ orderRouter.post("/orders", async (c) => {
         buyer_phone: buyerPhone,
         buyer_city: buyerCity,
         buyer_address: buyerAddress
-      }
-    });
+      })
+    );
   } catch (error) {
     console.error("POST /orders failed", error);
     return c.json(
-      { ok: false, code: "ORDER_CREATE_FAILED", message: "Failed to create order" },
+      fail("ORDER_CREATE_FAILED", "Failed to create order"),
       500
     );
   }
@@ -675,7 +660,7 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
 
     if (!order) {
       return c.json(
-        { ok: false, code: "ORDER_NOT_FOUND", message: "Order not found" },
+        fail("ORDER_NOT_FOUND", "Order not found"),
         404
       );
     }
@@ -690,7 +675,7 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
 
     if (!isBuyerOwner && !isSellerOwner && !isAdmin) {
       return c.json(
-        { ok: false, code: "FORBIDDEN", message: "Forbidden" },
+        fail("FORBIDDEN", "Forbidden"),
         403
       );
     }
@@ -737,9 +722,8 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
     const shipments = shipmentsRes.results || [];
     const primaryShipment = shipments[0] || null;
 
-    return c.json({
-      ok: true,
-      data: {
+    return c.json(
+      ok({
         ...order,
         items: itemsRes.results || [],
         shipping: primaryShipment
@@ -758,12 +742,12 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
             }
           : null,
         shipments
-      }
-    });
+      })
+    );
   } catch (error) {
     console.error("GET /orders/:id failed", error);
     return c.json(
-      { ok: false, code: "ORDER_DETAILS_FAILED", message: "Failed to load order details" },
+      fail("ORDER_DETAILS_FAILED", "Failed to load order details"),
       500
     );
   }
@@ -790,7 +774,7 @@ orderRouter.patch(
 
       if (!nextStatus) {
         return c.json(
-          { ok: false, code: "INVALID_STATUS", message: "Invalid order status" },
+          fail("INVALID_STATUS", "Invalid order status"),
           400
         );
       }
@@ -813,7 +797,7 @@ orderRouter.patch(
 
       if (!order) {
         return c.json(
-          { ok: false, code: "ORDER_NOT_FOUND", message: "Order not found" },
+          fail("ORDER_NOT_FOUND", "Order not found"),
           404
         );
       }
@@ -823,7 +807,7 @@ orderRouter.patch(
         order.seller_owner_user_id !== authUser.user_id
       ) {
         return c.json(
-          { ok: false, code: "FORBIDDEN", message: "Forbidden" },
+          fail("FORBIDDEN", "Forbidden"),
           403
         );
       }
@@ -851,11 +835,13 @@ orderRouter.patch(
         .bind(id)
         .first();
 
-      return c.json({ ok: true, data: updated });
+      return c.json(
+        ok(updated)
+      );
     } catch (error) {
       console.error("PATCH /orders/:id/status failed", error);
       return c.json(
-        { ok: false, code: "ORDER_STATUS_UPDATE_FAILED", message: "Failed to update order status" },
+        fail("ORDER_STATUS_UPDATE_FAILED", "Failed to update order status"),
         500
       );
     }
