@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { apiGet } from "../lib/api";
+import { useSellerAuth } from "../context/SellerAuthContext";
 
 export default function DashboardPage() {
+  const { currentSeller, authLoading } = useSellerAuth();
+
   const [stats, setStats] = useState({
     total_orders: 0,
     total_revenue: 0,
@@ -13,8 +16,16 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await apiGet("/commerce/stats");
-        if (res.ok) {
+        if (!currentSeller?.id) {
+          setLoading(false);
+          return;
+        }
+
+        const res = await apiGet(
+          `/commerce/stats?seller_id=${encodeURIComponent(currentSeller.id)}`
+        );
+
+        if (res?.ok) {
           setStats({
             total_orders: Number(res.data?.total_orders || 0),
             total_revenue: Number(res.data?.total_revenue || 0),
@@ -29,10 +40,12 @@ export default function DashboardPage() {
       }
     }
 
-    fetchStats();
-  }, []);
+    if (!authLoading) {
+      fetchStats();
+    }
+  }, [currentSeller, authLoading]);
 
-  if (loading) {
+  if (loading || authLoading) {
     return <div className="page-shell">جاري تحميل الإحصائيات...</div>;
   }
 

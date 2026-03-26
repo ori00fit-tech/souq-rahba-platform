@@ -26,7 +26,7 @@ export default function OrdersPage() {
       setLoading(true);
       setMessage("");
 
-      const res = await apiGet(`/orders?seller_id=${encodeURIComponent(currentSeller.id)}`);
+      const res = await apiGet(`/commerce/orders?seller_id=${encodeURIComponent(currentSeller.id)}`);
 
       if (!res?.ok) {
         setMessage(res?.message || "تعذر تحميل الطلبات");
@@ -55,7 +55,7 @@ export default function OrdersPage() {
 
   async function updateStatus(orderId, nextStatus) {
     try {
-      const res = await apiPatch(`/orders/${orderId}/status`, {
+      const res = await apiPatch(`/commerce/orders/${orderId}/status`, {
         order_status: nextStatus
       });
 

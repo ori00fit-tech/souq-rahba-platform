@@ -89,78 +89,6 @@ function normalizePaymentStatus(paymentMethod: string, orderStatus: string) {
  * - admin: يقدر يشوف الكل أو حسب buyer/seller
  */
 orderRouter.get("/orders", authMiddleware, async (c) => {
-  // ============================
-  // VALIDATION + SAFE CHECKOUT
-  // ============================
-
-  const body = await c.req.json().catch(() => null);
-
-  if (!body || typeof body !== "object") {
-    return c.json({ ok: false, code: "INVALID_BODY" }, 400);
-  }
-
-  const items = Array.isArray(body.items) ? body.items : [];
-
-  if (items.length === 0) {
-    return c.json({ ok: false, code: "EMPTY_CART" }, 400);
-  }
-
-  // guest validation
-  if (!body.buyer_name || !body.buyer_phone) {
-    return c.json({ ok: false, code: "BUYER_INFO_REQUIRED" }, 400);
-  }
-
-  let total = 0;
-  let sellerId = null;
-
-  const validatedItems = [];
-
-  for (const item of items) {
-    const qty = Number(item.quantity);
-
-    if (!item.product_id || !Number.isInteger(qty) || qty <= 0) {
-      return c.json({ ok: false, code: "INVALID_ITEM" }, 400);
-    }
-
-    const product = await c.env.DB.prepare(
-      `select id, price_mad, stock, status, seller_id from products where id = ? limit 1`
-    )
-      .bind(item.product_id)
-      .first();
-
-    if (!product) {
-      return c.json({ ok: false, code: "PRODUCT_NOT_FOUND" }, 404);
-    }
-
-    if (product.status !== "active") {
-      return c.json({ ok: false, code: "PRODUCT_INACTIVE" }, 400);
-    }
-
-    if (product.stock < qty) {
-      return c.json({ ok: false, code: "OUT_OF_STOCK" }, 400);
-    }
-
-    if (!sellerId) {
-      sellerId = product.seller_id;
-    }
-
-    // multi seller check (optional)
-    if (sellerId !== product.seller_id) {
-      return c.json({ ok: false, code: "MULTI_SELLER_NOT_ALLOWED" }, 400);
-    }
-
-    const lineTotal = product.price_mad * qty;
-    total += lineTotal;
-
-    validatedItems.push({
-      product_id: product.id,
-      quantity: qty,
-      unit_price: product.price_mad,
-      line_total: lineTotal
-    });
-  }
-
-
   try {
     const authUser = c.get("authUser");
     const sellerId = c.req.query("seller_id");
@@ -171,7 +99,8 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         `
         select
           o.*,
-          s.display_name as seller_name
+          s.display_name as seller_name,
+          (select count(*) from order_items oi where oi.order_id = o.id) as items_count
         from orders o
         left join sellers s on s.id = o.seller_id
         where o.buyer_user_id = ?
@@ -206,7 +135,8 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         `
         select
           o.*,
-          s.display_name as seller_name
+          s.display_name as seller_name,
+          (select count(*) from order_items oi where oi.order_id = o.id) as items_count
         from orders o
         left join sellers s on s.id = o.seller_id
         where o.seller_id = ?
@@ -219,13 +149,13 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
       return c.json({ ok: true, data: rows.results || [] });
     }
 
-    // admin
     if (sellerId) {
       const rows = await c.env.DB.prepare(
         `
         select
           o.*,
-          s.display_name as seller_name
+          s.display_name as seller_name,
+          (select count(*) from order_items oi where oi.order_id = o.id) as items_count
         from orders o
         left join sellers s on s.id = o.seller_id
         where o.seller_id = ?
@@ -243,7 +173,8 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         `
         select
           o.*,
-          s.display_name as seller_name
+          s.display_name as seller_name,
+          (select count(*) from order_items oi where oi.order_id = o.id) as items_count
         from orders o
         left join sellers s on s.id = o.seller_id
         where o.buyer_user_id = ?
@@ -260,7 +191,8 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
       `
       select
         o.*,
-        s.display_name as seller_name
+        s.display_name as seller_name,
+        (select count(*) from order_items oi where oi.order_id = o.id) as items_count
       from orders o
       left join sellers s on s.id = o.seller_id
       order by datetime(o.created_at) desc
@@ -273,6 +205,62 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
     console.error("GET /orders failed", error);
     return c.json(
       { ok: false, code: "ORDERS_LIST_FAILED", message: "Failed to load orders" },
+      500
+    );
+  }
+});
+
+orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async (c) => {
+  try {
+    const authUser = c.get("authUser");
+    const sellerId = c.req.query("seller_id");
+
+    if (!sellerId) {
+      return c.json(
+        { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
+        400
+      );
+    }
+
+    if (authUser.role === "seller") {
+      const sellerAccess = await c.env.DB.prepare(
+        `select id from sellers where id = ? and owner_user_id = ? limit 1`
+      )
+        .bind(sellerId, authUser.user_id)
+        .first();
+
+      if (!sellerAccess) {
+        return c.json({ ok: false, code: "FORBIDDEN", message: "Forbidden" }, 403);
+      }
+    }
+
+    const stats = await c.env.DB.prepare(
+      `
+      select
+        count(*) as total_orders,
+        coalesce(sum(total_mad), 0) as total_revenue,
+        sum(case when order_status = 'pending' then 1 else 0 end) as pending_orders,
+        sum(case when order_status = 'confirmed' then 1 else 0 end) as confirmed_orders
+      from orders
+      where seller_id = ?
+      `
+    )
+      .bind(sellerId)
+      .first();
+
+    return c.json({
+      ok: true,
+      data: {
+        total_orders: Number(stats?.total_orders || 0),
+        total_revenue: Number(stats?.total_revenue || 0),
+        pending_orders: Number(stats?.pending_orders || 0),
+        confirmed_orders: Number(stats?.confirmed_orders || 0),
+      }
+    });
+  } catch (error) {
+    console.error("GET /stats failed", error);
+    return c.json(
+      { ok: false, code: "STATS_FETCH_FAILED", message: "Failed to load stats" },
       500
     );
   }
