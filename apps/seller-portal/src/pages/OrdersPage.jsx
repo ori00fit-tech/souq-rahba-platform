@@ -13,6 +13,35 @@ function badgeStyle(status) {
   return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
 }
 
+function statusLabel(status) {
+  if (status === "pending") return "قيد الانتظار";
+  if (status === "confirmed") return "تم التأكيد";
+  if (status === "shipped") return "تم الشحن";
+  if (status === "delivered") return "تم التسليم";
+  if (status === "cancelled") return "ملغي";
+  return status || "—";
+}
+
+function paymentLabel(status) {
+  if (status === "paid") return "مدفوع";
+  if (status === "unpaid") return "غير مدفوع";
+  if (status === "cancelled") return "ملغي";
+  return status || "—";
+}
+
+function infoBadgeStyle(kind) {
+  if (kind === "payment_paid") {
+    return { background: "#ecfdf5", color: "#166534", border: "1px solid #bbf7d0" };
+  }
+  if (kind === "payment_unpaid") {
+    return { background: "#fff7ed", color: "#9a3412", border: "1px solid #fed7aa" };
+  }
+  if (kind === "shipping") {
+    return { background: "#eef6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" };
+  }
+  return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
+}
+
 export default function OrdersPage() {
   const { currentSeller, authLoading } = useSellerAuth();
   const [orders, setOrders] = useState([]);
@@ -70,7 +99,9 @@ export default function OrdersPage() {
             ? {
                 ...order,
                 order_status: res.data?.order_status || nextStatus,
-                shipping_status: res.data?.shipping_status || order.shipping_status
+                shipping_status: res.data?.shipping_status || order.shipping_status,
+                payment_status: res.data?.payment_status || order.payment_status,
+                tracking_number: res.data?.tracking_number || order.tracking_number
               }
             : order
         )
@@ -82,7 +113,7 @@ export default function OrdersPage() {
   }
 
   if (loading || authLoading) {
-    return <div>Loading orders...</div>;
+    return <div className="page-shell">جاري تحميل الطلبات...</div>;
   }
 
   return (
@@ -94,35 +125,29 @@ export default function OrdersPage() {
 
       {message ? <div className="ui-message">{message}</div> : null}
 
-      <div style={{ display: "grid", gap: "14px" }}>
+      <div style={s.list}>
         {orders.length === 0 ? (
-          <div style={s.emptyCard}>
-            لا توجد طلبات حالياً.
-          </div>
+          <div style={s.emptyCard}>لا توجد طلبات حالياً.</div>
         ) : null}
 
         {orders.map((order) => (
           <article key={order.id} style={s.card}>
-            <div style={s.topRow}>
-              <div>
-                <div style={s.orderId}>طلب #{order.id}</div>
-                <div style={s.metaText}>
-                  تاريخ الإنشاء: {order.created_at}
+            <div style={s.header}>
+              <div style={s.headerMain}>
+                <div style={s.orderNumber}>{order.order_number || `طلب ${order.id}`}</div>
+                <div style={s.subMeta}>
+                  <span>تاريخ الإنشاء: {order.created_at || "—"}</span>
+                  <span>•</span>
+                  <span>{order.items_count ?? 0} منتج</span>
                 </div>
               </div>
 
-              <div style={s.topRight}>
+              <div style={s.headerSide}>
                 <div style={s.totalPrice}>
-                  {order.total_mad} {order.currency || "MAD"}
+                  {Number(order.total_mad || 0)} {order.currency || "MAD"}
                 </div>
-
-                <div
-                  style={{
-                    ...s.badge,
-                    ...badgeStyle(order.order_status)
-                  }}
-                >
-                  {order.order_status}
+                <div style={{ ...s.statusBadge, ...badgeStyle(order.order_status) }}>
+                  {statusLabel(order.order_status)}
                 </div>
               </div>
             </div>
@@ -130,28 +155,44 @@ export default function OrdersPage() {
             <div style={s.grid}>
               <div style={s.infoBox}>
                 <div style={s.boxTitle}>معلومات المشتري</div>
-                <div style={s.infoLine}>{order.buyer_name || "اسم غير معروف"}</div>
-                <div style={s.infoLine}>{order.buyer_phone || "بدون هاتف"}</div>
-                <div style={s.infoLine}>
-                  {order.buyer_city || "مدينة غير معروفة"}
-                </div>
-                <div style={s.infoLine}>
-                  {order.buyer_address || "بدون عنوان"}
-                </div>
+                <div style={s.infoLine}><strong>الاسم:</strong> {order.buyer_name || "اسم غير معروف"}</div>
+                <div style={s.infoLine}><strong>الهاتف:</strong> {order.buyer_phone || "بدون هاتف"}</div>
+                <div style={s.infoLine}><strong>المدينة:</strong> {order.buyer_city || "مدينة غير معروفة"}</div>
+                <div style={s.infoLine}><strong>العنوان:</strong> {order.buyer_address || "بدون عنوان"}</div>
               </div>
 
               <div style={s.infoBox}>
                 <div style={s.boxTitle}>معلومات الطلب</div>
-                <div style={s.infoLine}>طريقة الدفع: {order.payment_method || "—"}</div>
-                <div style={s.infoLine}>حالة الدفع: {order.payment_status || "—"}</div>
-                <div style={s.infoLine}>حالة الشحن: {order.shipping_status || "—"}</div>
-                <div style={s.infoLine}>
-                  عدد المنتجات: {order.items_count ?? 0}
+
+                <div style={s.badgesWrap}>
+                  <span
+                    style={{
+                      ...s.infoBadge,
+                      ...(order.payment_status === "paid"
+                        ? infoBadgeStyle("payment_paid")
+                        : infoBadgeStyle("payment_unpaid"))
+                    }}
+                  >
+                    الدفع: {paymentLabel(order.payment_status)}
+                  </span>
+
+                  <span
+                    style={{
+                      ...s.infoBadge,
+                      ...infoBadgeStyle("shipping")
+                    }}
+                  >
+                    الشحن: {statusLabel(order.shipping_status)}
+                  </span>
                 </div>
+
+                <div style={s.infoLine}><strong>طريقة الدفع:</strong> {order.payment_method || "—"}</div>
+                <div style={s.infoLine}><strong>رقم التتبع:</strong> {order.tracking_number || "—"}</div>
+                <div style={s.infoLine}><strong>معرّف الطلب:</strong> {order.id}</div>
               </div>
             </div>
 
-            <div style={s.actionsRow}>
+            <div style={s.footer}>
               <div style={s.statusButtons}>
                 {STATUSES.map((status) => (
                   <button
@@ -163,7 +204,7 @@ export default function OrdersPage() {
                       color: order.order_status === status ? "#fff" : "#111827"
                     }}
                   >
-                    {status}
+                    {statusLabel(status)}
                   </button>
                 ))}
               </div>
@@ -180,13 +221,18 @@ export default function OrdersPage() {
 }
 
 const s = {
+  list: {
+    display: "grid",
+    gap: "14px"
+  },
   card: {
     background: "#fff",
     border: "1px solid #e2e8f0",
-    borderRadius: "16px",
+    borderRadius: "18px",
     padding: "18px",
     display: "grid",
-    gap: "16px"
+    gap: "16px",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)"
   },
   emptyCard: {
     background: "#fff",
@@ -194,33 +240,40 @@ const s = {
     borderRadius: "16px",
     padding: "20px"
   },
-  topRow: {
+  header: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
     flexWrap: "wrap",
     alignItems: "start"
   },
-  topRight: {
+  headerMain: {
     display: "grid",
-    gap: "8px",
-    justifyItems: "end"
+    gap: "6px"
   },
-  orderId: {
-    fontWeight: "800",
-    fontSize: "17px"
-  },
-  metaText: {
-    color: "#64748b",
-    marginTop: "4px",
-    fontSize: "14px"
-  },
-  totalPrice: {
+  orderNumber: {
     fontWeight: "900",
     fontSize: "18px",
     color: "#0f172a"
   },
-  badge: {
+  subMeta: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: "#64748b",
+    fontSize: "13px"
+  },
+  headerSide: {
+    display: "grid",
+    gap: "8px",
+    justifyItems: "end"
+  },
+  totalPrice: {
+    fontWeight: "900",
+    fontSize: "20px",
+    color: "#0f172a"
+  },
+  statusBadge: {
     padding: "8px 12px",
     borderRadius: "999px",
     fontSize: "13px",
@@ -237,7 +290,7 @@ const s = {
     borderRadius: "14px",
     padding: "14px",
     display: "grid",
-    gap: "8px"
+    gap: "10px"
   },
   boxTitle: {
     fontWeight: "800",
@@ -249,7 +302,18 @@ const s = {
     fontSize: "14px",
     lineHeight: 1.7
   },
-  actionsRow: {
+  badgesWrap: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+  infoBadge: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "800"
+  },
+  footer: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
