@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 import type { AppEnv } from "../types";
 
 export const sellerRouter = new Hono<AppEnv>();
@@ -69,26 +70,27 @@ sellerRouter.get("/me", authMiddleware, requireRole("seller", "admin"), async (c
 
     if (!seller && authUser.role !== "admin") {
       return c.json(
-        { ok: false, code: "SELLER_NOT_FOUND", message: "Seller profile not found" },
+        fail("SELLER_NOT_FOUND", "Seller profile not found"),
         404
       );
     }
 
-    return c.json({
-      ok: true,
-      data: seller
-        ? {
-            ...seller,
-            role: authUser.role
-          }
-        : {
-            role: authUser.role
-          }
-    });
+    return c.json(
+      ok(
+        seller
+          ? {
+              ...seller,
+              role: authUser.role
+            }
+          : {
+              role: authUser.role
+            }
+      )
+    );
   } catch (error) {
     console.error("GET /marketplace/me failed:", error);
     return c.json(
-      { ok: false, code: "INTERNAL_ERROR", message: "Failed to load seller profile" },
+      fail("INTERNAL_ERROR", "Failed to load seller profile"),
       500
     );
   }
@@ -101,7 +103,7 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
 
     if (!body || typeof body !== "object") {
       return c.json(
-        { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+        fail("INVALID_BODY", "Invalid JSON body"),
         400
       );
     }
@@ -115,14 +117,14 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
 
     if (!displayName || !slug || !city) {
       return c.json(
-        { ok: false, code: "INVALID_BODY", message: "display_name, slug and city are required" },
+        fail("INVALID_BODY", "display_name, slug and city are required"),
         400
       );
     }
 
     if (!isValidSlug(slug)) {
       return c.json(
-        { ok: false, code: "INVALID_SLUG", message: "Invalid seller slug" },
+        fail("INVALID_SLUG", "Invalid seller slug"),
         400
       );
     }
@@ -135,7 +137,7 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
 
     if (existingBySlug) {
       return c.json(
-        { ok: false, code: "SLUG_EXISTS", message: "Seller slug already exists" },
+        fail("SLUG_EXISTS", "Seller slug already exists"),
         409
       );
     }
@@ -143,7 +145,7 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
     const existingSeller = await getSellerByOwnerUserId(c.env, authUser.user_id);
     if (existingSeller) {
       return c.json(
-        { ok: false, code: "SELLER_EXISTS", message: "Seller profile already exists" },
+        fail("SELLER_EXISTS", "Seller profile already exists"),
         409
       );
     }
@@ -178,14 +180,13 @@ sellerRouter.post("/onboarding", authMiddleware, requireRole("seller", "admin"),
 
     const seller = await getSellerByOwnerUserId(c.env, authUser.user_id);
 
-    return c.json({
-      ok: true,
-      data: seller
-    });
+    return c.json(
+      ok(seller)
+    );
   } catch (error) {
     console.error("POST /marketplace/onboarding failed:", error);
     return c.json(
-      { ok: false, code: "INTERNAL_ERROR", message: "Failed to create seller onboarding" },
+      fail("INTERNAL_ERROR", "Failed to create seller onboarding"),
       500
     );
   }
@@ -199,14 +200,14 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
     const existingSeller = await getSellerByOwnerUserId(c.env, authUser.user_id);
     if (!existingSeller) {
       return c.json(
-        { ok: false, code: "SELLER_NOT_FOUND", message: "Seller profile not found" },
+        fail("SELLER_NOT_FOUND", "Seller profile not found"),
         404
       );
     }
 
     if (!body || typeof body !== "object") {
       return c.json(
-        { ok: false, code: "INVALID_BODY", message: "Invalid JSON body" },
+        fail("INVALID_BODY", "Invalid JSON body"),
         400
       );
     }
@@ -220,14 +221,14 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
 
     if (!displayName || !slug || !city) {
       return c.json(
-        { ok: false, code: "INVALID_BODY", message: "display_name, slug and city are required" },
+        fail("INVALID_BODY", "display_name, slug and city are required"),
         400
       );
     }
 
     if (!isValidSlug(slug)) {
       return c.json(
-        { ok: false, code: "INVALID_SLUG", message: "Invalid seller slug" },
+        fail("INVALID_SLUG", "Invalid seller slug"),
         400
       );
     }
@@ -240,7 +241,7 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
 
     if (duplicateSlug) {
       return c.json(
-        { ok: false, code: "SLUG_EXISTS", message: "Seller slug already exists" },
+        fail("SLUG_EXISTS", "Seller slug already exists"),
         409
       );
     }
@@ -268,14 +269,13 @@ sellerRouter.put("/onboarding", authMiddleware, requireRole("seller", "admin"), 
 
     const seller = await getSellerByOwnerUserId(c.env, authUser.user_id);
 
-    return c.json({
-      ok: true,
-      data: seller
-    });
+    return c.json(
+      ok(seller)
+    );
   } catch (error) {
     console.error("PUT /marketplace/onboarding failed:", error);
     return c.json(
-      { ok: false, code: "INTERNAL_ERROR", message: "Failed to update seller profile" },
+      fail("INTERNAL_ERROR", "Failed to update seller profile"),
       500
     );
   }
@@ -287,7 +287,7 @@ sellerRouter.get("/public/:slug", async (c) => {
 
     if (!slug || !isValidSlug(slug)) {
       return c.json(
-        { ok: false, code: "INVALID_SLUG", message: "Seller slug is required" },
+        fail("INVALID_SLUG", "Seller slug is required"),
         400
       );
     }
@@ -315,14 +315,13 @@ sellerRouter.get("/public/:slug", async (c) => {
 
     if (!seller) {
       return c.json(
-        { ok: false, code: "SELLER_NOT_FOUND", message: "Seller not found" },
+        fail("SELLER_NOT_FOUND", "Seller not found"),
         404
       );
     }
 
-    return c.json({
-      ok: true,
-      data: {
+    return c.json(
+      ok({
         id: seller.id,
         slug: seller.slug,
         display_name: seller.display_name,
@@ -334,12 +333,12 @@ sellerRouter.get("/public/:slug", async (c) => {
         kyc_status: seller.kyc_status || "pending",
         rating: Number(seller.rating || 0),
         created_at: seller.created_at
-      }
-    });
+      })
+    );
   } catch (error) {
     console.error("GET /marketplace/public/:slug failed:", error);
     return c.json(
-      { ok: false, code: "INTERNAL_ERROR", message: "Failed to load public seller profile" },
+      fail("INTERNAL_ERROR", "Failed to load public seller profile"),
       500
     );
   }
