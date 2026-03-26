@@ -159,6 +159,36 @@ export default function BuyerOrderDetailsPage() {
   const items = Array.isArray(order.items) ? order.items : [];
   const shipping = order.shipping || null;
 
+  function getShippingSteps(status) {
+    const current = String(status || "").toLowerCase();
+
+    const steps = [
+      { key: "pending", label: "تم إنشاء الطلب" },
+      { key: "processing", label: "قيد التجهيز" },
+      { key: "shipped", label: "تم الشحن" },
+      { key: "delivered", label: "تم التسليم" }
+    ];
+
+    const order = {
+      pending: 0,
+      processing: 1,
+      shipped: 2,
+      delivered: 3,
+      cancelled: -1
+    };
+
+    const currentRank = Object.prototype.hasOwnProperty.call(order, current)
+      ? order[current]
+      : 0;
+
+    return steps.map((step, index) => ({
+      ...step,
+      done: current !== "cancelled" && index < currentRank,
+      active: current !== "cancelled" && index === currentRank,
+      pending: current === "cancelled" ? true : index > currentRank
+    }));
+  }
+
   function getShippingStatusMeta(status) {
     const s = String(status || "").toLowerCase();
 
@@ -211,23 +241,65 @@ export default function BuyerOrderDetailsPage() {
             <div className="ui-card-soft" style={s.shippingCard}>
               <div style={s.shippingTitleRow}>
                 <strong style={s.shippingTitle}>الشحن والتتبع</strong>
-                <span style={s.shippingStatusBadge}>
-                  {(() => {
-                    const meta = getShippingStatusMeta(shipping.shipping_status);
-                    return (
-                      <span
+                {(() => {
+                  const meta = getShippingStatusMeta(shipping.shipping_status);
+                  return (
+                    <span
+                      style={{
+                        ...s.shippingStatusBadge,
+                        background: meta.bg,
+                        color: meta.color,
+                        border: `1px solid ${meta.border}`
+                      }}
+                    >
+                      {meta.label}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              <div style={s.trackingTimeline}>
+                {getShippingSteps(shipping.shipping_status).map((step, index, arr) => (
+                  <div key={step.key} style={s.trackingStep}>
+                    <div style={s.trackingVisualCol}>
+                      <div
                         style={{
-                          ...s.shippingStatusBadge,
-                          background: meta.bg,
-                          color: meta.color,
-                          border: `1px solid ${meta.border}`
+                          ...s.trackingDot,
+                          ...(step.done ? s.trackingDotDone : {}),
+                          ...(step.active ? s.trackingDotActive : {})
                         }}
                       >
-                        {meta.label}
-                      </span>
-                    );
-                  })()}
-                </span>
+                        {step.done ? "✓" : index + 1}
+                      </div>
+                      {index < arr.length - 1 ? (
+                        <div
+                          style={{
+                            ...s.trackingLine,
+                            ...((step.done || step.active) ? s.trackingLineDone : {})
+                          }}
+                        />
+                      ) : null}
+                    </div>
+
+                    <div style={s.trackingContent}>
+                      <div
+                        style={{
+                          ...s.trackingStepLabel,
+                          ...(step.active ? s.trackingStepLabelActive : {})
+                        }}
+                      >
+                        {step.label}
+                      </div>
+                      <div style={s.trackingStepMeta}>
+                        {step.active
+                          ? "الحالة الحالية"
+                          : step.done
+                          ? "مكتملة"
+                          : "في الانتظار"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div style={s.shippingGrid}>
@@ -470,7 +542,70 @@ const s = {
     fontSize: "12px",
     fontWeight: 800
   },
+  trackingTimeline: {
+    display: "grid",
+    gap: "0"
+  },
+  trackingStep: {
+    display: "grid",
+    gridTemplateColumns: "30px 1fr",
+    gap: "12px",
+    alignItems: "start"
+  },
+  trackingVisualCol: {
+    display: "grid",
+    justifyItems: "center"
+  },
+  trackingDot: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "999px",
+    border: "2px solid #cbd5e1",
+    color: "#64748b",
+    background: "#fff",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "12px",
+    fontWeight: 900
+  },
+  trackingDotDone: {
+    background: "#dcfce7",
+    color: "#166534",
+    border: "2px solid #86efac"
+  },
+  trackingDotActive: {
+    background: "#dbeafe",
+    color: "#1d4ed8",
+    border: "2px solid #93c5fd",
+    boxShadow: "0 0 0 4px rgba(147,197,253,0.22)"
+  },
+  trackingLine: {
+    width: "2px",
+    minHeight: "28px",
+    background: "#e2e8f0",
+    marginTop: "4px",
+    marginBottom: "4px"
+  },
+  trackingLineDone: {
+    background: "#93c5fd"
+  },
+  trackingContent: {
+    paddingBottom: "16px"
+  },
+  trackingStepLabel: {
+    color: "#334155",
+    fontWeight: 800
+  },
+  trackingStepLabelActive: {
+    color: "#173b74"
+  },
+  trackingStepMeta: {
+    color: "#64748b",
+    fontSize: "12px",
+    marginTop: "4px"
+  },
   shippingGrid: {
+
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "10px"
