@@ -304,6 +304,17 @@ orderRouter.post("/orders", async (c) => {
     const notes = body.notes ? String(body.notes).trim() : null;
     const paymentMethod = String(body.payment_method || "cod").trim().toLowerCase();
 
+    const shippingPriceRaw = body.shipping_price;
+    const shippingProviderId = body.shipping_provider_id
+      ? String(body.shipping_provider_id).trim()
+      : null;
+    const shippingMethodId = body.shipping_method_id
+      ? String(body.shipping_method_id).trim()
+      : null;
+    const shippingMethodLabel = body.shipping_method_label
+      ? String(body.shipping_method_label).trim()
+      : null;
+
     if (!sellerId) {
       return c.json(
         { ok: false, code: "SELLER_ID_REQUIRED", message: "seller_id is required" },
@@ -377,6 +388,8 @@ orderRouter.post("/orders", async (c) => {
       unit_price_mad: number;
       product_name: string;
     }> = [];
+
+    let shippingMad = 0;
 
     for (const item of items) {
       const productId = String(item?.product_id || "").trim();
@@ -464,7 +477,27 @@ orderRouter.post("/orders", async (c) => {
       });
     }
 
-    const shippingMad = 0;
+    if (
+      shippingPriceRaw !== undefined &&
+      shippingPriceRaw !== null &&
+      String(shippingPriceRaw).trim() !== ""
+    ) {
+      const parsedShipping = Number(shippingPriceRaw);
+
+      if (!Number.isFinite(parsedShipping) || parsedShipping < 0) {
+        return c.json(
+          {
+            ok: false,
+            code: "INVALID_SHIPPING_PRICE",
+            message: "Invalid shipping price"
+          },
+          400
+        );
+      }
+
+      shippingMad = Math.round(parsedShipping);
+    }
+
     const totalMad = subtotalMad + shippingMad;
     const orderId = crypto.randomUUID();
     const orderNumber = makeOrderNumber();
@@ -548,6 +581,33 @@ orderRouter.post("/orders", async (c) => {
         .run();
     }
 
+    if (shippingProviderId || shippingMethodId || shippingMad > 0) {
+      await c.env.DB.prepare(
+        `
+        insert into order_shipments (
+          id,
+          order_id,
+          seller_id,
+          provider_id,
+          provider_method_id,
+          shipping_price,
+          shipping_status,
+          created_at
+        )
+        values (?, ?, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+        `
+      )
+        .bind(
+          crypto.randomUUID(),
+          orderId,
+          sellerId,
+          shippingProviderId,
+          shippingMethodId,
+          shippingMad
+        )
+        .run();
+    }
+
     c.executionCtx.waitUntil(
       notifyNewOrder(
         {
@@ -563,6 +623,11 @@ orderRouter.post("/orders", async (c) => {
           buyer_phone: buyerPhone,
           buyer_city: buyerCity,
           total_mad: totalMad,
+        subtotal_mad: subtotalMad,
+        shipping_mad: shippingMad,
+        shipping_provider_id: shippingProviderId,
+        shipping_method_id: shippingMethodId,
+        shipping_method_label: shippingMethodLabel,
           items: validatedItems.map((item) => ({
             name: item.product_name,
             quantity: item.quantity
