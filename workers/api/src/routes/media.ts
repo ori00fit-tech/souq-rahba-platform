@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { fail } from "../utils/response";
 
 export const mediaRouter = new Hono<import("../types").AppEnv>();
 
@@ -8,7 +9,7 @@ mediaRouter.get("/media/:filename", async (c) => {
 
     if (!raw) {
       return c.json(
-        { ok: false, code: "INVALID_FILENAME", message: "Filename is required" },
+        fail("INVALID_FILENAME", "Filename is required"),
         400
       );
     }
@@ -24,7 +25,7 @@ mediaRouter.get("/media/:filename", async (c) => {
 
     if (!object) {
       return c.json(
-        { ok: false, code: "FILE_NOT_FOUND", message: "Media file not found" },
+        fail("FILE_NOT_FOUND", "Media file not found"),
         404
       );
     }
@@ -40,7 +41,7 @@ mediaRouter.get("/media/:filename", async (c) => {
   } catch (error) {
     console.error("GET /media/:filename failed:", error);
     return c.json(
-      { ok: false, code: "MEDIA_READ_FAILED", message: "Failed to load media file" },
+      fail("MEDIA_READ_FAILED", "Failed to load media file"),
       500
     );
   }
