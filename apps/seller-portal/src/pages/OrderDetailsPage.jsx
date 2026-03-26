@@ -1,37 +1,61 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
-import { apiGet, apiPatch } from "../lib/api";
+import { apiGet } from "../lib/api";
 import { useSellerAuth } from "../context/SellerAuthContext";
 
-const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
-
-function badgeStyle(status) {
+function statusMeta(status) {
   if (status === "delivered") {
-    return { background: "#ecfdf5", color: "#166534", border: "1px solid #bbf7d0" };
+    return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
   }
   if (status === "shipped") {
-    return { background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe" };
+    return { label: "تم الشحن", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
   }
   if (status === "confirmed") {
-    return { background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" };
+    return { label: "تم التأكيد", bg: "#fef3c7", color: "#92400e", border: "#fde68a" };
   }
   if (status === "cancelled") {
-    return { background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca" };
+    return { label: "ملغي", bg: "#fef2f2", color: "#991b1b", border: "#fecaca" };
   }
-  return { background: "#f8fafc", color: "#475569", border: "1px solid #cbd5e1" };
+  return { label: "قيد الانتظار", bg: "#f8fafc", color: "#475569", border: "#cbd5e1" };
+}
+
+function paymentMeta(status) {
+  if (status === "paid") {
+    return { label: "مدفوع", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
+  }
+  if (status === "cancelled") {
+    return { label: "ملغي", bg: "#fef2f2", color: "#991b1b", border: "#fecaca" };
+  }
+  return { label: "غير مدفوع", bg: "#fff7ed", color: "#9a3412", border: "#fed7aa" };
 }
 
 function formatMoney(value, currency = "MAD") {
-  return `${Number(value || 0).toLocaleString("en-US")} ${currency}`;
+  return `${Number(value || 0)} ${currency}`;
 }
 
-function InfoRow({ label, value }) {
-  return (
-    <div style={s.infoRow}>
-      <span style={s.infoLabel}>{label}</span>
-      <strong style={s.infoValue}>{value || "—"}</strong>
-    </div>
-  );
+function resolveTrackingUrl(shipping) {
+  if (!shipping?.tracking_number) return null;
+
+  const tracking = encodeURIComponent(shipping.tracking_number);
+  const provider = String(shipping.provider_name || shipping.provider_id || "").toLowerCase();
+
+  if (provider.includes("amana")) {
+    return `https://www.poste.ma/wps/portal/PosteMaroc/suivre-vos-envois?tracking=${tracking}`;
+  }
+
+  if (provider.includes("aramex")) {
+    return `https://www.aramex.com/track/results?ShipmentNumber=${tracking}`;
+  }
+
+  if (provider.includes("dhl")) {
+    return `https://www.dhl.com/ma-en/home/tracking.html?tracking-id=${tracking}`;
+  }
+
+  if (provider.includes("fedex")) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${tracking}`;
+  }
+
+  return null;
 }
 
 export default function OrderDetailsPage() {
@@ -39,41 +63,35 @@ export default function OrderDetailsPage() {
   const { currentSeller, authLoading } = useSellerAuth();
 
   const [order, setOrder] = useState(null);
-  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [updatingStatus, setUpdatingStatus] = useState("");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function loadOrder() {
       try {
-        if (!id || !currentSeller?.id) return;
+        if (!id) {
+          setMessage("معرّف الطلب غير صالح");
+          setLoading(false);
+          return;
+        }
 
         setLoading(true);
         setMessage("");
 
-        const res = await apiGet(`/orders/${id}`);
+        const res = await apiGet(`/commerce/orders/${id}`);
 
-        if (!res?.ok) {
-          setMessage(res?.message || "تعذر تحميل تفاصيل الطلب");
+        if (!res?.ok || !res?.data) {
           setOrder(null);
-          setItems([]);
+          setMessage(res?.error?.message || res?.message || "تعذر تحميل تفاصيل الطلب");
           return;
         }
 
-        const data = res?.data || {};
-        const orderData = data?.order || data;
-        const orderItems = Array.isArray(data?.items)
-          ? data.items
-          : Array.isArray(orderData?.items)
-          ? orderData.items
-          : [];
-
-        setOrder(orderData || null);
-        setItems(orderItems);
+        setOrder(res.data);
       } catch (err) {
         console.error(err);
-        setMessage(err?.message || "حدث خطأ أثناء تحميل الطلب");
+        setOrder(null);
+        setMessage("حدث خطأ أثناء تحميل تفاصيل الطلب");
       } finally {
         setLoading(false);
       }
@@ -82,417 +100,532 @@ export default function OrderDetailsPage() {
     if (!authLoading) {
       loadOrder();
     }
-  }, [id, currentSeller, authLoading]);
-
-  async function updateStatus(nextStatus) {
-    try {
-      if (!order?.id) return;
-
-      setUpdatingStatus(nextStatus);
-      setMessage("");
-
-      const res = await apiPatch(`/orders/${order.id}/status`, {
-        order_status: nextStatus
-      });
-
-      if (!res?.ok) {
-        setMessage(res?.message || "فشل تحديث حالة الطلب");
-        return;
-      }
-
-      setOrder((prev) => ({
-        ...prev,
-        order_status: res.data?.order_status || nextStatus,
-        shipping_status: res.data?.shipping_status || prev?.shipping_status
-      }));
-    } catch (err) {
-      console.error(err);
-      setMessage(err?.message || "فشل تحديث حالة الطلب");
-    } finally {
-      setUpdatingStatus("");
-    }
-  }
-
-  const totals = useMemo(() => {
-    const itemsTotal = items.reduce((sum, item) => {
-      const qty = Number(item.quantity || item.qty || 0);
-      const unit = Number(item.unit_price_mad || item.unit_price || item.price_mad || 0);
-      return sum + qty * unit;
-    }, 0);
-
-    return {
-      itemsTotal,
-      grandTotal: Number(order?.total_mad || itemsTotal || 0)
-    };
-  }, [items, order]);
+  }, [id, authLoading]);
 
   if (!authLoading && !currentSeller) {
     return <Navigate to="/login" replace />;
   }
 
   if (loading || authLoading) {
-    return (
-      <section className="page-shell" dir="rtl">
-        <div className="page-header">
-          <h1>تفاصيل الطلب</h1>
-          <p>جاري تحميل تفاصيل الطلب...</p>
-        </div>
-      </section>
-    );
+    return <div className="page-shell">جاري تحميل تفاصيل الطلب...</div>;
   }
 
   if (!order) {
     return (
       <section className="page-shell" dir="rtl">
-        <div className="page-header">
-          <h1>تفاصيل الطلب</h1>
-          <p>تعذر العثور على هذا الطلب.</p>
+        <div style={s.hero}>
+          <div>
+            <div style={s.eyebrow}>Rahba Seller Order</div>
+            <h1 style={s.heroTitle}>تفاصيل الطلب</h1>
+            <p style={s.heroText}>لم نتمكن من تحميل هذا الطلب.</p>
+          </div>
         </div>
 
         {message ? <div className="ui-message">{message}</div> : null}
 
-        <div style={s.actionsTop}>
-          <Link to="/orders" style={s.secondaryLink}>
-            الرجوع إلى الطلبات
-          </Link>
+        <div style={s.backRow}>
+          <Link to="/orders" style={s.backLink}>الرجوع إلى الطلبات</Link>
         </div>
       </section>
     );
   }
 
+  const items = Array.isArray(order.items) ? order.items : [];
+  const shipping = order.shipping || null;
+  const orderStatus = statusMeta(order.order_status);
+  const paymentStatus = paymentMeta(order.payment_status);
+  const shippingStatus = statusMeta(shipping?.shipping_status || order.shipping_status);
+  const trackingUrl = resolveTrackingUrl(shipping);
+
+  async function copyTracking() {
+    try {
+      if (!shipping?.tracking_number) return;
+      await navigator.clipboard.writeText(shipping.tracking_number);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch (err) {
+      console.error("Failed to copy tracking", err);
+    }
+  }
+
   return (
     <section className="page-shell" dir="rtl">
-      <div className="page-header">
-        <h1>تفاصيل الطلب</h1>
-        <p>عرض كامل لبيانات الطلب الخاصة بمتجرك</p>
-      </div>
+      <div style={s.hero}>
+        <div>
+          <div style={s.eyebrow}>Rahba Seller Order</div>
+          <h1 style={s.heroTitle}>{order.order_number || "تفاصيل الطلب"}</h1>
+          <p style={s.heroText}>
+            راقب المشتري، حالة الطلب، الدفع، والشحن من شاشة واحدة أوضح وأكثر احترافية.
+          </p>
+        </div>
 
-      <div style={s.actionsTop}>
-        <Link to="/orders" style={s.secondaryLink}>
-          الرجوع إلى الطلبات
-        </Link>
+        <div style={s.heroStats}>
+          <div style={s.heroStatCard}>
+            <span style={s.heroStatLabel}>الإجمالي</span>
+            <strong style={s.heroStatValue}>{formatMoney(order.total_mad, order.currency || "MAD")}</strong>
+          </div>
+
+          <div style={s.heroStatCard}>
+            <span style={s.heroStatLabel}>عدد المنتجات</span>
+            <strong style={s.heroStatValue}>{items.length}</strong>
+          </div>
+
+          <div style={s.heroStatCard}>
+            <span style={s.heroStatLabel}>الإنشاء</span>
+            <strong style={s.heroStatValueSmall}>{order.created_at || "—"}</strong>
+          </div>
+        </div>
       </div>
 
       {message ? <div className="ui-message">{message}</div> : null}
 
-      <div style={s.layout}>
-        <div style={s.mainColumn}>
-          <div style={s.card}>
-            <div style={s.topRow}>
-              <div>
-                <div style={s.orderTitle}>طلب #{order.order_number || order.id}</div>
-                <div style={s.metaText}>تم الإنشاء: {order.created_at || "—"}</div>
+      <div style={s.backRow}>
+        <Link to="/orders" style={s.backLink}>← الرجوع إلى الطلبات</Link>
+      </div>
+
+      <div style={s.statusStrip}>
+        <span
+          style={{
+            ...s.stripBadge,
+            background: orderStatus.bg,
+            color: orderStatus.color,
+            border: `1px solid ${orderStatus.border}`
+          }}
+        >
+          حالة الطلب: {orderStatus.label}
+        </span>
+
+        <span
+          style={{
+            ...s.stripBadge,
+            background: paymentStatus.bg,
+            color: paymentStatus.color,
+            border: `1px solid ${paymentStatus.border}`
+          }}
+        >
+          الدفع: {paymentStatus.label}
+        </span>
+
+        <span
+          style={{
+            ...s.stripBadge,
+            background: shippingStatus.bg,
+            color: shippingStatus.color,
+            border: `1px solid ${shippingStatus.border}`
+          }}
+        >
+          الشحن: {shippingStatus.label}
+        </span>
+      </div>
+
+      <div style={s.topGrid}>
+        <div style={s.panel}>
+          <div style={s.panelTitle}>معلومات المشتري</div>
+          <div style={s.infoRow}><span style={s.infoKey}>الاسم</span><strong style={s.infoValue}>{order.buyer_name || "اسم غير معروف"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>الهاتف</span><strong style={s.infoValue}>{order.buyer_phone || "بدون هاتف"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>المدينة</span><strong style={s.infoValue}>{order.buyer_city || "مدينة غير معروفة"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>العنوان</span><strong style={s.infoValue}>{order.buyer_address || "بدون عنوان"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>ملاحظات</span><strong style={s.infoValue}>{order.notes || "—"}</strong></div>
+        </div>
+
+        <div style={s.panel}>
+          <div style={s.panelTitle}>معلومات الطلب</div>
+          <div style={s.infoRow}><span style={s.infoKey}>رقم الطلب</span><strong style={s.infoValue}>{order.order_number || "—"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>المعرّف</span><strong style={s.infoValue}>{order.id || "—"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>طريقة الدفع</span><strong style={s.infoValue}>{order.payment_method || "—"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>العملة</span><strong style={s.infoValue}>{order.currency || "MAD"}</strong></div>
+          <div style={s.infoRow}><span style={s.infoKey}>الإجمالي</span><strong style={s.infoValue}>{formatMoney(order.total_mad, order.currency || "MAD")}</strong></div>
+        </div>
+      </div>
+
+      <div style={s.shippingCard}>
+        <div style={s.panelTitle}>الشحن والتتبع</div>
+
+        {shipping ? (
+          <>
+            <div style={s.shippingGrid}>
+              <div style={s.shippingMiniCard}>
+                <span style={s.shippingLabel}>شركة الشحن</span>
+                <strong style={s.shippingValue}>{shipping.provider_name || "—"}</strong>
               </div>
 
-              <div style={s.topRight}>
-                <div style={s.totalPrice}>
-                  {formatMoney(order.total_mad, order.currency || "MAD")}
-                </div>
-                <div style={{ ...s.badge, ...badgeStyle(order.order_status) }}>
-                  {order.order_status || "pending"}
-                </div>
+              <div style={s.shippingMiniCard}>
+                <span style={s.shippingLabel}>طريقة الشحن</span>
+                <strong style={s.shippingValue}>{shipping.method_name || shipping.method_code || "—"}</strong>
+              </div>
+
+              <div style={s.shippingMiniCard}>
+                <span style={s.shippingLabel}>حالة الشحن</span>
+                <strong style={s.shippingValue}>{shippingStatus.label}</strong>
+              </div>
+
+              <div style={s.shippingMiniCard}>
+                <span style={s.shippingLabel}>ثمن الشحن</span>
+                <strong style={s.shippingValue}>{formatMoney(shipping.shipping_price, order.currency || "MAD")}</strong>
               </div>
             </div>
 
-            <div style={s.statusButtons}>
-              {STATUSES.map((status) => (
+            <div style={s.trackingBar}>
+              <div style={s.trackingMain}>
+                <span style={s.trackingLabel}>رقم التتبع</span>
+                <strong style={s.trackingNumber}>{shipping.tracking_number || "لا يوجد بعد"}</strong>
+              </div>
+
+              <div style={s.trackingActions}>
                 <button
-                  key={status}
                   type="button"
-                  onClick={() => updateStatus(status)}
-                  disabled={updatingStatus === status}
+                  onClick={copyTracking}
+                  disabled={!shipping.tracking_number}
                   style={{
-                    ...s.statusBtn,
-                    background: order.order_status === status ? "#111827" : "#fff",
-                    color: order.order_status === status ? "#fff" : "#111827",
-                    opacity: updatingStatus && updatingStatus !== status ? 0.7 : 1
+                    ...s.secondaryBtn,
+                    opacity: shipping.tracking_number ? 1 : 0.55,
+                    cursor: shipping.tracking_number ? "pointer" : "not-allowed"
                   }}
                 >
-                  {updatingStatus === status ? "..." : status}
+                  {copied ? "تم النسخ" : "نسخ الرقم"}
                 </button>
-              ))}
+
+                {trackingUrl ? (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={s.primaryBtn}
+                  >
+                    فتح التتبع
+                  </a>
+                ) : null}
+              </div>
             </div>
+          </>
+        ) : (
+          <div style={s.noShippingBox}>
+            لا توجد معلومات شحن مرتبطة بهذا الطلب بعد.
           </div>
+        )}
+      </div>
 
-          <div style={s.card}>
-            <div style={s.sectionTitle}>عناصر الطلب</div>
+      <div style={s.itemsCard}>
+        <div style={s.panelTitle}>المنتجات</div>
 
-            {!items.length ? (
-              <div style={s.emptyMini}>لا توجد عناصر ظاهرة لهذا الطلب.</div>
-            ) : (
-              <div style={s.itemsList}>
-                {items.map((item, index) => {
-                  const qty = Number(item.quantity || item.qty || 0);
-                  const unit = Number(item.unit_price_mad || item.unit_price || item.price_mad || 0);
-                  const subtotal = qty * unit;
+        {items.length === 0 ? (
+          <div style={s.noShippingBox}>لا توجد عناصر داخل هذا الطلب.</div>
+        ) : (
+          <div style={s.itemsList}>
+            {items.map((item) => (
+              <div key={item.id} style={s.itemRow}>
+                <div style={s.itemLeft}>
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.title_ar || "product"} style={s.itemImage} />
+                  ) : (
+                    <div style={s.itemImageFallback}>📦</div>
+                  )}
 
-                  return (
-                    <div key={item.id || `${item.product_id}-${index}`} style={s.itemCard}>
-                      <div style={s.itemTop}>
-                        <div>
-                          <div style={s.itemName}>
-                            {item.product_title ||
-                              item.title_ar ||
-                              item.name ||
-                              `منتج #${item.product_id || index + 1}`}
-                          </div>
-                          <div style={s.itemMeta}>
-                            Product ID: {item.product_id || "—"}
-                          </div>
-                        </div>
-
-                        <div style={s.itemQty}>× {qty}</div>
-                      </div>
-
-                      <div style={s.itemBottom}>
-                        <span>الوحدة: {formatMoney(unit, order.currency || "MAD")}</span>
-                        <strong>{formatMoney(subtotal, order.currency || "MAD")}</strong>
-                      </div>
+                  <div style={s.itemText}>
+                    <div style={s.itemTitle}>{item.title_ar || "منتج"}</div>
+                    <div style={s.itemMeta}>
+                      <span>الكمية: {item.quantity || 0}</span>
+                      <span>•</span>
+                      <span>SKU/Slug: {item.slug || "—"}</span>
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
+
+                <div style={s.itemPrice}>
+                  {formatMoney(item.unit_price_mad, order.currency || "MAD")}
+                </div>
               </div>
-            )}
+            ))}
           </div>
-        </div>
-
-        <div style={s.sideColumn}>
-          <div style={s.card}>
-            <div style={s.sectionTitle}>معلومات المشتري</div>
-
-            <div style={s.infoGrid}>
-              <InfoRow label="الاسم" value={order.buyer_name} />
-              <InfoRow label="الهاتف" value={order.buyer_phone} />
-              <InfoRow label="المدينة" value={order.buyer_city} />
-              <InfoRow label="العنوان" value={order.buyer_address} />
-            </div>
-          </div>
-
-          <div style={s.card}>
-            <div style={s.sectionTitle}>معلومات الطلب</div>
-
-            <div style={s.infoGrid}>
-              <InfoRow label="رقم الطلب" value={order.order_number || order.id} />
-              <InfoRow label="طريقة الدفع" value={order.payment_method} />
-              <InfoRow label="حالة الدفع" value={order.payment_status} />
-              <InfoRow label="حالة الشحن" value={order.shipping_status} />
-              <InfoRow label="عملة الطلب" value={order.currency || "MAD"} />
-              <InfoRow label="تاريخ الإنشاء" value={order.created_at} />
-            </div>
-          </div>
-
-          <div style={s.card}>
-            <div style={s.sectionTitle}>الملخص المالي</div>
-
-            <div style={s.summaryGrid}>
-              <div style={s.summaryRow}>
-                <span>مجموع العناصر</span>
-                <strong>{formatMoney(totals.itemsTotal, order.currency || "MAD")}</strong>
-              </div>
-
-              <div style={s.summaryRow}>
-                <span>الإجمالي النهائي</span>
-                <strong>{formatMoney(totals.grandTotal, order.currency || "MAD")}</strong>
-              </div>
-            </div>
-          </div>
-
-          {order.notes ? (
-            <div style={s.card}>
-              <div style={s.sectionTitle}>ملاحظات</div>
-              <div style={s.notesBox}>{order.notes}</div>
-            </div>
-          ) : null}
-        </div>
+        )}
       </div>
     </section>
   );
 }
 
 const s = {
-  layout: {
+  hero: {
+    background: "linear-gradient(135deg, #0f172a 0%, #16356b 45%, #0f766e 100%)",
+    borderRadius: "22px",
+    padding: "22px",
+    color: "#fff",
     display: "grid",
-    gridTemplateColumns: "1.25fr 0.95fr",
-    gap: "16px"
+    gap: "18px",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.18)"
   },
-  mainColumn: {
+  eyebrow: {
+    fontSize: "12px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    opacity: 0.85
+  },
+  heroTitle: {
+    margin: "4px 0 8px",
+    fontSize: "30px",
+    fontWeight: "900",
+    lineHeight: 1.15
+  },
+  heroText: {
+    margin: 0,
+    fontSize: "15px",
+    lineHeight: 1.9,
+    maxWidth: "760px",
+    color: "rgba(255,255,255,0.9)"
+  },
+  heroStats: {
     display: "grid",
-    gap: "16px"
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px"
   },
-  sideColumn: {
-    display: "grid",
-    gap: "16px"
-  },
-  card: {
-    background: "#fff",
-    border: "1px solid #e2e8f0",
+  heroStatCard: {
+    background: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.18)",
     borderRadius: "16px",
-    padding: "18px",
+    padding: "14px",
     display: "grid",
-    gap: "16px"
+    gap: "6px"
   },
-  actionsTop: {
-    display: "flex",
-    justifyContent: "flex-start",
-    marginBottom: "14px"
-  },
-  secondaryLink: {
-    padding: "10px 14px",
-    borderRadius: "10px",
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    color: "#111827",
-    textDecoration: "none",
+  heroStatLabel: {
+    fontSize: "13px",
+    color: "rgba(255,255,255,0.82)",
     fontWeight: "700"
   },
-  topRow: {
+  heroStatValue: {
+    fontSize: "24px",
+    fontWeight: "900",
+    color: "#fff"
+  },
+  heroStatValueSmall: {
+    fontSize: "14px",
+    fontWeight: "800",
+    color: "#fff",
+    lineHeight: 1.6
+  },
+  backRow: {
     display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    flexWrap: "wrap",
-    alignItems: "start"
+    justifyContent: "flex-start",
+    marginTop: "16px"
   },
-  topRight: {
-    display: "grid",
+  backLink: {
+    textDecoration: "none",
+    color: "#16356b",
+    fontWeight: "800",
+    background: "#fff",
+    border: "1px solid #dbe4ee",
+    borderRadius: "12px",
+    padding: "10px 14px"
+  },
+  statusStrip: {
+    marginTop: "16px",
+    display: "flex",
     gap: "8px",
-    justifyItems: "end"
+    flexWrap: "wrap"
   },
-  orderTitle: {
-    fontWeight: "900",
-    fontSize: "20px",
-    color: "#0f172a"
-  },
-  metaText: {
-    color: "#64748b",
-    marginTop: "6px",
-    fontSize: "14px"
-  },
-  totalPrice: {
-    fontWeight: "900",
-    fontSize: "20px",
-    color: "#0f172a"
-  },
-  badge: {
+  stripBadge: {
     padding: "8px 12px",
     borderRadius: "999px",
     fontSize: "13px",
     fontWeight: "800"
   },
-  statusButtons: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap"
+  topGrid: {
+    marginTop: "16px",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "14px"
   },
-  statusBtn: {
-    padding: "9px 12px",
-    borderRadius: "10px",
+  panel: {
+    background: "#fff",
     border: "1px solid #e2e8f0",
-    cursor: "pointer",
-    fontWeight: "700"
+    borderRadius: "18px",
+    padding: "16px",
+    display: "grid",
+    gap: "10px",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)"
   },
-  sectionTitle: {
+  panelTitle: {
     fontWeight: "900",
-    fontSize: "18px",
-    color: "#0f172a"
-  },
-  itemsList: {
-    display: "grid",
-    gap: "12px"
-  },
-  itemCard: {
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: "14px",
-    padding: "14px",
-    display: "grid",
-    gap: "10px"
-  },
-  itemTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "start"
-  },
-  itemName: {
-    fontWeight: "800",
     fontSize: "16px",
-    color: "#111827"
-  },
-  itemMeta: {
-    marginTop: "4px",
-    color: "#64748b",
-    fontSize: "13px"
-  },
-  itemQty: {
-    fontWeight: "900",
-    color: "#1d4ed8",
-    fontSize: "18px"
-  },
-  itemBottom: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    flexWrap: "wrap",
-    color: "#475569",
-    fontSize: "14px"
-  },
-  infoGrid: {
-    display: "grid",
-    gap: "10px"
+    color: "#0f172a"
   },
   infoRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    alignItems: "center",
-    minHeight: "48px",
-    padding: "0 14px",
-    borderRadius: "14px",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0"
+    alignItems: "start",
+    borderBottom: "1px dashed #e2e8f0",
+    paddingBottom: "8px"
   },
-  infoLabel: {
+  infoKey: {
     color: "#64748b",
-    fontSize: "14px",
+    fontSize: "13px",
     fontWeight: "700"
   },
   infoValue: {
-    color: "#111827",
+    color: "#0f172a",
     fontSize: "14px",
     fontWeight: "800",
     textAlign: "left"
   },
-  summaryGrid: {
+  shippingCard: {
+    marginTop: "16px",
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "18px",
+    padding: "16px",
     display: "grid",
+    gap: "14px",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)"
+  },
+  shippingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
     gap: "10px"
   },
-  summaryRow: {
+  shippingMiniCard: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "grid",
+    gap: "6px"
+  },
+  shippingLabel: {
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: "700"
+  },
+  shippingValue: {
+    color: "#0f172a",
+    fontSize: "14px",
+    fontWeight: "900"
+  },
+  trackingBar: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
+    flexWrap: "wrap",
     alignItems: "center",
-    minHeight: "48px",
-    padding: "0 14px",
-    borderRadius: "14px",
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "14px"
+  },
+  trackingMain: {
+    display: "grid",
+    gap: "6px"
+  },
+  trackingLabel: {
+    color: "#64748b",
+    fontSize: "12px",
     fontWeight: "700"
   },
-  notesBox: {
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: "14px",
-    padding: "14px",
-    color: "#334155",
-    lineHeight: 1.8,
-    fontSize: "14px"
+  trackingNumber: {
+    color: "#0f172a",
+    fontSize: "16px",
+    fontWeight: "900",
+    letterSpacing: "0.02em"
   },
-  emptyMini: {
+  trackingActions: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+  primaryBtn: {
+    textDecoration: "none",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #ea580c 0%, #f97316 100%)",
+    color: "#fff",
+    fontWeight: "800",
+    boxShadow: "0 10px 24px rgba(249,115,22,0.22)"
+  },
+  secondaryBtn: {
+    padding: "10px 14px",
+    borderRadius: "12px",
+    background: "#fff",
+    border: "1px solid #dbe4ee",
+    color: "#0f172a",
+    fontWeight: "800"
+  },
+  noShippingBox: {
     background: "#f8fafc",
-    border: "1px solid #e2e8f0",
+    border: "1px dashed #cbd5e1",
     borderRadius: "14px",
     padding: "16px",
-    color: "#64748b",
+    color: "#475569",
     fontWeight: "700"
+  },
+  itemsCard: {
+    marginTop: "16px",
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "18px",
+    padding: "16px",
+    display: "grid",
+    gap: "14px",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.05)"
+  },
+  itemsList: {
+    display: "grid",
+    gap: "12px"
+  },
+  itemRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "center",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "12px"
+  },
+  itemLeft: {
+    display: "flex",
+    gap: "12px",
+    alignItems: "center",
+    minWidth: "0",
+    flex: 1
+  },
+  itemImage: {
+    width: "64px",
+    height: "64px",
+    borderRadius: "12px",
+    objectFit: "cover",
+    border: "1px solid #e2e8f0",
+    background: "#fff"
+  },
+  itemImageFallback: {
+    width: "64px",
+    height: "64px",
+    borderRadius: "12px",
+    display: "grid",
+    placeItems: "center",
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    fontSize: "26px"
+  },
+  itemText: {
+    display: "grid",
+    gap: "6px",
+    minWidth: "0"
+  },
+  itemTitle: {
+    color: "#0f172a",
+    fontWeight: "900",
+    fontSize: "15px"
+  },
+  itemMeta: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: "#64748b",
+    fontSize: "12px"
+  },
+  itemPrice: {
+    color: "#0f172a",
+    fontWeight: "900",
+    fontSize: "15px"
   }
 };
