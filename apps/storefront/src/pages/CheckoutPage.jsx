@@ -20,6 +20,79 @@ function saveGuestOrder(entry) {
   }
 }
 
+function normalizeZoneCode(city) {
+  const value = String(city || "").trim().toLowerCase();
+
+  const map = {
+    "casablanca": "casablanca",
+    "الدار البيضاء": "casablanca",
+    "casa": "casablanca",
+    "rabat": "rabat",
+    "الرباط": "rabat",
+    "tangier": "tangier",
+    "tanger": "tangier",
+    "طنجة": "tangier",
+    "marrakech": "marrakech",
+    "مراكش": "marrakech",
+  };
+
+  return map[value] || "other";
+}
+
+function shippingSpeed(option) {
+  return Number(option.estimated_max_days || 0) + Number(option.handling_days || 0);
+}
+
+function pickSmartShipping(options) {
+  if (!Array.isArray(options) || !options.length) {
+    return {
+      bestKey: null,
+      cheapestKey: null,
+      fastestKey: null,
+    };
+  }
+
+  const keyed = options.map((option) => ({
+    ...option,
+    _key: `${option.provider_method_id}::${option.zone_code}`,
+    _price: Number(option.shipping_price || 0),
+    _speed: shippingSpeed(option),
+  }));
+
+  const cheapest = [...keyed].sort((a, b) => {
+    if (a._price !== b._price) return a._price - b._price;
+    return a._speed - b._speed;
+  })[0];
+
+  const fastest = [...keyed].sort((a, b) => {
+    if (a._speed !== b._speed) return a._speed - b._speed;
+    return a._price - b._price;
+  })[0];
+
+  const best = [...keyed].sort((a, b) => {
+    const aFree = a._price === 0 ? 1 : 0;
+    const bFree = b._price === 0 ? 1 : 0;
+    if (aFree !== bFree) return bFree - aFree;
+
+    const aScore = a._price * 1.0 + a._speed * 8;
+    const bScore = b._price * 1.0 + b._speed * 8;
+    if (aScore !== bScore) return aScore - bScore;
+
+    if (a._price !== b._price) return a._price - b._price;
+    return a._speed - b._speed;
+  })[0];
+
+  return {
+    bestKey: best?._key || null,
+    cheapestKey: cheapest?._key || null,
+    fastestKey: fastest?._key || null,
+  };
+}
+
+function optionKey(option) {
+  return `${option.provider_method_id}::${option.zone_code}`;
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, total, currency, language, currentUser, removeFromCart } = useApp();
@@ -27,6 +100,10 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [results, setResults] = useState([]);
+
+  const [shippingLoading, setShippingLoading] = useState(false);
+  const [shippingMessage, setShippingMessage] = useState("");
+  const [shippingState, setShippingState] = useState({});
 
   const [form, setForm] = useState({
     buyer_name: "",
@@ -83,8 +160,81 @@ export default function CheckoutPage() {
   }, [cart]);
 
   const numSellers = ordersGrouped.length;
-  const shipping = total > 0 ? 0 : 0;
-  const grandTotal = total + shipping;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function resolveAllShipping() {
+      if (!ordersGrouped.length) {
+        setShippingState({});
+        setShippingMessage("");
+        return;
+      }
+
+      if (!form.buyer_city.trim()) {
+        setShippingState({});
+        setShippingMessage("أدخل المدينة لإظهار خيارات الشحن الذكية.");
+        return;
+      }
+
+      const groupsToResolve = ordersGrouped.filter(
+        (group) => group.seller_id && group.seller_id !== "default"
+      );
+
+      if (!groupsToResolve.length) {
+        setShippingState({});
+        setShippingMessage("");
+        return;
+      }
+
+      try {
+        setShippingLoading(true);
+        setShippingMessage("");
+
+        const zoneCode = normalizeZoneCode(form.buyer_city);
+
+        const results = await Promise.all(
+          groupsToResolve.map(async (group) => {
+            const res = await apiPost("/marketplace/logistics/resolve", {
+              seller_id: group.seller_id,
+              zone_code: zoneCode,
+              order_total: group.subtotal
+            });
+
+            const options = Array.isArray(res?.data) ? res.data : [];
+            const ranked = pickSmartShipping(options);
+            const selectedKey = ranked.bestKey || ranked.cheapestKey || ranked.fastestKey || null;
+
+            return [
+              group.seller_id,
+              {
+                options,
+                selectedKey,
+                ...ranked
+              }
+            ];
+          })
+        );
+
+        if (!cancelled) {
+          setShippingState(Object.fromEntries(results));
+        }
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) {
+          setShippingMessage("تعذر تحميل خيارات الشحن الذكية حالياً.");
+        }
+      } finally {
+        if (!cancelled) setShippingLoading(false);
+      }
+    }
+
+    resolveAllShipping();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ordersGrouped, form.buyer_city]);
 
   function validateForm() {
     if (!form.buyer_name.trim()) return "يرجى إدخال الاسم الكامل";
@@ -95,8 +245,40 @@ export default function CheckoutPage() {
     if (!form.buyer_city.trim()) return "يرجى إدخال المدينة";
     if (!form.buyer_address.trim()) return "يرجى إدخال العنوان";
     if (!ordersGrouped.length) return "السلة فارغة";
+
+    const needsShippingChoice = ordersGrouped.some(
+      (group) =>
+        group.seller_id &&
+        group.seller_id !== "default" &&
+        Array.isArray(shippingState[group.seller_id]?.options) &&
+        shippingState[group.seller_id].options.length > 0 &&
+        !shippingState[group.seller_id].selectedKey
+    );
+
+    if (needsShippingChoice) {
+      return "يرجى اختيار طريقة الشحن لكل بائع";
+    }
+
     return "";
   }
+
+  function getSelectedShipping(group) {
+    const sellerShipping = shippingState[group.seller_id];
+    if (!sellerShipping?.selectedKey) return null;
+
+    return (sellerShipping.options || []).find(
+      (option) => optionKey(option) === sellerShipping.selectedKey
+    ) || null;
+  }
+
+  const shippingTotal = useMemo(() => {
+    return ordersGrouped.reduce((sum, group) => {
+      const selected = getSelectedShipping(group);
+      return sum + Number(selected?.shipping_price || 0);
+    }, 0);
+  }, [ordersGrouped, shippingState]);
+
+  const grandTotal = total + shippingTotal;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -114,6 +296,8 @@ export default function CheckoutPage() {
 
     for (const group of ordersGrouped) {
       try {
+        const selectedShipping = getSelectedShipping(group);
+
         const payload = {
           buyer_name: form.buyer_name.trim(),
           buyer_phone: form.buyer_phone.trim(),
@@ -122,6 +306,12 @@ export default function CheckoutPage() {
           notes: form.notes.trim() || null,
           seller_id: group.seller_id === "default" ? null : group.seller_id,
           payment_method: "cod",
+          shipping_price: Number(selectedShipping?.shipping_price || 0),
+          shipping_provider_id: selectedShipping?.provider_id || null,
+          shipping_method_id: selectedShipping?.provider_method_id || null,
+          shipping_method_label: selectedShipping
+            ? `${selectedShipping.provider_name} - ${selectedShipping.method_name}`
+            : null,
           items: group.items.map((item) => ({
             product_id: item.product_id,
             quantity: item.quantity
@@ -132,7 +322,9 @@ export default function CheckoutPage() {
 
         if (res?.ok) {
           const orderNumber = res.data?.order_number || "—";
-          const totalMad = Number(res.data?.total_mad ?? group.subtotal);
+          const totalMad =
+            Number(res.data?.total_mad ?? group.subtotal) +
+            Number(selectedShipping?.shipping_price || 0);
 
           newResults.push({
             ok: true,
@@ -313,6 +505,7 @@ export default function CheckoutPage() {
         ) : null}
 
         {message ? <div className="message-box">{message}</div> : null}
+        {shippingMessage ? <div className="message-box">{shippingMessage}</div> : null}
 
         <div style={s.layout}>
           <form className="ui-card" style={s.formCard} onSubmit={handleSubmit}>
@@ -380,7 +573,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               className="btn btn-primary full-width"
-              disabled={submitting || !ordersGrouped.length}
+              disabled={submitting || !ordersGrouped.length || shippingLoading}
             >
               {submitting
                 ? "جاري إنشاء الطلبات..."
@@ -392,29 +585,116 @@ export default function CheckoutPage() {
             <h2 className="section-title">ملخص السلة</h2>
 
             <div style={s.groupList}>
-              {ordersGrouped.map((group) => (
-                <div key={group.seller_id} className="ui-card-soft" style={s.groupCard}>
-                  <div style={s.groupHead}>
-                    <strong style={s.groupSeller}>{group.seller_name}</strong>
-                    <span style={s.groupSubtotal}>
-                      {formatMoney(group.subtotal, currency, locale)}
-                    </span>
-                  </div>
+              {ordersGrouped.map((group) => {
+                const sellerShipping = shippingState[group.seller_id];
+                const selectedShipping = getSelectedShipping(group);
 
-                  <div style={s.groupItems}>
-                    {group.items.map((item) => (
-                      <div key={item.id} style={s.itemRow}>
-                        <span style={s.itemName}>
-                          {item.name} × {item.quantity}
-                        </span>
-                        <strong style={s.itemPrice}>
-                          {formatMoney(item.price * item.quantity, currency, locale)}
-                        </strong>
+                return (
+                  <div key={group.seller_id} className="ui-card-soft" style={s.groupCard}>
+                    <div style={s.groupHead}>
+                      <strong style={s.groupSeller}>{group.seller_name}</strong>
+                      <span style={s.groupSubtotal}>
+                        {formatMoney(group.subtotal, currency, locale)}
+                      </span>
+                    </div>
+
+                    <div style={s.groupItems}>
+                      {group.items.map((item) => (
+                        <div key={item.id} style={s.itemRow}>
+                          <span style={s.itemName}>
+                            {item.name} × {item.quantity}
+                          </span>
+                          <strong style={s.itemPrice}>
+                            {formatMoney(item.price * item.quantity, currency, locale)}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+
+                    {Array.isArray(sellerShipping?.options) && sellerShipping.options.length > 0 ? (
+                      <div style={s.shippingBox}>
+                        <div style={s.shippingBoxTitle}>خيارات الشحن الذكية</div>
+
+                        <div style={s.shippingOptionsList}>
+                          {sellerShipping.options.map((option) => {
+                            const key = optionKey(option);
+                            const isSelected = sellerShipping.selectedKey === key;
+                            const isBest = sellerShipping.bestKey === key;
+                            const isCheapest = sellerShipping.cheapestKey === key;
+                            const isFastest = sellerShipping.fastestKey === key;
+
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() =>
+                                  setShippingState((prev) => ({
+                                    ...prev,
+                                    [group.seller_id]: {
+                                      ...prev[group.seller_id],
+                                      selectedKey: key
+                                    }
+                                  }))
+                                }
+                                style={{
+                                  ...s.shippingOptionCard,
+                                  ...(isSelected ? s.shippingOptionSelected : {})
+                                }}
+                              >
+                                <div style={s.shippingOptionHead}>
+                                  <div>
+                                    <div style={s.shippingOptionTitle}>
+                                      {option.provider_name} - {option.method_name}
+                                    </div>
+                                    <div style={s.shippingOptionMeta}>
+                                      {option.zone_name} · {option.estimated_min_days ?? "-"} - {option.estimated_max_days ?? "-"} أيام
+                                      {Number(option.handling_days || 0) > 0
+                                        ? ` + ${option.handling_days} تجهيز`
+                                        : ""}
+                                    </div>
+                                  </div>
+
+                                  <strong style={s.shippingOptionPrice}>
+                                    {Number(option.shipping_price || 0) === 0
+                                      ? "مجاني"
+                                      : formatMoney(option.shipping_price, currency, locale)}
+                                  </strong>
+                                </div>
+
+                                <div style={s.shippingBadgesRow}>
+                                  {isBest ? <span style={s.bestBadge}>Best</span> : null}
+                                  {isCheapest ? <span style={s.cheapestBadge}>Cheapest</span> : null}
+                                  {isFastest ? <span style={s.fastestBadge}>Fastest</span> : null}
+                                  {option.cash_on_delivery_available ? (
+                                    <span style={s.codBadge}>COD</span>
+                                  ) : null}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    ))}
+                    ) : group.seller_id && group.seller_id !== "default" ? (
+                      <div style={s.shippingEmptyBox}>
+                        {shippingLoading
+                          ? "جاري تحميل خيارات الشحن..."
+                          : "لا توجد خيارات شحن ذكية متاحة لهذا البائع حالياً."}
+                      </div>
+                    ) : null}
+
+                    <div style={s.groupShippingRow}>
+                      <span>الشحن المختار</span>
+                      <strong>
+                        {selectedShipping
+                          ? Number(selectedShipping.shipping_price || 0) === 0
+                            ? "مجاني"
+                            : formatMoney(selectedShipping.shipping_price, currency, locale)
+                          : "—"}
+                      </strong>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div style={s.totals}>
@@ -430,7 +710,9 @@ export default function CheckoutPage() {
 
               <div style={s.totalRow}>
                 <span>التوصيل</span>
-                <strong>{shipping === 0 ? "مجاني" : formatMoney(shipping, currency, locale)}</strong>
+                <strong>
+                  {shippingTotal === 0 ? "مجاني" : formatMoney(shippingTotal, currency, locale)}
+                </strong>
               </div>
 
               <div style={s.divider} />
@@ -573,6 +855,111 @@ const s = {
   itemPrice: {
     color: "#1f2937",
     whiteSpace: "nowrap"
+  },
+  shippingBox: {
+    display: "grid",
+    gap: "10px",
+    padding: "12px",
+    borderRadius: "14px",
+    border: "1px solid #dbeafe",
+    background: "#f8fbff"
+  },
+  shippingBoxTitle: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  shippingOptionsList: {
+    display: "grid",
+    gap: "8px"
+  },
+  shippingOptionCard: {
+    border: "1px solid #dbe4ee",
+    background: "#fff",
+    borderRadius: "14px",
+    padding: "12px",
+    textAlign: "right",
+    cursor: "pointer"
+  },
+  shippingOptionSelected: {
+    border: "1px solid #60a5fa",
+    boxShadow: "0 0 0 3px rgba(96,165,250,0.15)"
+  },
+  shippingOptionHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "start"
+  },
+  shippingOptionTitle: {
+    color: "#0f172a",
+    fontWeight: 900
+  },
+  shippingOptionMeta: {
+    color: "#64748b",
+    fontSize: "13px",
+    marginTop: "4px",
+    lineHeight: 1.7
+  },
+  shippingOptionPrice: {
+    color: "#173b74",
+    whiteSpace: "nowrap"
+  },
+  shippingBadgesRow: {
+    display: "flex",
+    gap: "6px",
+    flexWrap: "wrap",
+    marginTop: "10px"
+  },
+  bestBadge: {
+    background: "#dbeafe",
+    color: "#1d4ed8",
+    border: "1px solid #93c5fd",
+    borderRadius: "999px",
+    padding: "4px 8px",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+  cheapestBadge: {
+    background: "#dcfce7",
+    color: "#166534",
+    border: "1px solid #86efac",
+    borderRadius: "999px",
+    padding: "4px 8px",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+  fastestBadge: {
+    background: "#fef3c7",
+    color: "#92400e",
+    border: "1px solid #fcd34d",
+    borderRadius: "999px",
+    padding: "4px 8px",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+  codBadge: {
+    background: "#f3e8ff",
+    color: "#7c3aed",
+    border: "1px solid #c4b5fd",
+    borderRadius: "999px",
+    padding: "4px 8px",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+  shippingEmptyBox: {
+    padding: "12px",
+    borderRadius: "14px",
+    background: "#fff7ed",
+    border: "1px solid #fdba74",
+    color: "#9a3412",
+    fontWeight: 700
+  },
+  groupShippingRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    color: "#334155",
+    fontWeight: 800
   },
   totals: {
     display: "grid",
