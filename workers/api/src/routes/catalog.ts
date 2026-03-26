@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { listProducts, getProductBySlug } from "../repositories/catalog.repository";
+import { ok, fail } from "../utils/response";
 
 export const catalogRouter = new Hono<import("../types").AppEnv>();
 
@@ -21,10 +22,9 @@ catalogRouter.get("/categories", async (c) => {
     `
   ).all();
 
-  return c.json({
-    ok: true,
-    data: result.results || []
-  });
+  return c.json(
+    ok(result.results || [])
+  );
 });
 
 catalogRouter.get("/products", async (c) => {
@@ -38,9 +38,9 @@ catalogRouter.get("/products", async (c) => {
 
   if (!q && !category && !sellerId && sort === "newest" && page === 1 && limit === 12) {
     const products = await listProducts(c.env, sellerId || undefined);
-    return c.json({
-      ok: true,
-      data: {
+
+    return c.json(
+      ok({
         items: products,
         pagination: {
           page: 1,
@@ -48,8 +48,8 @@ catalogRouter.get("/products", async (c) => {
           total: Array.isArray(products) ? products.length : 0,
           pages: 1
         }
-      }
-    });
+      })
+    );
   }
 
   const whereParts: string[] = [`p.status = 'active'`];
@@ -143,9 +143,8 @@ catalogRouter.get("/products", async (c) => {
   const total = Number(totalRow?.total || 0);
   const pages = Math.max(Math.ceil(total / limit), 1);
 
-  return c.json({
-    ok: true,
-    data: {
+  return c.json(
+    ok({
       items: itemsResult.results || [],
       pagination: {
         page,
@@ -153,8 +152,8 @@ catalogRouter.get("/products", async (c) => {
         total,
         pages
       }
-    }
-  });
+    })
+  );
 });
 
 catalogRouter.get("/products/:slug", async (c) => {
@@ -163,10 +162,12 @@ catalogRouter.get("/products/:slug", async (c) => {
 
   if (!product) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Product not found" },
+      fail("NOT_FOUND", "Product not found"),
       404
     );
   }
 
-  return c.json({ ok: true, data: product });
+  return c.json(
+    ok(product)
+  );
 });
