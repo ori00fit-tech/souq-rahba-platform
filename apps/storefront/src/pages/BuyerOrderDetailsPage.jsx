@@ -157,6 +157,7 @@ export default function BuyerOrderDetailsPage() {
   const status = getStatusMeta(order.order_status);
   const orderCurrency = order.currency || currency;
   const items = Array.isArray(order.items) ? order.items : [];
+  const shipping = order.shipping || null;
 
   return (
     <section className="container section-space" dir="rtl">
@@ -182,6 +183,43 @@ export default function BuyerOrderDetailsPage() {
               {status.label}
             </div>
           </div>
+
+          {shipping ? (
+            <div className="ui-card-soft" style={s.shippingCard}>
+              <div style={s.shippingTitleRow}>
+                <strong style={s.shippingTitle}>الشحن والتتبع</strong>
+                <span style={s.shippingStatusBadge}>
+                  {shipping.shipping_status || "pending"}
+                </span>
+              </div>
+
+              <div style={s.shippingGrid}>
+                <div style={s.shippingItem}>
+                  <span style={s.shippingLabel}>شركة الشحن</span>
+                  <strong style={s.shippingValue}>{shipping.provider_name || "—"}</strong>
+                </div>
+
+                <div style={s.shippingItem}>
+                  <span style={s.shippingLabel}>طريقة الشحن</span>
+                  <strong style={s.shippingValue}>{shipping.method_name || "—"}</strong>
+                </div>
+
+                <div style={s.shippingItem}>
+                  <span style={s.shippingLabel}>ثمن الشحن</span>
+                  <strong style={s.shippingValue}>
+                    {Number(shipping.shipping_price || 0) === 0
+                      ? "مجاني"
+                      : formatMoney(Number(shipping.shipping_price || 0), orderCurrency, locale)}
+                  </strong>
+                </div>
+
+                <div style={s.shippingItem}>
+                  <span style={s.shippingLabel}>رقم التتبع</span>
+                  <strong style={s.shippingValue}>{shipping.tracking_number || "—"}</strong>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="ui-card-soft" style={s.orderMetaCard}>
             <div style={s.metaRow}>
@@ -365,6 +403,57 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
     fontSize: "13px",
+    fontWeight: 900
+  },
+  shippingCard: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px",
+    background: "#f8fbff",
+    border: "1px solid #dbeafe"
+  },
+  shippingTitleRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+  shippingTitle: {
+    color: "#173b74",
+    fontWeight: 900,
+    fontSize: "18px"
+  },
+  shippingStatusBadge: {
+    background: "#eef6ff",
+    color: "#1d4ed8",
+    border: "1px solid #bfdbfe",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+  shippingGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "10px"
+  },
+  shippingItem: {
+    background: "#fff",
+    border: "1px solid #e2e8f0",
+    borderRadius: "14px",
+    padding: "12px",
+    display: "grid",
+    gap: "6px"
+  },
+  shippingLabel: {
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: 700
+  },
+  shippingValue: {
+    color: "#0f172a",
+    fontSize: "14px",
     fontWeight: 900
   },
   orderMetaCard: {
