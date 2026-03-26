@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 
 export const uploadRouter = new Hono<import("../types").AppEnv>();
 
@@ -11,7 +12,7 @@ uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), asy
 
     if (!(file instanceof File)) {
       return c.json(
-        { ok: false, code: "INVALID_FILE", message: "No file uploaded" },
+        fail("INVALID_FILE", "No file uploaded"),
         400
       );
     }
@@ -31,18 +32,17 @@ uploadRouter.post("/upload", authMiddleware, requireRole("seller", "admin"), asy
     const reqUrl = new URL(c.req.url);
     const publicUrl = `${reqUrl.origin}/media/${encodeURIComponent(finalName)}`;
 
-    return c.json({
-      ok: true,
-      data: {
+    return c.json(
+      ok({
         key: finalName,
         filename: finalName,
         url: publicUrl
-      }
-    });
+      })
+    );
   } catch (error) {
     console.error("POST /upload failed:", error);
     return c.json(
-      { ok: false, code: "UPLOAD_FAILED", message: "Failed to upload file" },
+      fail("UPLOAD_FAILED", "Failed to upload file"),
       500
     );
   }
