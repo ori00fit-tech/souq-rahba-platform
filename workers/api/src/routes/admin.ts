@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { requireRole } from "../middleware/roleGuard";
+import { ok, fail } from "../utils/response";
 
 export const adminRouter = new Hono<{ Bindings: import("../types").Bindings }>();
 
@@ -26,7 +27,9 @@ adminRouter.get("/sellers", async (c) => {
     order by s.created_at desc`
   ).all();
 
-  return c.json({ ok: true, data: rows.results || [] });
+  return c.json(
+    ok(rows.results || [])
+  );
 });
 
 adminRouter.patch("/sellers/:id/status", async (c) => {
@@ -38,7 +41,7 @@ adminRouter.patch("/sellers/:id/status", async (c) => {
 
   if (!["pending", "approved", "rejected"].includes(nextStatus)) {
     return c.json(
-      { ok: false, code: "INVALID_STATUS", message: "Invalid seller status" },
+      fail("INVALID_STATUS", "Invalid seller status"),
       400
     );
   }
@@ -71,10 +74,12 @@ adminRouter.patch("/sellers/:id/status", async (c) => {
 
   if (!updated) {
     return c.json(
-      { ok: false, code: "NOT_FOUND", message: "Seller not found" },
+      fail("NOT_FOUND", "Seller not found"),
       404
     );
   }
 
-  return c.json({ ok: true, data: updated });
+  return c.json(
+    ok(updated)
+  );
 });
