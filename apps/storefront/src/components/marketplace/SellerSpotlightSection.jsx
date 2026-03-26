@@ -8,6 +8,10 @@ const T = {
   shadow: "rgba(22,53,107,0.08)",
 };
 
+function getSellerHref(seller) {
+  return seller?.slug ? `/sellers/${seller.slug}` : "/sellers";
+}
+
 export default function SellerSpotlightSection({ sellers = [] }) {
   return (
     <section style={s.section} dir="rtl">
@@ -49,7 +53,7 @@ export default function SellerSpotlightSection({ sellers = [] }) {
               <span style={s.count}>
                 {seller.verified ? "موثّق" : "قيد المراجعة"}
               </span>
-              <Link to="/sellers" style={s.link}>
+              <Link to={getSellerHref(seller)} style={s.link}>
                 زيارة المتجر
               </Link>
             </div>
