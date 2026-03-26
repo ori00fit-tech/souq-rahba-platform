@@ -701,7 +701,13 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
         oi.*,
         p.title_ar,
         p.slug,
-        p.image_url
+        (
+          select pm.url
+          from product_media pm
+          where pm.product_id = p.id
+          order by pm.sort_order asc, pm.rowid asc
+          limit 1
+        ) as image_url
       from order_items oi
       left join products p on p.id = oi.product_id
       where oi.order_id = ?
