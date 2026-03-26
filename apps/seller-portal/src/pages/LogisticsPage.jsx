@@ -52,6 +52,36 @@ function methodTags(method) {
   return tags;
 }
 
+function bestMethodKey(provider) {
+  const enabled = (provider?.methods || []).filter((item) => item.method_enabled);
+
+  if (!enabled.length) return null;
+
+  const ranked = [...enabled].sort((a, b) => {
+    const priceA =
+      a.flat_price === "" || a.flat_price == null
+        ? Number.POSITIVE_INFINITY
+        : Number(a.flat_price);
+
+    const priceB =
+      b.flat_price === "" || b.flat_price == null
+        ? Number.POSITIVE_INFINITY
+        : Number(b.flat_price);
+
+    if (priceA !== priceB) return priceA - priceB;
+
+    const handlingA = Number(a.handling_days || 0);
+    const handlingB = Number(b.handling_days || 0);
+
+    if (handlingA !== handlingB) return handlingA - handlingB;
+
+    return 0;
+  });
+
+  const best = ranked[0];
+  return `${best.provider_method_id}::${best.zone_id}`;
+}
+
 function buildForm(providers, zones, settings) {
   return (providers || []).map((provider) => {
     const savedProvider = (settings || []).find(
@@ -374,11 +404,23 @@ export default function LogisticsPage() {
 
                             if (!row) return null;
 
+                            const isBest =
+                              bestMethodKey(provider) === `${method.id}::${zone.id}`;
+
                             return (
-                              <div key={`${method.id}_${zone.id}`} style={s.zoneCard}>
+                              <div
+                                key={`${method.id}_${zone.id}`}
+                                style={{
+                                  ...s.zoneCard,
+                                  ...(isBest ? s.bestZoneCard : {})
+                                }}
+                              >
                                 <div style={s.zoneHeader}>
                                   <div>
-                                    <strong style={s.zoneTitle}>{zone.name}</strong>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                      <strong style={s.zoneTitle}>{zone.name}</strong>
+                                      {isBest ? <span style={s.bestBadge}>أفضل خيار</span> : null}
+                                    </div>
                                     <div style={s.zoneMeta}>
                                       {zone.cities?.length ? `${zone.cities.length} مدينة` : "منطقة عامة"}
                                     </div>
@@ -707,6 +749,23 @@ const s = {
     padding: "12px",
     display: "grid",
     gap: "12px"
+  },
+  bestZoneCard: {
+    border: "1px solid #86efac",
+    background: "linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%)",
+    boxShadow: "0 10px 24px rgba(34, 197, 94, 0.08)"
+  },
+  bestBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    background: "#dcfce7",
+    color: "#166534",
+    border: "1px solid #86efac",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "900"
   },
   zoneHeader: {
     display: "flex",
