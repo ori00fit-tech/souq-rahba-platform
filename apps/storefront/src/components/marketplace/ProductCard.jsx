@@ -3,39 +3,61 @@ import { useApp } from "../../context/AppContext";
 
 const T = { navy: "#16356b", gold: "#b08d3c", border: "#ddd5c2", shadow: "rgba(22,53,107,0.08)" };
 
+function normalizeProduct(p) {
+  return {
+    id: p.id,
+    slug: p.slug || "",
+    name: p.name || p.title || "",
+    title_ar: p.name || p.title || "",
+    price: Number(p.price_mad ?? p.price ?? 0),
+    price_mad: Number(p.price_mad ?? p.price ?? 0),
+    seller_id: p.seller_id || null,
+    seller: p.seller || "RAHBA",
+    city: p.city || "",
+    rating: Number(p.rating || 0),
+    reviews: Number(p.reviews || 0),
+    stock: Number(p.stock || 0),
+    badge: p.badge || "",
+    description: p.description || "",
+    image_url: p.image_url || p.image || "",
+    qty: Number(p.qty || p.quantity || 1),
+    quantity: Number(p.quantity || p.qty || 1),
+  };
+}
+
 export default function ProductCard({ product }) {
   const { addToCart } = useApp?.() ?? {};
+  const normalized = normalizeProduct(product);
 
   return (
     <article style={s.card}>
-      {/* image */}
       <div style={s.imgWrap}>
-        {product.image
-          ? <img src={product.image} alt={product.title} style={s.img} loading="lazy" />
-          : <div style={s.noImg}>📦</div>
-        }
-        <div style={s.ratingBadge}>★ {product.rating}</div>
+        {normalized.image_url ? (
+          <img src={normalized.image_url} alt={normalized.name} style={s.img} loading="lazy" />
+        ) : (
+          <div style={s.noImg}>📦</div>
+        )}
+        <div style={s.ratingBadge}>★ {normalized.rating || 0}</div>
       </div>
 
-      {/* body */}
       <div style={s.body}>
-        <div style={s.seller}>{product.seller}</div>
-        <h3 style={s.title}>{product.title}</h3>
-        <div style={s.price}>{product.price} <span style={s.currency}>MAD</span></div>
+        <div style={s.seller}>{normalized.seller}</div>
+        <h3 style={s.title}>{normalized.name}</h3>
+        <div style={s.price}>{normalized.price} <span style={s.currency}>MAD</span></div>
       </div>
 
-      {/* actions */}
       <div style={s.actions}>
         {addToCart && (
           <button
-            onClick={() => addToCart(product)}
+            onClick={() => addToCart(normalized)}
             style={s.cartBtn}
             aria-label="Add to cart"
+            disabled={normalized.stock <= 0}
           >
             🛒
           </button>
         )}
-        <Link to={product.href ?? "/products"} style={s.viewBtn}>
+        <Link to={normalized.slug ? `/products/${normalized.slug}` : "/products"} style={s.viewBtn}>
           View
         </Link>
       </div>

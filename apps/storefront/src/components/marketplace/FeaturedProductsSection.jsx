@@ -6,12 +6,21 @@ const T = { navy: "#16356b" };
 
 export default function FeaturedProductsSection({ products = [] }) {
   const items = products.map((p) => ({
+    id: p.id,
+    slug: p.slug,
     title: p.title_ar,
-    seller: p.seller_name || "متجر رحبة",
-    price: p.price_mad,
-    rating: "4.8",
+    name: p.title_ar,
+    seller: p.seller_name || "RAHBA",
+    seller_id: p.seller_id || null,
+    price: Number(p.price_mad || 0),
+    price_mad: Number(p.price_mad || 0),
+    image: p.image_url || "",
+    image_url: p.image_url || "",
+    rating: Number(p.rating_avg || 0),
+    reviews: Number(p.reviews_count || 0),
+    stock: Number(p.stock || 0),
+    description: p.description_ar || "",
     href: `/products/${p.slug}`,
-    image: p.image_url,
   }));
 
   return (
@@ -26,7 +35,7 @@ export default function FeaturedProductsSection({ products = [] }) {
 
       <div style={s.grid}>
         {items.map((p) => (
-          <ProductCard key={p.title} product={p} />
+          <ProductCard key={p.id || p.slug || p.title} product={p} />
         ))}
       </div>
     </section>
