@@ -17,3 +17,17 @@ D1_HARDENING_AUDIT.txt
 RAHBA_AUDIT_LITE.txt
 RAHBA_AUDIT_REPORT.txt
 souq-audit-out/
+
+# local audits / temporary reports
+souq-audit-v2/
+souq-audit-out/
+audit-v2.sh
+audit-d1.sh
+d1-audit.txt
+d1-schema-overview.json
+logistics-audit.txt
+logistics-current-data.txt
+
+# local backups
+*.bak
+*.bak.*
