@@ -723,11 +723,47 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
       .bind(id)
       .all();
 
+    const shipmentsRes = await c.env.DB.prepare(
+      `
+      select
+        os.*,
+        lp.name as provider_name,
+        lpm.name as method_name,
+        lpm.code as method_code
+      from order_shipments os
+      left join logistics_providers lp on lp.id = os.provider_id
+      left join logistics_provider_methods lpm on lpm.id = os.provider_method_id
+      where os.order_id = ?
+      order by datetime(os.created_at) asc
+      `
+    )
+      .bind(id)
+      .all();
+
+    const shipments = shipmentsRes.results || [];
+    const primaryShipment = shipments[0] || null;
+
     return c.json({
       ok: true,
       data: {
         ...order,
-        items: itemsRes.results || []
+        items: itemsRes.results || [],
+        shipping: primaryShipment
+          ? {
+              id: primaryShipment.id,
+              provider_id: primaryShipment.provider_id,
+              provider_name: primaryShipment.provider_name || null,
+              provider_method_id: primaryShipment.provider_method_id,
+              method_name: primaryShipment.method_name || null,
+              method_code: primaryShipment.method_code || null,
+              shipping_price: Number(primaryShipment.shipping_price || 0),
+              shipping_status: primaryShipment.shipping_status || null,
+              tracking_number: primaryShipment.tracking_number || order.tracking_number || null,
+              shipped_at: primaryShipment.shipped_at || null,
+              delivered_at: primaryShipment.delivered_at || null
+            }
+          : null,
+        shipments
       }
     });
   } catch (error) {
