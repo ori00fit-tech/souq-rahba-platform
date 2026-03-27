@@ -20,17 +20,26 @@ export default function FeaturedProductsSection({ products = [] }) {
     reviews: Number(p.reviews_count || 0),
     stock: Number(p.stock || 0),
     description: p.description_ar || "",
-    href: `/products/${p.slug}`,
+    badge: p.featured ? "مميز" : "",
+    href: `/products/${p.slug}`
   }));
 
   return (
     <section style={s.section} dir="rtl">
-      <div style={s.headRow}>
-        <SectionHead
-          title="منتجات مميزة"
-          sub="اختيارات شائعة من باعة مختلفين داخل السوق"
-        />
-        <Link to="/products" style={s.seeAll}>عرض الكل ←</Link>
+      <div style={s.headWrap}>
+        <div style={s.headRow}>
+          <SectionHead
+            title="منتجات مميزة"
+            sub="اختيارات شائعة من باعة مختلفين داخل السوق مع عرض أسرع للمعلومات الأساسية"
+          />
+          <Link to="/products" style={s.seeAll}>عرض الكل ←</Link>
+        </div>
+
+        <div style={s.infoStrip}>
+          <span style={s.infoChip}>اختيارات بارزة</span>
+          <span style={s.infoChip}>عرض سريع</span>
+          <span style={s.infoChip}>جاهزة للشراء</span>
+        </div>
       </div>
 
       <div style={s.grid}>
@@ -45,14 +54,19 @@ export default function FeaturedProductsSection({ products = [] }) {
 const s = {
   section: {
     display: "grid",
-    gap: "18px",
+    gap: "18px"
+  },
+
+  headWrap: {
+    display: "grid",
+    gap: "10px"
   },
 
   headRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: "12px",
+    gap: "12px"
   },
 
   seeAll: {
@@ -63,14 +77,30 @@ const s = {
     whiteSpace: "nowrap",
     alignSelf: "center",
     padding: "8px 14px",
-    borderRadius: "10px",
+    borderRadius: "12px",
     border: "1.5px solid #ddd5c2",
+    background: "#fff"
+  },
+
+  infoStrip: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  infoChip: {
+    fontSize: "12px",
+    fontWeight: 800,
+    color: "#475569",
     background: "#fff",
+    border: "1px solid #e5dcc9",
+    padding: "7px 11px",
+    borderRadius: "999px"
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-    gap: "14px",
-  },
+    gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+    gap: "14px"
+  }
 };
