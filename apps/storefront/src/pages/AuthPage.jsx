@@ -7,15 +7,63 @@ import { API_BASE_URL } from "../lib/config";
 const TAB_LOGIN = "login";
 const TAB_REGISTER = "register";
 
+function getApiErrorMessage(result, fallback) {
+  return result?.error?.message || result?.message || fallback;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function normalizePhone(value) {
+  return String(value || "").trim().replace(/\s+/g, "");
+}
+
+function isValidMoroccanPhone(value) {
+  const phone = normalizePhone(value);
+  if (!phone) return true;
+  return /^(\+212|212|0)[5-7][0-9]{8}$/.test(phone);
+}
+
+function sanitizeRedirectPath(input) {
+  const value = String(input || "").trim();
+  if (!value.startsWith("/")) return "/";
+  if (value.startsWith("//")) return "/";
+  if (value.startsWith("/auth")) return "/";
+  return value;
+}
+
+function Field({ label, children, hint }) {
+  return (
+    <label style={styles.field}>
+      <span style={styles.label}>{label}</span>
+      {children}
+      {hint ? <span style={styles.hint}>{hint}</span> : null}
+    </label>
+  );
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, authLoading, loginUser } = useApp();
 
-  const [tab, setTab] = useState(TAB_LOGIN);
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const redirectTo = useMemo(
+    () => sanitizeRedirectPath(params.get("redirect") || location.state?.from?.pathname || "/"),
+    [params, location.state]
+  );
+
+  const [tab, setTab] = useState(
+    params.get("tab") === TAB_REGISTER ? TAB_REGISTER : TAB_LOGIN
+  );
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("neutral");
   const [submitting, setSubmitting] = useState(false);
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirmPassword, setShowRegisterConfirmPassword] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -30,16 +78,21 @@ export default function AuthPage() {
     confirm_password: ""
   });
 
-  const googleUrl = useMemo(() => `${API_BASE_URL}/auth/google/login`, []);
+  const googleUrl = useMemo(() => {
+    const url = new URL(`${API_BASE_URL}/auth/google/login`);
+    if (redirectTo && redirectTo !== "/") {
+      url.searchParams.set("redirect", redirectTo);
+    }
+    return url.toString();
+  }, [redirectTo]);
 
   useEffect(() => {
     if (!authLoading && currentUser) {
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     }
-  }, [authLoading, currentUser, navigate]);
+  }, [authLoading, currentUser, navigate, redirectTo]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
     const token = params.get("token");
     const provider = params.get("provider");
 
@@ -50,23 +103,36 @@ export default function AuthPage() {
         setLoadingGoogle(true);
         setMessage("");
         await loginUser(token);
-        navigate("/", { replace: true });
+        navigate(redirectTo, { replace: true });
       } catch (err) {
         console.error(err);
+        setMessageType("error");
         setMessage("تعذر إكمال تسجيل الدخول عبر Google");
       } finally {
         setLoadingGoogle(false);
+
+        const cleanParams = new URLSearchParams(location.search);
+        cleanParams.delete("token");
+        cleanParams.delete("provider");
+        navigate(
+          {
+            pathname: location.pathname,
+            search: cleanParams.toString() ? `?${cleanParams.toString()}` : ""
+          },
+          { replace: true }
+        );
       }
     }
 
     if (provider === "google" && token) {
       consumeGoogleToken();
     }
-  }, [location.search, loginUser, navigate]);
+  }, [params, loginUser, navigate, redirectTo, location.pathname, location.search]);
 
   function switchTab(nextTab) {
     setTab(nextTab);
     setMessage("");
+    setMessageType("neutral");
   }
 
   function updateLoginField(name, value) {
@@ -77,33 +143,89 @@ export default function AuthPage() {
     setRegisterForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  function validateLogin() {
+    if (!loginForm.email.trim() || !loginForm.password) {
+      return "يرجى إدخال البريد الإلكتروني وكلمة السر";
+    }
+
+    if (!isValidEmail(loginForm.email)) {
+      return "يرجى إدخال بريد إلكتروني صحيح";
+    }
+
+    return "";
+  }
+
+  function validateRegister() {
+    if (!registerForm.full_name.trim()) {
+      return "يرجى إدخال الاسم الكامل";
+    }
+
+    if (!registerForm.email.trim()) {
+      return "يرجى إدخال البريد الإلكتروني";
+    }
+
+    if (!isValidEmail(registerForm.email)) {
+      return "يرجى إدخال بريد إلكتروني صحيح";
+    }
+
+    if (registerForm.phone.trim() && !isValidMoroccanPhone(registerForm.phone)) {
+      return "يرجى إدخال رقم هاتف مغربي صحيح";
+    }
+
+    if (!registerForm.password) {
+      return "يرجى إدخال كلمة السر";
+    }
+
+    if (registerForm.password.length < 8) {
+      return "كلمة السر يجب أن تكون 8 أحرف على الأقل";
+    }
+
+    if (registerForm.password !== registerForm.confirm_password) {
+      return "تأكيد كلمة السر غير مطابق";
+    }
+
+    return "";
+  }
+
   async function handleLoginSubmit(e) {
     e.preventDefault();
+    if (submitting || loadingGoogle || authLoading) return;
 
-    if (!loginForm.email.trim() || !loginForm.password) {
-      setMessage("يرجى إدخال البريد الإلكتروني وكلمة السر");
+    const validationError = validateLogin();
+    if (validationError) {
+      setMessageType("error");
+      setMessage(validationError);
       return;
     }
 
     try {
       setSubmitting(true);
       setMessage("");
+      setMessageType("neutral");
 
       const result = await apiPost("/auth/login", {
         email: loginForm.email.trim().toLowerCase(),
         password: loginForm.password
       });
 
+      if (!result?.ok) {
+        setMessageType("error");
+        setMessage(getApiErrorMessage(result, "تعذر تسجيل الدخول"));
+        return;
+      }
+
       const token = result?.data?.token;
       if (!token) {
+        setMessageType("error");
         setMessage("لم يتم العثور على رمز الجلسة");
         return;
       }
 
       await loginUser(token);
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error(err);
+      setMessageType("error");
       setMessage("تعذر تسجيل الدخول، تحقق من البيانات ثم حاول مرة أخرى");
     } finally {
       setSubmitting(false);
@@ -112,62 +234,69 @@ export default function AuthPage() {
 
   async function handleRegisterSubmit(e) {
     e.preventDefault();
+    if (submitting || loadingGoogle || authLoading) return;
 
-    if (!registerForm.full_name.trim()) {
-      setMessage("يرجى إدخال الاسم الكامل");
-      return;
-    }
-
-    if (!registerForm.email.trim()) {
-      setMessage("يرجى إدخال البريد الإلكتروني");
-      return;
-    }
-
-    if (!registerForm.password) {
-      setMessage("يرجى إدخال كلمة السر");
-      return;
-    }
-
-    if (registerForm.password.length < 6) {
-      setMessage("كلمة السر يجب أن تكون 6 أحرف على الأقل");
-      return;
-    }
-
-    if (registerForm.password !== registerForm.confirm_password) {
-      setMessage("تأكيد كلمة السر غير مطابق");
+    const validationError = validateRegister();
+    if (validationError) {
+      setMessageType("error");
+      setMessage(validationError);
       return;
     }
 
     try {
       setSubmitting(true);
       setMessage("");
+      setMessageType("neutral");
 
-      await apiPost("/auth/register", {
+      const registerResult = await apiPost("/auth/register", {
         full_name: registerForm.full_name.trim(),
         email: registerForm.email.trim().toLowerCase(),
-        phone: registerForm.phone.trim(),
+        phone: normalizePhone(registerForm.phone),
         password: registerForm.password,
         role: "buyer",
         locale: "ar"
       });
+
+      if (!registerResult?.ok) {
+        setMessageType("error");
+        setMessage(getApiErrorMessage(registerResult, "تعذر إنشاء الحساب"));
+        return;
+      }
 
       const loginResult = await apiPost("/auth/login", {
         email: registerForm.email.trim().toLowerCase(),
         password: registerForm.password
       });
 
+      if (!loginResult?.ok) {
+        setMessageType("success");
+        setMessage("تم إنشاء الحساب بنجاح. قم بتسجيل الدخول للمتابعة.");
+        setTab(TAB_LOGIN);
+        setLoginForm({
+          email: registerForm.email.trim().toLowerCase(),
+          password: ""
+        });
+        return;
+      }
+
       const token = loginResult?.data?.token;
       if (!token) {
-        setMessage("تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً");
+        setMessageType("success");
+        setMessage("تم إنشاء الحساب، لكن تعذر تسجيل الدخول تلقائياً.");
         setTab(TAB_LOGIN);
+        setLoginForm({
+          email: registerForm.email.trim().toLowerCase(),
+          password: ""
+        });
         return;
       }
 
       await loginUser(token);
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       console.error(err);
-      setMessage("تعذر إنشاء الحساب، ربما البريد الإلكتروني مستعمل مسبقاً");
+      setMessageType("error");
+      setMessage("تعذر إنشاء الحساب، حاول مرة أخرى بعد قليل");
     } finally {
       setSubmitting(false);
     }
@@ -213,7 +342,18 @@ export default function AuthPage() {
               </p>
             </div>
 
-            <a href={googleUrl} style={styles.googleBtn}>
+            <a
+              href={submitting ? "#" : googleUrl}
+              style={{
+                ...styles.googleBtn,
+                ...(submitting || loadingGoogle || authLoading ? styles.googleBtnDisabled : {})
+              }}
+              onClick={(e) => {
+                if (submitting || loadingGoogle || authLoading) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <span style={styles.googleIcon}>G</span>
               <span>
                 {loadingGoogle ? "جاري المتابعة عبر Google..." : "المتابعة عبر Google"}
@@ -250,7 +390,17 @@ export default function AuthPage() {
               </button>
             </div>
 
-            {message ? <div style={styles.message}>{message}</div> : null}
+            {message ? (
+              <div
+                style={{
+                  ...styles.message,
+                  ...(messageType === "error" ? styles.messageError : {}),
+                  ...(messageType === "success" ? styles.messageSuccess : {})
+                }}
+              >
+                {message}
+              </div>
+            ) : null}
 
             {tab === TAB_LOGIN ? (
               <form style={styles.form} onSubmit={handleLoginSubmit}>
@@ -262,24 +412,38 @@ export default function AuthPage() {
                     placeholder="name@example.com"
                     style={styles.input}
                     autoComplete="email"
+                    dir="ltr"
                   />
                 </Field>
 
                 <Field label="كلمة السر">
-                  <input
-                    type="password"
-                    value={loginForm.password}
-                    onChange={(e) => updateLoginField("password", e.target.value)}
-                    placeholder="••••••••"
-                    style={styles.input}
-                    autoComplete="current-password"
-                  />
+                  <div style={styles.passwordWrap}>
+                    <input
+                      type={showLoginPassword ? "text" : "password"}
+                      value={loginForm.password}
+                      onChange={(e) => updateLoginField("password", e.target.value)}
+                      placeholder="••••••••"
+                      style={styles.passwordInput}
+                      autoComplete="current-password"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword((v) => !v)}
+                      style={styles.passwordToggle}
+                    >
+                      {showLoginPassword ? "إخفاء" : "إظهار"}
+                    </button>
+                  </div>
                 </Field>
 
                 <button
                   type="submit"
                   disabled={submitting || loadingGoogle || authLoading}
-                  style={styles.primaryBtn}
+                  style={{
+                    ...styles.primaryBtn,
+                    ...(submitting || loadingGoogle || authLoading ? styles.primaryBtnDisabled : {})
+                  }}
                 >
                   {submitting ? "جاري تسجيل الدخول..." : "دخول"}
                 </button>
@@ -305,10 +469,11 @@ export default function AuthPage() {
                     placeholder="name@example.com"
                     style={styles.input}
                     autoComplete="email"
+                    dir="ltr"
                   />
                 </Field>
 
-                <Field label="رقم الهاتف">
+                <Field label="رقم الهاتف" hint="اختياري">
                   <input
                     type="tel"
                     value={registerForm.phone}
@@ -316,37 +481,61 @@ export default function AuthPage() {
                     placeholder="06xxxxxxxx"
                     style={styles.input}
                     autoComplete="tel"
+                    dir="ltr"
                   />
                 </Field>
 
-                <Field label="كلمة السر">
-                  <input
-                    type="password"
-                    value={registerForm.password}
-                    onChange={(e) => updateRegisterField("password", e.target.value)}
-                    placeholder="••••••••"
-                    style={styles.input}
-                    autoComplete="new-password"
-                  />
+                <Field label="كلمة السر" hint="8 أحرف على الأقل">
+                  <div style={styles.passwordWrap}>
+                    <input
+                      type={showRegisterPassword ? "text" : "password"}
+                      value={registerForm.password}
+                      onChange={(e) => updateRegisterField("password", e.target.value)}
+                      placeholder="••••••••"
+                      style={styles.passwordInput}
+                      autoComplete="new-password"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword((v) => !v)}
+                      style={styles.passwordToggle}
+                    >
+                      {showRegisterPassword ? "إخفاء" : "إظهار"}
+                    </button>
+                  </div>
                 </Field>
 
                 <Field label="تأكيد كلمة السر">
-                  <input
-                    type="password"
-                    value={registerForm.confirm_password}
-                    onChange={(e) =>
-                      updateRegisterField("confirm_password", e.target.value)
-                    }
-                    placeholder="••••••••"
-                    style={styles.input}
-                    autoComplete="new-password"
-                  />
+                  <div style={styles.passwordWrap}>
+                    <input
+                      type={showRegisterConfirmPassword ? "text" : "password"}
+                      value={registerForm.confirm_password}
+                      onChange={(e) =>
+                        updateRegisterField("confirm_password", e.target.value)
+                      }
+                      placeholder="••••••••"
+                      style={styles.passwordInput}
+                      autoComplete="new-password"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterConfirmPassword((v) => !v)}
+                      style={styles.passwordToggle}
+                    >
+                      {showRegisterConfirmPassword ? "إخفاء" : "إظهار"}
+                    </button>
+                  </div>
                 </Field>
 
                 <button
                   type="submit"
                   disabled={submitting || loadingGoogle || authLoading}
-                  style={styles.primaryBtn}
+                  style={{
+                    ...styles.primaryBtn,
+                    ...(submitting || loadingGoogle || authLoading ? styles.primaryBtnDisabled : {})
+                  }}
                 >
                   {submitting ? "جاري إنشاء الحساب..." : "إنشاء حساب"}
                 </button>
@@ -365,178 +554,164 @@ export default function AuthPage() {
   );
 }
 
-function Field({ label, children }) {
-  return (
-    <label style={styles.field}>
-      <span style={styles.label}>{label}</span>
-      {children}
-    </label>
-  );
-}
-
 const styles = {
   page: {
     display: "grid",
-    gridTemplateColumns: "1.05fr 0.95fr",
-    gap: "28px",
-    alignItems: "stretch"
+    gap: "18px"
   },
   hero: {
-    background:
-      "linear-gradient(135deg, rgba(20,48,98,1) 0%, rgba(27,89,143,1) 52%, rgba(14,121,111,1) 100%)",
-    color: "#fff",
+    background: "linear-gradient(135deg, #0B4DBA 0%, #119ED9 55%, #17B890 100%)",
     borderRadius: "28px",
-    padding: "34px",
-    minHeight: "660px",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    boxShadow: "0 24px 60px rgba(20,48,98,0.18)"
+    padding: "24px",
+    color: "#fff",
+    display: "grid",
+    gap: "16px",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)"
   },
   badge: {
-    alignSelf: "flex-start",
+    width: "fit-content",
     padding: "8px 14px",
     borderRadius: "999px",
     background: "rgba(255,255,255,0.14)",
     border: "1px solid rgba(255,255,255,0.18)",
-    fontWeight: 800,
-    fontSize: "12px",
-    marginBottom: "18px"
+    fontSize: "13px",
+    fontWeight: 800
   },
   heroTitle: {
     margin: 0,
-    fontSize: "40px",
-    lineHeight: 1.15,
-    fontWeight: 900
+    fontSize: "clamp(28px, 6vw, 42px)",
+    fontWeight: 900,
+    lineHeight: 1.15
   },
   heroText: {
-    marginTop: "16px",
-    marginBottom: "24px",
-    lineHeight: 1.9,
+    margin: 0,
     color: "rgba(255,255,255,0.9)",
-    fontSize: "16px",
-    maxWidth: "560px"
+    lineHeight: 1.9,
+    fontSize: "15px"
   },
   featureList: {
     display: "grid",
-    gap: "14px"
+    gap: "10px"
   },
   featureItem: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "14px 16px",
-    background: "rgba(255,255,255,0.1)",
-    border: "1px solid rgba(255,255,255,0.12)",
-    borderRadius: "16px"
+    gap: "10px",
+    fontWeight: 700
   },
   featureIcon: {
-    width: "34px",
-    height: "34px",
+    width: "28px",
+    height: "28px",
     display: "grid",
     placeItems: "center",
-    borderRadius: "12px",
-    background: "rgba(255,255,255,0.14)"
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.16)"
   },
   cardWrap: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
+    display: "grid"
   },
   card: {
-    width: "100%",
     background: "#fff",
-    borderRadius: "28px",
-    padding: "30px",
-    border: "1px solid #eadfd3",
-    boxShadow: "0 18px 50px rgba(29,45,74,0.10)"
+    border: "1.5px solid #ddd5c2",
+    borderRadius: "24px",
+    padding: "20px",
+    display: "grid",
+    gap: "16px",
+    boxShadow: "0 4px 18px rgba(22,53,107,0.08)"
   },
   cardHeader: {
-    marginBottom: "18px"
+    display: "grid",
+    gap: "6px"
   },
   cardTitle: {
     margin: 0,
     color: "#173b74",
     fontWeight: 900,
-    fontSize: "30px"
+    fontSize: "24px"
   },
   cardSubtitle: {
-    margin: "10px 0 0",
-    color: "#6b6156",
+    margin: 0,
+    color: "#6b7280",
     lineHeight: 1.8
   },
   googleBtn: {
+    textDecoration: "none",
+    minHeight: "52px",
+    borderRadius: "16px",
+    border: "1.5px solid #ddd5c2",
+    background: "#fff",
+    color: "#111827",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "12px",
-    textDecoration: "none",
-    padding: "15px 18px",
-    borderRadius: "18px",
-    border: "1px solid #d6e1ee",
-    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
-    color: "#173b74",
+    gap: "10px",
     fontWeight: 800
   },
+  googleBtnDisabled: {
+    opacity: 0.6,
+    pointerEvents: "none"
+  },
   googleIcon: {
-    width: "34px",
-    height: "34px",
+    width: "28px",
+    height: "28px",
     borderRadius: "999px",
+    background: "#f3f4f6",
     display: "grid",
     placeItems: "center",
-    border: "1px solid #e5e5e5",
-    background: "#fff",
-    color: "#ea4335",
     fontWeight: 900
   },
   divider: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    margin: "22px 0"
+    gap: "10px"
   },
   dividerLine: {
     flex: 1,
     height: "1px",
-    background: "#ece2d7"
+    background: "#e5e7eb"
   },
   dividerText: {
-    color: "#7d7368",
+    color: "#6b7280",
     fontSize: "13px",
     fontWeight: 700
   },
   tabs: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-    background: "#f7f3ee",
-    padding: "8px",
-    borderRadius: "18px",
-    marginBottom: "18px"
+    gap: "10px"
   },
   tabBtn: {
-    border: "none",
-    background: "transparent",
-    padding: "13px 14px",
+    minHeight: "46px",
     borderRadius: "14px",
-    cursor: "pointer",
+    border: "1.5px solid #ddd5c2",
+    background: "#fff",
+    color: "#374151",
     fontWeight: 800,
-    color: "#6d6257"
+    cursor: "pointer"
   },
   tabBtnActive: {
-    background: "#fff",
-    color: "#173b74",
-    boxShadow: "0 8px 20px rgba(20,40,72,0.08)"
+    background: "#173b74",
+    color: "#fff",
+    borderColor: "#173b74"
   },
   message: {
-    marginBottom: "16px",
-    padding: "13px 15px",
     borderRadius: "14px",
-    background: "#fff8ee",
-    color: "#9a4f18",
-    border: "1px solid #f8d7a8",
+    padding: "12px 14px",
     fontWeight: 700,
-    fontSize: "14px"
+    lineHeight: 1.8,
+    background: "#f8fafc",
+    color: "#334155",
+    border: "1px solid #e2e8f0"
+  },
+  messageError: {
+    background: "#fef2f2",
+    color: "#b91c1c",
+    border: "1px solid #fecaca"
+  },
+  messageSuccess: {
+    background: "#ecfdf5",
+    color: "#166534",
+    border: "1px solid #bbf7d0"
   },
   form: {
     display: "grid",
@@ -547,41 +722,74 @@ const styles = {
     gap: "8px"
   },
   label: {
-    color: "#2d241d",
+    color: "#374151",
     fontWeight: 800,
     fontSize: "14px"
   },
+  hint: {
+    color: "#6b7280",
+    fontSize: "12px",
+    fontWeight: 600
+  },
   input: {
     width: "100%",
-    padding: "14px 16px",
-    borderRadius: "16px",
-    border: "1px solid #ddd2c5",
-    outline: "none",
-    background: "#fffdfa",
+    minHeight: "50px",
+    borderRadius: "14px",
+    border: "1.5px solid #ddd5c2",
+    background: "#fff",
+    padding: "0 14px",
     fontSize: "15px",
-    color: "#1e1b16"
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  passwordWrap: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "8px",
+    alignItems: "center"
+  },
+  passwordInput: {
+    width: "100%",
+    minHeight: "50px",
+    borderRadius: "14px",
+    border: "1.5px solid #ddd5c2",
+    background: "#fff",
+    padding: "0 14px",
+    fontSize: "15px",
+    outline: "none",
+    boxSizing: "border-box"
+  },
+  passwordToggle: {
+    minHeight: "50px",
+    borderRadius: "14px",
+    border: "1.5px solid #ddd5c2",
+    background: "#f8fafc",
+    color: "#173b74",
+    padding: "0 14px",
+    fontWeight: 800,
+    cursor: "pointer"
   },
   primaryBtn: {
-    marginTop: "6px",
-    width: "100%",
+    minHeight: "52px",
+    borderRadius: "16px",
     border: "none",
-    padding: "15px 18px",
-    borderRadius: "18px",
-    background: "linear-gradient(135deg, #173b74 0%, #1d5c97 55%, #0f766e 100%)",
+    background: "#173b74",
     color: "#fff",
     fontWeight: 900,
     fontSize: "15px",
-    cursor: "pointer",
-    boxShadow: "0 16px 30px rgba(23,59,116,0.18)"
+    cursor: "pointer"
+  },
+  primaryBtnDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed"
   },
   footer: {
-    marginTop: "18px",
     display: "flex",
     justifyContent: "center"
   },
   backLink: {
+    textDecoration: "none",
     color: "#173b74",
-    fontWeight: 800,
-    textDecoration: "none"
+    fontWeight: 800
   }
 };
