@@ -1,7 +1,7 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
-import { SELLER_PORTAL_URL } from "../lib/config";
+import { SELLER_PORTAL_URL, ADMIN_PORTAL_URL } from "../lib/config";
 
 const T = {
   navy: "#173b74",
@@ -18,20 +18,39 @@ const T = {
   shadow: "0 12px 30px rgba(23,59,116,0.08)"
 };
 
-const navItems = [
+const publicNavItems = [
   { path: "/", label: "الرئيسية", icon: "⌂" },
   { path: "/products", label: "المنتجات", icon: "◫" },
   { path: "/sellers", label: "الباعة", icon: "▣" },
-  { path: "/my-orders", label: "طلباتي", icon: "◌" },
-  { path: "/auth", label: "الحساب", icon: "◎" },
   { path: "/help", label: "المساعدة", icon: "?" }
 ];
 
+function sanitizeRedirectPath(pathname, search = "") {
+  const path = `${pathname || "/"}${search || ""}`;
+  if (!path.startsWith("/")) return "/";
+  if (path.startsWith("/auth")) return "/";
+  return path;
+}
+
 export default function Header() {
   const location = useLocation();
-  const { cart, cartCount, query, setQuery } = useApp();
+  const navigate = useNavigate();
+  const {
+    cart,
+    cartCount,
+    query,
+    setQuery,
+    currentUser,
+    authLoading,
+    isAuthenticated,
+    isSeller,
+    isAdmin,
+    logoutUser
+  } = useApp();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const count = useMemo(() => {
     if (typeof cartCount === "number") return cartCount;
@@ -42,6 +61,48 @@ export default function Header() {
   }, [cart, cartCount]);
 
   const isProductsPage = location.pathname === "/products";
+
+  const redirectPath = useMemo(
+    () => sanitizeRedirectPath(location.pathname, location.search),
+    [location.pathname, location.search]
+  );
+
+  const authPath = useMemo(
+    () => `/auth?redirect=${encodeURIComponent(redirectPath)}`,
+    [redirectPath]
+  );
+
+  const navItems = useMemo(() => {
+    const items = [...publicNavItems];
+
+    if (isAuthenticated) {
+      items.splice(3, 0, { path: "/my-orders", label: "طلباتي", icon: "◌" });
+    }
+
+    return items;
+  }, [isAuthenticated]);
+
+  const accountLabel = useMemo(() => {
+    if (!currentUser) return "الحساب";
+    return currentUser.full_name || currentUser.email || "حسابي";
+  }, [currentUser]);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+      await logoutUser();
+      setMenuOpen(false);
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error("Logout failed", err);
+      setMenuOpen(false);
+      navigate("/", { replace: true });
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <>
@@ -70,11 +131,31 @@ export default function Header() {
               </div>
             </Link>
 
-            <NavLink to="/cart" style={s.cartBtn} aria-label="السلة">
-              <span style={s.cartIcon}>🛒</span>
-              <span style={s.cartText}>السلة</span>
-              {count > 0 ? <span style={s.cartBadge}>{count}</span> : null}
-            </NavLink>
+            <div style={s.topActions}>
+              {!authLoading ? (
+                isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate("/my-orders")}
+                    style={s.accountBtn}
+                    aria-label="حسابي"
+                    title={accountLabel}
+                  >
+                    <span style={s.accountIcon}>◎</span>
+                  </button>
+                ) : (
+                  <NavLink to={authPath} style={s.accountBtn} aria-label="تسجيل الدخول">
+                    <span style={s.accountIcon}>◎</span>
+                  </NavLink>
+                )
+              ) : null}
+
+              <NavLink to="/cart" style={s.cartBtn} aria-label="السلة">
+                <span style={s.cartIcon}>🛒</span>
+                <span style={s.cartText}>السلة</span>
+                {count > 0 ? <span style={s.cartBadge}>{count}</span> : null}
+              </NavLink>
+            </div>
           </div>
 
           <div
@@ -128,6 +209,51 @@ export default function Header() {
               </button>
             </div>
 
+            <div style={s.accountPanel}>
+              {authLoading ? (
+                <div style={s.accountLoading}>جاري التحقق من الجلسة...</div>
+              ) : isAuthenticated ? (
+                <>
+                  <div style={s.accountName}>{accountLabel}</div>
+                  <div style={s.accountRole}>
+                    {isAdmin ? "مدير" : isSeller ? "بائع" : "مشتري"}
+                  </div>
+
+                  <div style={s.accountActions}>
+                    <NavLink
+                      to="/my-orders"
+                      onClick={() => setMenuOpen(false)}
+                      style={s.accountActionLink}
+                    >
+                      طلباتي
+                    </NavLink>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      style={s.accountActionBtn}
+                      disabled={loggingOut}
+                    >
+                      {loggingOut ? "جاري الخروج..." : "تسجيل الخروج"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={s.accountName}>مرحباً بك في رحبة</div>
+                  <div style={s.accountRole}>سجل الدخول لمتابعة طلباتك بسهولة</div>
+
+                  <NavLink
+                    to={authPath}
+                    onClick={() => setMenuOpen(false)}
+                    style={s.accountLoginBtn}
+                  >
+                    تسجيل الدخول
+                  </NavLink>
+                </>
+              )}
+            </div>
+
             <nav style={s.drawerNav}>
               {navItems.map((item) => (
                 <NavLink
@@ -144,15 +270,39 @@ export default function Header() {
                 </NavLink>
               ))}
 
-              <a
-                href={SELLER_PORTAL_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={s.sellerPortalLink}
-              >
-                <span style={s.drawerIcon}>↗</span>
-                <span>لوحة البائع</span>
-              </a>
+              {isSeller || isAdmin ? (
+                <a
+                  href={SELLER_PORTAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={s.sellerPortalLink}
+                >
+                  <span style={s.drawerIcon}>↗</span>
+                  <span>بوابة البائع</span>
+                </a>
+              ) : (
+                <a
+                  href={SELLER_PORTAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={s.sellerPortalLink}
+                >
+                  <span style={s.drawerIcon}>↗</span>
+                  <span>ابدأ البيع</span>
+                </a>
+              )}
+
+              {isAdmin ? (
+                <a
+                  href={ADMIN_PORTAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={s.adminPortalLink}
+                >
+                  <span style={s.drawerIcon}>↗</span>
+                  <span>لوحة الإدارة</span>
+                </a>
+              ) : null}
             </nav>
 
             <div style={s.drawerFooter}>
@@ -217,6 +367,11 @@ const s = {
     gap: "12px",
     alignItems: "center"
   },
+  topActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+  },
   iconBtn: {
     width: "48px",
     height: "48px",
@@ -266,6 +421,23 @@ const s = {
     fontSize: "11px",
     fontWeight: 700
   },
+  accountBtn: {
+    position: "relative",
+    width: "48px",
+    height: "48px",
+    borderRadius: "16px",
+    border: `1px solid ${T.border}`,
+    background: T.white,
+    display: "grid",
+    placeItems: "center",
+    color: T.navy,
+    boxShadow: "0 6px 16px rgba(23,59,116,0.04)",
+    textDecoration: "none"
+  },
+  accountIcon: {
+    fontSize: "18px",
+    fontWeight: 900
+  },
   cartBtn: {
     position: "relative",
     minWidth: "84px",
@@ -280,7 +452,8 @@ const s = {
     padding: "0 12px",
     fontWeight: 900,
     color: T.navy,
-    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
+    boxShadow: "0 6px 16px rgba(23,59,116,0.04)",
+    textDecoration: "none"
   },
   cartIcon: {
     fontSize: "16px"
@@ -325,65 +498,65 @@ const s = {
     border: "none",
     outline: "none",
     background: "transparent",
-    fontSize: "15px",
     color: T.text,
-    padding: "14px 0"
+    fontSize: "15px"
   },
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15, 23, 42, 0.32)",
-    zIndex: 80
+    background: "rgba(15,23,42,0.36)",
+    zIndex: 69
   },
   drawer: {
     position: "fixed",
     top: 0,
     right: 0,
     bottom: 0,
-    width: "86%",
-    maxWidth: "360px",
+    width: "min(88vw, 360px)",
     background: T.cream,
-    zIndex: 90,
-    padding: "18px 16px 16px",
-    boxShadow: "-10px 0 40px rgba(15,23,42,0.18)",
+    zIndex: 70,
+    boxShadow: "-18px 0 48px rgba(15,23,42,0.16)",
     display: "grid",
-    gridTemplateRows: "auto 1fr auto",
-    gap: "18px"
+    gridTemplateRows: "auto auto 1fr auto",
+    padding: "18px 16px 16px"
   },
   drawerHeader: {
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    gap: "12px"
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "14px"
   },
   drawerBrand: {
     display: "flex",
     alignItems: "center",
-    gap: "12px"
+    gap: "10px"
   },
   drawerLogoWrap: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "16px",
-    background: T.white,
+    width: "44px",
+    height: "44px",
+    borderRadius: "14px",
     border: `1px solid ${T.border}`,
+    background: T.white,
     display: "grid",
     placeItems: "center"
   },
   drawerLogo: {
-    width: "30px",
-    height: "30px",
+    width: "28px",
+    height: "28px",
     objectFit: "contain"
   },
   drawerTitle: {
     color: T.navy,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "20px",
+    lineHeight: 1
   },
   drawerSubtitle: {
     color: T.teal,
-    fontSize: "12px",
-    fontWeight: 700
+    fontWeight: 700,
+    fontSize: "11px",
+    marginTop: "4px"
   },
   closeBtn: {
     width: "42px",
@@ -391,64 +564,148 @@ const s = {
     borderRadius: "14px",
     border: `1px solid ${T.border}`,
     background: T.white,
+    color: T.navy,
     cursor: "pointer",
-    color: T.text,
+    fontSize: "18px",
     fontWeight: 900
+  },
+  accountPanel: {
+    background: T.white,
+    border: `1px solid ${T.border}`,
+    borderRadius: "18px",
+    padding: "14px",
+    display: "grid",
+    gap: "8px",
+    marginBottom: "14px",
+    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
+  },
+  accountLoading: {
+    color: T.muted,
+    fontWeight: 700,
+    fontSize: "14px"
+  },
+  accountName: {
+    color: T.navy,
+    fontWeight: 900,
+    fontSize: "16px",
+    lineHeight: 1.5
+  },
+  accountRole: {
+    color: T.muted,
+    fontWeight: 700,
+    fontSize: "13px",
+    lineHeight: 1.7
+  },
+  accountActions: {
+    display: "grid",
+    gap: "8px",
+    marginTop: "4px"
+  },
+  accountActionLink: {
+    minHeight: "42px",
+    borderRadius: "14px",
+    background: T.tealSoft,
+    color: T.navy,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    textDecoration: "none",
+    border: "1px solid #cfece8"
+  },
+  accountActionBtn: {
+    minHeight: "42px",
+    borderRadius: "14px",
+    background: "#fef2f2",
+    color: "#b91c1c",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    border: "1px solid #fecaca",
+    cursor: "pointer"
+  },
+  accountLoginBtn: {
+    minHeight: "42px",
+    borderRadius: "14px",
+    background: T.navy,
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    textDecoration: "none",
+    marginTop: "4px"
   },
   drawerNav: {
     display: "grid",
-    gap: "10px",
+    gap: "8px",
     alignContent: "start"
   },
   drawerLink: {
-    minHeight: "50px",
+    minHeight: "48px",
     borderRadius: "16px",
     padding: "0 14px",
-    background: T.white,
-    border: `1px solid ${T.border}`,
     display: "flex",
     alignItems: "center",
     gap: "12px",
     color: T.text,
+    textDecoration: "none",
+    border: `1px solid ${T.borderSoft}`,
+    background: T.white,
     fontWeight: 800
   },
   drawerLinkActive: {
+    background: "#eef5ff",
     color: T.navy,
-    border: "1px solid #bfd5ea",
-    background: "#f8fbff"
+    border: "1px solid #cfe0f6"
   },
   drawerIcon: {
-    width: "28px",
+    width: "22px",
     textAlign: "center",
-    color: T.navy,
+    color: T.blue,
     fontWeight: 900
   },
   sellerPortalLink: {
-    minHeight: "50px",
+    minHeight: "48px",
     borderRadius: "16px",
     padding: "0 14px",
-    background: T.tealSoft,
-    border: "1px solid #c9ece7",
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    color: T.teal,
+    color: T.navy,
+    textDecoration: "none",
+    border: "1px solid #cfece8",
+    background: T.tealSoft,
+    fontWeight: 900
+  },
+  adminPortalLink: {
+    minHeight: "48px",
+    borderRadius: "16px",
+    padding: "0 14px",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#7c2d12",
+    textDecoration: "none",
+    border: "1px solid #fed7aa",
+    background: "#fff7ed",
     fontWeight: 900
   },
   drawerFooter: {
-    paddingTop: "8px"
+    marginTop: "14px"
   },
   drawerCart: {
-    minHeight: "54px",
-    borderRadius: "18px",
-    padding: "0 16px",
-    background: "linear-gradient(135deg, #173b74 0%, #1d5c97 55%, #0f8b84 100%)",
+    minHeight: "50px",
+    borderRadius: "16px",
+    background: T.navy,
     color: "#fff",
     display: "flex",
-    justifyContent: "space-between",
     alignItems: "center",
-    fontWeight: 900,
-    boxShadow: "0 14px 24px rgba(23,59,116,0.14)"
+    justifyContent: "space-between",
+    padding: "0 14px",
+    textDecoration: "none",
+    fontWeight: 900
   },
   drawerCartBadge: {
     minWidth: "28px",
@@ -457,7 +714,6 @@ const s = {
     background: "rgba(255,255,255,0.18)",
     display: "grid",
     placeItems: "center",
-    fontSize: "12px",
-    fontWeight: 900
+    fontSize: "12px"
   }
 };
