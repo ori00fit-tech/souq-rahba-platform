@@ -4,6 +4,99 @@ import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 
+function getApiErrorMessage(result, fallback = "تعذر تحميل تفاصيل الطلب") {
+  return result?.error?.message || result?.message || fallback;
+}
+
+function formatDateTime(value, locale) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString(locale);
+}
+
+function getStatusMeta(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "pending":
+      return { label: "قيد الانتظار", bg: "#fff7ed", color: "#9a4f18", border: "#fed7aa" };
+    case "confirmed":
+      return { label: "تم التأكيد", bg: "#ecfeff", color: "#155e75", border: "#a5f3fc" };
+    case "processing":
+      return { label: "قيد المعالجة", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
+    case "shipped":
+      return { label: "تم الشحن", bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" };
+    case "delivered":
+      return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
+    case "cancelled":
+      return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+    default:
+      return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
+  }
+}
+
+function getShippingStatusMeta(status) {
+  return getStatusMeta(status);
+}
+
+function getShippingSteps(status) {
+  const current = String(status || "").toLowerCase();
+
+  const steps = [
+    { key: "pending", label: "تم إنشاء الطلب" },
+    { key: "processing", label: "قيد التجهيز" },
+    { key: "shipped", label: "تم الشحن" },
+    { key: "delivered", label: "تم التسليم" }
+  ];
+
+  const rankMap = {
+    pending: 0,
+    confirmed: 0,
+    processing: 1,
+    shipped: 2,
+    delivered: 3,
+    cancelled: -1
+  };
+
+  const currentRank = Object.prototype.hasOwnProperty.call(rankMap, current)
+    ? rankMap[current]
+    : 0;
+
+  return steps.map((step, index) => ({
+    ...step,
+    done: current !== "cancelled" && index < currentRank,
+    active: current !== "cancelled" && index === currentRank,
+    pending: current === "cancelled" ? true : index > currentRank
+  }));
+}
+
+function getTrackingUrl(shipping) {
+  const trackingNumber = String(shipping?.tracking_number || "").trim();
+  const providerId = String(shipping?.provider_id || "").trim().toLowerCase();
+  const providerName = String(shipping?.provider_name || "").trim().toLowerCase();
+
+  if (!trackingNumber) return null;
+
+  const raw = `${providerId} ${providerName}`;
+
+  if (raw.includes("aramex")) {
+    return `https://www.aramex.com/track/shipments?ShipmentNumber=${encodeURIComponent(trackingNumber)}`;
+  }
+
+  if (raw.includes("dhl")) {
+    return `https://www.dhl.com/ma-en/home/tracking.html?tracking-id=${encodeURIComponent(trackingNumber)}`;
+  }
+
+  if (raw.includes("fedex")) {
+    return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(trackingNumber)}`;
+  }
+
+  if (raw.includes("amana") || raw.includes("poste")) {
+    return `https://www.poste.ma/`;
+  }
+
+  return null;
+}
+
 export default function BuyerOrderDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -28,7 +121,7 @@ export default function BuyerOrderDetailsPage() {
 
       if (!currentUser) {
         setLoading(false);
-        setMessage("يجب تسجيل الدخول أولاً لعرض تفاصيل الطلب");
+        setMessage("تسجيل الدخول مطلوب لعرض تفاصيل الطلب.");
         return;
       }
 
@@ -45,12 +138,12 @@ export default function BuyerOrderDetailsPage() {
         const result = await apiGet(`/commerce/orders/${id}`);
 
         if (!result?.ok) {
-          setMessage(result?.message || "تعذر تحميل تفاصيل الطلب");
+          setMessage(getApiErrorMessage(result, "تعذر تحميل تفاصيل الطلب"));
           setOrder(null);
           return;
         }
 
-        const data = result.data;
+        const data = result?.data || null;
 
         if (buyerId && data?.buyer_user_id && data.buyer_user_id !== buyerId) {
           setMessage("ليس لديك صلاحية لعرض هذا الطلب");
@@ -71,25 +164,6 @@ export default function BuyerOrderDetailsPage() {
     loadOrder();
   }, [authLoading, currentUser, id, buyerId]);
 
-  function getStatusMeta(status) {
-    switch (status) {
-      case "pending":
-        return { label: "قيد الانتظار", bg: "#fff7ed", color: "#9a4f18", border: "#fed7aa" };
-      case "confirmed":
-        return { label: "تم التأكيد", bg: "#ecfeff", color: "#155e75", border: "#a5f3fc" };
-      case "processing":
-        return { label: "قيد المعالجة", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
-      case "shipped":
-        return { label: "تم الشحن", bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" };
-      case "delivered":
-        return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
-      case "cancelled":
-        return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
-      default:
-        return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
-    }
-  }
-
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
@@ -99,7 +173,6 @@ export default function BuyerOrderDetailsPage() {
             <h1 className="page-title">تفاصيل الطلب</h1>
             <p className="page-subtitle">جاري تحميل تفاصيل الطلب...</p>
           </div>
-
           <div className="loading-state">جاري تحميل تفاصيل الطلب...</div>
         </div>
       </section>
@@ -119,7 +192,9 @@ export default function BuyerOrderDetailsPage() {
           <div className="empty-state" style={s.emptyCard}>
             <div style={s.emptyIcon}>🔐</div>
             <h3 style={s.emptyTitle}>تسجيل الدخول مطلوب</h3>
-            <p style={s.emptyText}>لا يمكن عرض تفاصيل الطلب بدون تسجيل الدخول.</p>
+            <p style={s.emptyText}>
+              لا يمكن عرض تفاصيل الطلب في وضع الزائر حالياً.
+            </p>
 
             <Link to="/auth" className="btn btn-primary full-width">
               تسجيل الدخول
@@ -155,97 +230,19 @@ export default function BuyerOrderDetailsPage() {
   }
 
   const status = getStatusMeta(order.order_status);
+  const paymentStatus = getStatusMeta(order.payment_status);
+  const shippingStatus = getStatusMeta(order.shipping_status);
   const orderCurrency = order.currency || currency;
   const items = Array.isArray(order.items) ? order.items : [];
   const shipping = order.shipping || null;
-
-  function getShippingSteps(status) {
-    const current = String(status || "").toLowerCase();
-
-    const steps = [
-      { key: "pending", label: "تم إنشاء الطلب" },
-      { key: "processing", label: "قيد التجهيز" },
-      { key: "shipped", label: "تم الشحن" },
-      { key: "delivered", label: "تم التسليم" }
-    ];
-
-    const order = {
-      pending: 0,
-      processing: 1,
-      shipped: 2,
-      delivered: 3,
-      cancelled: -1
-    };
-
-    const currentRank = Object.prototype.hasOwnProperty.call(order, current)
-      ? order[current]
-      : 0;
-
-    return steps.map((step, index) => ({
-      ...step,
-      done: current !== "cancelled" && index < currentRank,
-      active: current !== "cancelled" && index === currentRank,
-      pending: current === "cancelled" ? true : index > currentRank
-    }));
-  }
-
-  function getTrackingUrl(shipping) {
-    const trackingNumber = String(shipping?.tracking_number || "").trim();
-    const providerId = String(shipping?.provider_id || "").trim().toLowerCase();
-    const providerName = String(shipping?.provider_name || "").trim().toLowerCase();
-
-    if (!trackingNumber) return null;
-
-    const raw = `${providerId} ${providerName}`;
-
-    if (raw.includes("aramex")) {
-      return `https://www.aramex.com/track/shipments?ShipmentNumber=${encodeURIComponent(trackingNumber)}`;
-    }
-
-    if (raw.includes("dhl")) {
-      return `https://www.dhl.com/ma-en/home/tracking.html?tracking-id=${encodeURIComponent(trackingNumber)}`;
-    }
-
-    if (raw.includes("fedex")) {
-      return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(trackingNumber)}`;
-    }
-
-    if (raw.includes("amana") || raw.includes("poste")) {
-      return `https://www.poste.ma/`;
-    }
-
-    return null;
-  }
-
-  function getShippingStatusMeta(status) {
-    const s = String(status || "").toLowerCase();
-
-    if (s === "pending") {
-      return { label: "قيد الانتظار", bg: "#fff7ed", color: "#9a4f18", border: "#fed7aa" };
-    }
-    if (s === "processing") {
-      return { label: "قيد المعالجة", bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
-    }
-    if (s === "shipped") {
-      return { label: "تم الشحن", bg: "#f5f3ff", color: "#6d28d9", border: "#ddd6fe" };
-    }
-    if (s === "delivered") {
-      return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
-    }
-    if (s === "cancelled") {
-      return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
-    }
-
-    return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
-  };
-
+  const trackingUrl = shipping ? getTrackingUrl(shipping) : null;
 
   return (
     <section className="container section-space" dir="rtl">
       <div className="page-stack">
         <div className="ui-card" style={s.heroCard}>
           <div style={s.heroTop}>
-            <div>
+            <div style={s.heroInfo}>
               <div className="ui-chip">RAHBA ORDER</div>
               <h1 className="page-title" style={s.heroTitle}>تفاصيل الطلب</h1>
               <p className="page-subtitle">
@@ -265,268 +262,311 @@ export default function BuyerOrderDetailsPage() {
             </div>
           </div>
 
-          {shipping ? (
-            <div className="ui-card-soft" style={s.shippingCard}>
-              <div style={s.shippingTitleRow}>
-                <strong style={s.shippingTitle}>الشحن والتتبع</strong>
-                {(() => {
-                  const meta = getShippingStatusMeta(shipping.shipping_status);
-                  return (
-                    <span
-                      style={{
-                        ...s.shippingStatusBadge,
-                        background: meta.bg,
-                        color: meta.color,
-                        border: `1px solid ${meta.border}`
-                      }}
-                    >
-                      {meta.label}
-                    </span>
-                  );
-                })()}
-              </div>
-
-              <div style={s.trackingTimeline}>
-                {getShippingSteps(shipping.shipping_status).map((step, index, arr) => (
-                  <div key={step.key} style={s.trackingStep}>
-                    <div style={s.trackingVisualCol}>
-                      <div
-                        style={{
-                          ...s.trackingDot,
-                          ...(step.done ? s.trackingDotDone : {}),
-                          ...(step.active ? s.trackingDotActive : {})
-                        }}
-                      >
-                        {step.done ? "✓" : index + 1}
-                      </div>
-                      {index < arr.length - 1 ? (
-                        <div
-                          style={{
-                            ...s.trackingLine,
-                            ...((step.done || step.active) ? s.trackingLineDone : {})
-                          }}
-                        />
-                      ) : null}
-                    </div>
-
-                    <div style={s.trackingContent}>
-                      <div
-                        style={{
-                          ...s.trackingStepLabel,
-                          ...(step.active ? s.trackingStepLabelActive : {})
-                        }}
-                      >
-                        {step.label}
-                      </div>
-                      <div style={s.trackingStepMeta}>
-                        {step.active
-                          ? "الحالة الحالية"
-                          : step.done
-                          ? "مكتملة"
-                          : "في الانتظار"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={s.shippingGrid}>
-                <div style={s.shippingItem}>
-                  <span style={s.shippingLabel}>شركة الشحن</span>
-                  <strong style={s.shippingValue}>{shipping.provider_name || "—"}</strong>
-                </div>
-
-                <div style={s.shippingItem}>
-                  <span style={s.shippingLabel}>طريقة الشحن</span>
-                  <strong style={s.shippingValue}>{shipping.method_name || "—"}</strong>
-                </div>
-
-                <div style={s.shippingItem}>
-                  <span style={s.shippingLabel}>ثمن الشحن</span>
-                  <strong style={s.shippingValue}>
-                    {Number(shipping.shipping_price || 0) === 0
-                      ? "مجاني"
-                      : formatMoney(Number(shipping.shipping_price || 0), orderCurrency, locale)}
-                  </strong>
-                </div>
-
-                <div style={s.shippingItem}>
-                  <span style={s.shippingLabel}>رقم التتبع</span>
-                  {shipping.tracking_number ? (
-                    getTrackingUrl(shipping) ? (
-                      <a
-                        href={getTrackingUrl(shipping)}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={s.trackingLink}
-                      >
-                        {shipping.tracking_number}
-                      </a>
-                    ) : (
-                      <strong style={s.shippingValue}>{shipping.tracking_number}</strong>
-                    )
-                  ) : (
-                    <strong style={s.shippingValue}>—</strong>
-                  )}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="ui-card-soft" style={s.orderMetaCard}>
-            <div style={s.metaRow}>
-              <span style={s.metaLabel}>رقم الطلب</span>
-              <strong style={s.metaValue}>{order.order_number || "—"}</strong>
+          <div style={s.topSummary}>
+            <div className="ui-card-soft" style={s.summaryBox}>
+              <span style={s.summaryLabel}>رقم الطلب</span>
+              <strong style={s.summaryValue}>{order.order_number || "—"}</strong>
             </div>
 
-            <div style={s.metaRow}>
-              <span style={s.metaLabel}>تاريخ الطلب</span>
-              <strong style={s.metaValue}>{order.created_at || "—"}</strong>
+            <div className="ui-card-soft" style={s.summaryBox}>
+              <span style={s.summaryLabel}>التاريخ</span>
+              <strong style={s.summaryValue}>{formatDateTime(order.created_at, locale)}</strong>
             </div>
 
-            <div style={s.metaRow}>
-              <span style={s.metaLabel}>البائع</span>
-              <strong style={s.metaValue}>{order.seller_name || "RAHBA"}</strong>
-            </div>
-
-            <div style={s.metaRow}>
-              <span style={s.metaLabel}>الإجمالي</span>
-              <strong style={s.totalValue}>
+            <div className="ui-card-soft" style={s.summaryBox}>
+              <span style={s.summaryLabel}>الإجمالي</span>
+              <strong style={s.summaryValue}>
                 {formatMoney(Number(order.total_mad || 0), orderCurrency, locale)}
               </strong>
             </div>
           </div>
         </div>
 
-        {message ? <div className="message-box">{message}</div> : null}
+        <div style={s.layout}>
+          <div style={s.mainCol}>
+            <div className="ui-card" style={s.card}>
+              <h2 className="section-title">حالة الطلب</h2>
 
-        <section className="ui-card" style={s.sectionCard}>
-          <h2 className="section-title">المنتجات</h2>
+              <div style={s.statusGrid}>
+                <div className="ui-card-soft" style={s.statusItem}>
+                  <span style={s.statusLabel}>الطلب</span>
+                  <strong
+                    style={{
+                      ...s.statusBadgeInline,
+                      background: status.bg,
+                      color: status.color,
+                      borderColor: status.border
+                    }}
+                  >
+                    {status.label}
+                  </strong>
+                </div>
 
-          <div style={s.itemsList}>
-            {items.length === 0 ? (
-              <div className="empty-state">لا توجد عناصر داخل هذا الطلب</div>
-            ) : (
-              items.map((item) => (
-                <article key={item.id} className="ui-card-soft" style={s.itemCard}>
-                  <div style={s.itemMedia}>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.title_ar || "منتج"}
-                        style={s.itemImage}
-                      />
+                <div className="ui-card-soft" style={s.statusItem}>
+                  <span style={s.statusLabel}>الدفع</span>
+                  <strong
+                    style={{
+                      ...s.statusBadgeInline,
+                      background: paymentStatus.bg,
+                      color: paymentStatus.color,
+                      borderColor: paymentStatus.border
+                    }}
+                  >
+                    {paymentStatus.label}
+                  </strong>
+                </div>
+
+                <div className="ui-card-soft" style={s.statusItem}>
+                  <span style={s.statusLabel}>الشحن</span>
+                  <strong
+                    style={{
+                      ...s.statusBadgeInline,
+                      background: shippingStatus.bg,
+                      color: shippingStatus.color,
+                      borderColor: shippingStatus.border
+                    }}
+                  >
+                    {shippingStatus.label}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="ui-card" style={s.card}>
+              <h2 className="section-title">المنتجات</h2>
+
+              {items.length === 0 ? (
+                <div style={s.emptyInline}>لا توجد عناصر مرتبطة بهذا الطلب.</div>
+              ) : (
+                <div style={s.itemsList}>
+                  {items.map((item, idx) => (
+                    <article key={item.id || idx} className="ui-card-soft" style={s.itemCard}>
+                      <div style={s.itemRowTop}>
+                        <div style={s.itemInfo}>
+                          <div style={s.itemTitle}>{item.title_ar || item.product_name || "منتج"}</div>
+                          <div style={s.itemMeta}>
+                            {item.slug ? `/${item.slug}` : "بدون رابط منتج"}
+                          </div>
+                        </div>
+
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.title_ar || "product"} style={s.itemImage} />
+                        ) : (
+                          <div style={s.itemImageFallback}>📦</div>
+                        )}
+                      </div>
+
+                      <div style={s.itemStats}>
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>الكمية</span>
+                          <strong style={s.infoValue}>{Number(item.quantity || 0)}</strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>ثمن الوحدة</span>
+                          <strong style={s.infoValue}>
+                            {formatMoney(Number(item.unit_price_mad || 0), orderCurrency, locale)}
+                          </strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>المجموع</span>
+                          <strong style={s.priceValue}>
+                            {formatMoney(
+                              Number(item.unit_price_mad || 0) * Number(item.quantity || 0),
+                              orderCurrency,
+                              locale
+                            )}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {item.slug ? (
+                        <Link to={`/products/${item.slug}`} className="btn btn-secondary full-width">
+                          عرض المنتج
+                        </Link>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {shipping ? (
+              <div className="ui-card" style={s.card}>
+                <div style={s.shippingTitleRow}>
+                  <h2 className="section-title" style={{ margin: 0 }}>الشحن والتتبع</h2>
+                  {(() => {
+                    const meta = getShippingStatusMeta(shipping.shipping_status);
+                    return (
+                      <span
+                        style={{
+                          ...s.shippingStatusBadge,
+                          background: meta.bg,
+                          color: meta.color,
+                          border: `1px solid ${meta.border}`
+                        }}
+                      >
+                        {meta.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+
+                <div style={s.trackingTimeline}>
+                  {getShippingSteps(shipping.shipping_status).map((step, index, arr) => (
+                    <div key={step.key} style={s.trackingStep}>
+                      <div style={s.trackingVisualCol}>
+                        <div
+                          style={{
+                            ...s.trackingDot,
+                            ...(step.done ? s.trackingDotDone : {}),
+                            ...(step.active ? s.trackingDotActive : {})
+                          }}
+                        >
+                          {step.done ? "✓" : index + 1}
+                        </div>
+
+                        {index < arr.length - 1 ? (
+                          <div
+                            style={{
+                              ...s.trackingLine,
+                              ...((step.done || step.active) ? s.trackingLineDone : {})
+                            }}
+                          />
+                        ) : null}
+                      </div>
+
+                      <div style={s.trackingContent}>
+                        <div
+                          style={{
+                            ...s.trackingStepLabel,
+                            ...(step.active ? s.trackingStepLabelActive : {})
+                          }}
+                        >
+                          {step.label}
+                        </div>
+                        <div style={s.trackingStepMeta}>
+                          {step.active
+                            ? "الحالة الحالية"
+                            : step.done
+                            ? "مكتملة"
+                            : "في الانتظار"}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={s.shippingGrid}>
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>شركة الشحن</span>
+                    <strong style={s.shippingValue}>{shipping.provider_name || "—"}</strong>
+                  </div>
+
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>طريقة الشحن</span>
+                    <strong style={s.shippingValue}>{shipping.method_name || "—"}</strong>
+                  </div>
+
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>ثمن الشحن</span>
+                    <strong style={s.shippingValue}>
+                      {Number(shipping.shipping_price || 0) === 0
+                        ? "مجاني"
+                        : formatMoney(Number(shipping.shipping_price || 0), orderCurrency, locale)}
+                    </strong>
+                  </div>
+
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>رقم التتبع</span>
+                    {shipping.tracking_number ? (
+                      trackingUrl ? (
+                        <a
+                          href={trackingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={s.trackingLink}
+                        >
+                          {shipping.tracking_number}
+                        </a>
+                      ) : (
+                        <strong style={s.shippingValue}>{shipping.tracking_number}</strong>
+                      )
                     ) : (
-                      <div style={s.itemNoImage}>No image</div>
+                      <strong style={s.shippingValue}>—</strong>
                     )}
                   </div>
 
-                  <div style={s.itemBody}>
-                    <div style={s.itemTitle}>
-                      {item.title_ar || "منتج"}
-                    </div>
-
-                    <div style={s.itemInfoRow}>
-                      <span style={s.itemLabel}>الكمية</span>
-                      <strong style={s.itemValue}>{item.quantity || 0}</strong>
-                    </div>
-
-                    <div style={s.itemInfoRow}>
-                      <span style={s.itemLabel}>السعر الفردي</span>
-                      <strong style={s.itemValue}>
-                        {formatMoney(Number(item.unit_price_mad || 0), orderCurrency, locale)}
-                      </strong>
-                    </div>
-
-                    <div style={s.itemInfoRow}>
-                      <span style={s.itemLabel}>الإجمالي</span>
-                      <strong style={s.itemTotal}>
-                        {formatMoney(
-                          Number(item.unit_price_mad || 0) * Number(item.quantity || 0),
-                          orderCurrency,
-                          locale
-                        )}
-                      </strong>
-                    </div>
-
-                    {item.slug ? (
-                      <button
-                        type="button"
-                        className="btn btn-outline full-width"
-                        onClick={() => navigate(`/products/${item.slug}`)}
-                      >
-                        فتح المنتج
-                      </button>
-                    ) : null}
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>تاريخ الشحن</span>
+                    <strong style={s.shippingValue}>{formatDateTime(shipping.shipped_at, locale)}</strong>
                   </div>
-                </article>
-              ))
-            )}
+
+                  <div style={s.shippingItem}>
+                    <span style={s.shippingLabel}>تاريخ التسليم</span>
+                    <strong style={s.shippingValue}>{formatDateTime(shipping.delivered_at, locale)}</strong>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
-        </section>
 
-        <section className="ui-card" style={s.sectionCard}>
-          <h2 className="section-title">معلومات التوصيل</h2>
+          <aside style={s.sideCol}>
+            <div className="ui-card" style={s.card}>
+              <h2 className="section-title">معلومات الطلب</h2>
 
-          <div style={s.infoGrid}>
-            <InfoRow label="الاسم" value={order.buyer_name || "—"} />
-            <InfoRow label="الهاتف" value={order.buyer_phone || "—"} />
-            <InfoRow label="المدينة" value={order.buyer_city || "—"} />
-            <InfoRow label="العنوان" value={order.buyer_address || "—"} />
-          </div>
-        </section>
+              <div style={s.sideInfoList}>
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>البائع</span>
+                  <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
+                </div>
 
-        <section className="ui-card" style={s.sectionCard}>
-          <h2 className="section-title">الدفع والشحن</h2>
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>اسم المستلم</span>
+                  <strong style={s.infoValue}>{order.buyer_name || "—"}</strong>
+                </div>
 
-          <div style={s.infoGrid}>
-            <InfoRow
-              label="طريقة الدفع"
-              value={order.payment_method === "cod" ? "الدفع عند الاستلام" : (order.payment_method || "—")}
-            />
-            <InfoRow label="حالة الدفع" value={order.payment_status || "—"} />
-            <InfoRow label="حالة الشحن" value={order.shipping_status || "—"} />
-            <InfoRow label="رقم التتبع" value={order.tracking_number || "غير متوفر بعد"} />
-          </div>
-        </section>
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>الهاتف</span>
+                  <strong style={s.infoValue}>{order.buyer_phone || "—"}</strong>
+                </div>
 
-        {order.notes ? (
-          <section className="ui-card" style={s.sectionCard}>
-            <h2 className="section-title">ملاحظات الطلب</h2>
-            <div className="ui-card-soft" style={s.notesBox}>
-              {order.notes}
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>المدينة</span>
+                  <strong style={s.infoValue}>{order.buyer_city || "—"}</strong>
+                </div>
+
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>العنوان</span>
+                  <strong style={s.infoValue}>{order.buyer_address || "—"}</strong>
+                </div>
+
+                <div style={s.infoRow}>
+                  <span style={s.infoLabel}>طريقة الدفع</span>
+                  <strong style={s.infoValue}>{order.payment_method || "—"}</strong>
+                </div>
+              </div>
+
+              {order.notes ? (
+                <div className="ui-card-soft" style={s.notesCard}>
+                  <strong style={s.notesTitle}>ملاحظات الطلب</strong>
+                  <p style={s.notesText}>{order.notes}</p>
+                </div>
+              ) : null}
+
+              <button
+                type="button"
+                className="btn btn-secondary full-width"
+                onClick={() => navigate("/my-orders")}
+              >
+                الرجوع إلى طلباتي
+              </button>
             </div>
-          </section>
-        ) : null}
-
-        <div style={s.actions}>
-          <button
-            type="button"
-            className="btn btn-secondary full-width"
-            onClick={() => navigate("/my-orders")}
-          >
-            الرجوع إلى طلباتي
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-primary full-width"
-            onClick={() => navigate("/products")}
-          >
-            متابعة التسوق
-          </button>
+          </aside>
         </div>
       </div>
     </section>
-  );
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="ui-card-soft" style={s.infoCard}>
-      <div style={s.infoLabel}>{label}</div>
-      <div style={s.infoValue}>{value}</div>
-    </div>
   );
 }
 
@@ -543,57 +583,164 @@ const s = {
     alignItems: "start",
     flexWrap: "wrap"
   },
+  heroInfo: {
+    display: "grid",
+    gap: "8px"
+  },
   heroTitle: {
-    marginTop: "10px"
+    margin: 0
   },
   statusPill: {
     minHeight: "36px",
-    padding: "0 12px",
+    padding: "0 14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: "999px",
-    border: "1px solid",
+    border: "1px solid transparent",
+    fontWeight: 800,
+    fontSize: "13px"
+  },
+  topSummary: {
+    display: "grid",
+    gap: "10px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
+  },
+  summaryBox: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px"
+  },
+  summaryLabel: {
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  summaryValue: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  layout: {
+    display: "grid",
+    gap: "14px"
+  },
+  mainCol: {
+    display: "grid",
+    gap: "14px"
+  },
+  sideCol: {
+    display: "grid",
+    gap: "14px"
+  },
+  card: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px"
+  },
+  statusGrid: {
+    display: "grid",
+    gap: "10px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
+  },
+  statusItem: {
+    padding: "14px",
+    display: "grid",
+    gap: "8px"
+  },
+  statusLabel: {
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  statusBadgeInline: {
+    minHeight: "34px",
+    padding: "0 12px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "13px",
-    fontWeight: 900
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    width: "fit-content",
+    fontWeight: 800,
+    fontSize: "13px"
   },
-  shippingCard: {
-    padding: "16px",
+  itemsList: {
     display: "grid",
-    gap: "14px",
-    background: "#f8fbff",
-    border: "1px solid #dbeafe"
+    gap: "12px"
+  },
+  itemCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "12px"
+  },
+  itemRowTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "start"
+  },
+  itemInfo: {
+    display: "grid",
+    gap: "4px"
+  },
+  itemTitle: {
+    color: "#173b74",
+    fontWeight: 900,
+    lineHeight: 1.6
+  },
+  itemMeta: {
+    color: "#7a6f63",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  itemImage: {
+    width: "84px",
+    height: "84px",
+    objectFit: "cover",
+    borderRadius: "16px",
+    border: "1px solid #ece3d8",
+    flexShrink: 0
+  },
+  itemImageFallback: {
+    width: "84px",
+    height: "84px",
+    borderRadius: "16px",
+    border: "1px solid #ece3d8",
+    background: "#f8f7f3",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "30px",
+    flexShrink: 0
+  },
+  itemStats: {
+    display: "grid",
+    gap: "8px"
   },
   shippingTitleRow: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
+    gap: "12px",
     alignItems: "center",
     flexWrap: "wrap"
   },
-  shippingTitle: {
-    color: "#173b74",
-    fontWeight: 900,
-    fontSize: "18px"
-  },
   shippingStatusBadge: {
-    background: "#eef6ff",
-    color: "#1d4ed8",
-    border: "1px solid #bfdbfe",
+    minHeight: "34px",
+    padding: "0 12px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: "999px",
-    padding: "6px 10px",
-    fontSize: "12px",
-    fontWeight: 800
+    fontWeight: 800,
+    fontSize: "13px"
   },
   trackingTimeline: {
     display: "grid",
-    gap: "0"
+    gap: "10px"
   },
   trackingStep: {
     display: "grid",
     gridTemplateColumns: "30px 1fr",
-    gap: "12px",
-    alignItems: "start"
+    gap: "12px"
   },
   trackingVisualCol: {
     display: "grid",
@@ -603,37 +750,33 @@ const s = {
     width: "28px",
     height: "28px",
     borderRadius: "999px",
-    border: "2px solid #cbd5e1",
-    color: "#64748b",
-    background: "#fff",
+    background: "#e5e7eb",
+    color: "#475569",
     display: "grid",
     placeItems: "center",
-    fontSize: "12px",
-    fontWeight: 900
+    fontWeight: 900,
+    fontSize: "13px"
   },
   trackingDotDone: {
-    background: "#dcfce7",
-    color: "#166534",
-    border: "2px solid #86efac"
+    background: "#16a34a",
+    color: "#fff"
   },
   trackingDotActive: {
-    background: "#dbeafe",
-    color: "#1d4ed8",
-    border: "2px solid #93c5fd",
-    boxShadow: "0 0 0 4px rgba(147,197,253,0.22)"
+    background: "#1d4ed8",
+    color: "#fff"
   },
   trackingLine: {
     width: "2px",
-    minHeight: "28px",
-    background: "#e2e8f0",
-    marginTop: "4px",
-    marginBottom: "4px"
+    minHeight: "26px",
+    background: "#e5e7eb",
+    marginTop: "4px"
   },
   trackingLineDone: {
     background: "#93c5fd"
   },
   trackingContent: {
-    paddingBottom: "16px"
+    display: "grid",
+    gap: "3px"
   },
   trackingStepLabel: {
     color: "#334155",
@@ -643,154 +786,72 @@ const s = {
     color: "#173b74"
   },
   trackingStepMeta: {
-    color: "#64748b",
-    fontSize: "12px",
-    marginTop: "4px"
+    color: "#6b7280",
+    fontSize: "13px"
   },
   shippingGrid: {
-
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-    gap: "10px"
+    gap: "10px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
   },
   shippingItem: {
-    background: "#fff",
-    border: "1px solid #e2e8f0",
-    borderRadius: "14px",
-    padding: "12px",
     display: "grid",
     gap: "6px"
   },
   shippingLabel: {
-    color: "#64748b",
-    fontSize: "12px",
+    color: "#6b7280",
+    fontSize: "13px",
     fontWeight: 700
   },
   shippingValue: {
-    color: "#0f172a",
-    fontSize: "14px",
-    fontWeight: 900
+    color: "#1f2937",
+    fontWeight: 800
   },
   trackingLink: {
     color: "#1d4ed8",
-    fontSize: "14px",
-    fontWeight: 900,
-    textDecoration: "underline",
+    fontWeight: 800,
+    textDecoration: "none",
     wordBreak: "break-word"
   },
-  orderMetaCard: {
-    padding: "14px",
+  sideInfoList: {
     display: "grid",
     gap: "10px"
   },
-  metaRow: {
+  infoRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    alignItems: "center"
-  },
-  metaLabel: {
-    color: "#7a6f63",
-    fontSize: "14px",
-    fontWeight: 700
-  },
-  metaValue: {
-    color: "#1f2937",
-    fontWeight: 900
-  },
-  totalValue: {
-    color: "#173b74",
-    fontWeight: 900,
-    fontSize: "18px"
-  },
-  sectionCard: {
-    padding: "16px",
-    display: "grid",
-    gap: "14px"
-  },
-  itemsList: {
-    display: "grid",
-    gap: "12px"
-  },
-  itemCard: {
-    overflow: "hidden"
-  },
-  itemMedia: {
-    borderBottom: "1px solid #eee6da"
-  },
-  itemImage: {
-    width: "100%",
-    height: "210px",
-    objectFit: "cover",
-    display: "block"
-  },
-  itemNoImage: {
-    width: "100%",
-    height: "210px",
-    display: "grid",
-    placeItems: "center",
-    background: "#f8fafc",
-    color: "#94a3b8"
-  },
-  itemBody: {
-    padding: "14px",
-    display: "grid",
-    gap: "10px"
-  },
-  itemTitle: {
-    color: "#1f2937",
-    fontWeight: 900,
-    fontSize: "17px",
-    lineHeight: 1.6
-  },
-  itemInfoRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center"
-  },
-  itemLabel: {
-    color: "#7a6f63",
-    fontSize: "14px",
-    fontWeight: 700
-  },
-  itemValue: {
-    color: "#1f2937",
-    fontWeight: 900
-  },
-  itemTotal: {
-    color: "#173b74",
-    fontWeight: 900,
-    fontSize: "18px"
-  },
-  infoGrid: {
-    display: "grid",
-    gap: "10px"
-  },
-  infoCard: {
-    padding: "14px",
-    display: "grid",
-    gap: "6px"
+    alignItems: "start",
+    flexWrap: "wrap"
   },
   infoLabel: {
-    color: "#7a6f63",
-    fontSize: "13px",
+    color: "#6b7280",
     fontWeight: 700
   },
   infoValue: {
     color: "#1f2937",
-    fontWeight: 900,
-    lineHeight: 1.7
+    fontWeight: 800
   },
-  notesBox: {
+  priceValue: {
+    color: "#173b74",
+    fontWeight: 900
+  },
+  notesCard: {
     padding: "14px",
-    color: "#374151",
+    display: "grid",
+    gap: "8px"
+  },
+  notesTitle: {
+    color: "#173b74"
+  },
+  notesText: {
+    margin: 0,
+    color: "#4b5563",
     lineHeight: 1.9
   },
-  actions: {
-    display: "grid",
-    gap: "10px",
-    paddingBottom: "8px"
+  emptyInline: {
+    color: "#6b7280",
+    lineHeight: 1.8
   },
   emptyCard: {
     display: "grid",
