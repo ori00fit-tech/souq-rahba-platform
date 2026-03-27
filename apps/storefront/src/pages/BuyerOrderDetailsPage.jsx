@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
@@ -15,6 +15,65 @@ function formatDateTime(value, locale) {
   return date.toLocaleString(locale);
 }
 
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
+}
+
+function normalizeOrderPayload(payload) {
+  const items = Array.isArray(payload?.items)
+    ? payload.items.map((item) => ({
+        id: item?.id || "",
+        title_ar: item?.title_ar || item?.product_name || "منتج",
+        product_name: item?.product_name || item?.title_ar || "منتج",
+        slug: item?.slug || "",
+        quantity: Number(item?.quantity || 0),
+        unit_price_mad: Number(item?.unit_price_mad || 0),
+        image_url: resolveImageUrl(item?.image_url || "")
+      }))
+    : [];
+
+  const shipping = payload?.shipping
+    ? {
+        id: payload.shipping?.id || "",
+        provider_id: payload.shipping?.provider_id || "",
+        provider_name: payload.shipping?.provider_name || "",
+        provider_method_id: payload.shipping?.provider_method_id || "",
+        method_name: payload.shipping?.method_name || "",
+        method_code: payload.shipping?.method_code || "",
+        shipping_price: Number(payload.shipping?.shipping_price || 0),
+        shipping_status: payload.shipping?.shipping_status || payload?.shipping_status || "",
+        tracking_number: payload.shipping?.tracking_number || "",
+        shipped_at: payload.shipping?.shipped_at || null,
+        delivered_at: payload.shipping?.delivered_at || null
+      }
+    : null;
+
+  return {
+    id: payload?.id || "",
+    buyer_user_id: payload?.buyer_user_id || null,
+    order_number: payload?.order_number || "—",
+    order_status: payload?.order_status || "",
+    payment_status: payload?.payment_status || "",
+    shipping_status: payload?.shipping_status || shipping?.shipping_status || "",
+    payment_method: payload?.payment_method || "",
+    total_mad: Number(payload?.total_mad || 0),
+    currency: payload?.currency || "MAD",
+    created_at: payload?.created_at || null,
+    seller_name: payload?.seller_name || "RAHBA",
+    buyer_name: payload?.buyer_name || "—",
+    buyer_phone: payload?.buyer_phone || "—",
+    buyer_city: payload?.buyer_city || "—",
+    buyer_address: payload?.buyer_address || "—",
+    notes: payload?.notes || "",
+    items,
+    shipping
+  };
+}
+
 function getStatusMeta(status) {
   switch (String(status || "").toLowerCase()) {
     case "pending":
@@ -29,6 +88,10 @@ function getStatusMeta(status) {
       return { label: "تم التسليم", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
     case "cancelled":
       return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
+    case "paid":
+      return { label: "مؤدى", bg: "#ecfdf5", color: "#166534", border: "#bbf7d0" };
+    case "unpaid":
+      return { label: "غير مؤدى", bg: "#fff7ed", color: "#9a3412", border: "#fdba74" };
     default:
       return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
   }
@@ -105,6 +168,10 @@ export default function BuyerOrderDetailsPage() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
+
+  const requestIdRef = useRef(0);
+  const copyTimerRef = useRef(null);
 
   const locale =
     language === "ar" ? "ar-MA" :
@@ -131,11 +198,15 @@ export default function BuyerOrderDetailsPage() {
         return;
       }
 
+      const requestId = ++requestIdRef.current;
+
       try {
         setLoading(true);
         setMessage("");
 
         const result = await apiGet(`/commerce/orders/${id}`);
+
+        if (requestId !== requestIdRef.current) return;
 
         if (!result?.ok) {
           setMessage(getApiErrorMessage(result, "تعذر تحميل تفاصيل الطلب"));
@@ -143,7 +214,7 @@ export default function BuyerOrderDetailsPage() {
           return;
         }
 
-        const data = result?.data || null;
+        const data = normalizeOrderPayload(result?.data || null);
 
         if (buyerId && data?.buyer_user_id && data.buyer_user_id !== buyerId) {
           setMessage("ليس لديك صلاحية لعرض هذا الطلب");
@@ -154,15 +225,43 @@ export default function BuyerOrderDetailsPage() {
         setOrder(data);
       } catch (err) {
         console.error(err);
+        if (requestId !== requestIdRef.current) return;
         setMessage("حدث خطأ أثناء تحميل تفاصيل الطلب");
         setOrder(null);
       } finally {
-        setLoading(false);
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     }
 
     loadOrder();
   }, [authLoading, currentUser, id, buyerId]);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
+  function copyText(value) {
+    if (!value) return;
+
+    navigator.clipboard?.writeText(value)
+      .then(() => {
+        setCopyMessage("تم نسخ رقم الطلب");
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopyMessage(""), 1800);
+      })
+      .catch((err) => {
+        console.error("copy failed", err);
+        setCopyMessage("تعذر النسخ");
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopyMessage(""), 1800);
+      });
+  }
 
   if (loading) {
     return (
@@ -231,7 +330,9 @@ export default function BuyerOrderDetailsPage() {
 
   const status = getStatusMeta(order.order_status);
   const paymentStatus = getStatusMeta(order.payment_status);
-  const shippingStatus = getStatusMeta(order.shipping_status);
+  const shippingStatus = getStatusMeta(
+    order.shipping?.shipping_status || order.shipping_status
+  );
   const orderCurrency = order.currency || currency;
   const items = Array.isArray(order.items) ? order.items : [];
   const shipping = order.shipping || null;
@@ -262,6 +363,8 @@ export default function BuyerOrderDetailsPage() {
             </div>
           </div>
 
+          {copyMessage ? <div className="message-box">{copyMessage}</div> : null}
+
           <div style={s.topSummary}>
             <div className="ui-card-soft" style={s.summaryBox}>
               <span style={s.summaryLabel}>رقم الطلب</span>
@@ -280,6 +383,15 @@ export default function BuyerOrderDetailsPage() {
               </strong>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            style={s.copyOrderBtn}
+            onClick={() => copyText(order.order_number || "")}
+          >
+            نسخ رقم الطلب
+          </button>
         </div>
 
         <div style={s.layout}>
@@ -600,6 +712,9 @@ const s = {
     border: "1px solid transparent",
     fontWeight: 800,
     fontSize: "13px"
+  },
+  copyOrderBtn: {
+    width: "fit-content"
   },
   topSummary: {
     display: "grid",
