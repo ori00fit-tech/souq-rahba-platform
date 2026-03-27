@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 
@@ -14,6 +14,7 @@ function resolveImageUrl(url) {
 export default function CartPage() {
   const navigate = useNavigate();
   const { cart, removeFromCart, updateQty, currency, language, cartCount } = useApp();
+  const [message, setMessage] = useState("");
 
   const locale =
     language === "ar" ? "ar-MA" :
@@ -23,7 +24,7 @@ export default function CartPage() {
   const normalizedCart = useMemo(() => {
     if (!Array.isArray(cart)) return [];
     return cart.map((item) => ({
-      id: item.id,
+      id: item.id || "",
       slug: item.slug || "",
       name: item.name || item.title_ar || "منتج",
       seller_id: item.seller_id || "",
@@ -62,10 +63,56 @@ export default function CartPage() {
     [normalizedCart]
   );
 
+  const computedItemCount = useMemo(
+    () => normalizedCart.reduce((sum, item) => sum + Number(item.qty || 1), 0),
+    [normalizedCart]
+  );
+
+  const displayItemCount =
+    typeof cartCount === "number" && cartCount >= 0 ? cartCount : computedItemCount;
+
   const sellerCount = groupedBySeller.length;
   const shippingLabel = "يتم احتسابه في صفحة الإتمام";
 
+  const cartIssues = useMemo(() => {
+    const issues = [];
+
+    const hasMissingProductId = normalizedCart.some((item) => !item.id);
+    if (hasMissingProductId) {
+      issues.push("بعض المنتجات في السلة غير صالحة حالياً. أعد إضافتها من صفحة المنتج.");
+    }
+
+    const hasMissingSeller = normalizedCart.some((item) => !item.seller_id);
+    if (hasMissingSeller) {
+      issues.push("بعض المنتجات لا تحتوي على معلومات البائع بشكل كامل.");
+    }
+
+    const hasOutOfStock = normalizedCart.some(
+      (item) => Number.isFinite(item.stock) && item.stock <= 0
+    );
+    if (hasOutOfStock) {
+      issues.push("توجد منتجات غير متوفرة حالياً داخل السلة.");
+    }
+
+    const hasQtyOverStock = normalizedCart.some(
+      (item) => Number.isFinite(item.stock) && item.stock > 0 && item.qty > item.stock
+    );
+    if (hasQtyOverStock) {
+      issues.push("بعض الكميات المطلوبة أكبر من المخزون المتاح.");
+    }
+
+    const hasInvalidPrice = normalizedCart.some((item) => !Number.isFinite(item.price) || item.price < 0);
+    if (hasInvalidPrice) {
+      issues.push("تعذر التحقق من أسعار بعض المنتجات.");
+    }
+
+    return issues;
+  }, [normalizedCart]);
+
+  const canCheckout = cartIssues.length === 0 && normalizedCart.length > 0;
+
   function decreaseQty(item) {
+    setMessage("");
     const nextQty = item.qty - 1;
     if (nextQty < 1) {
       removeFromCart(item.id);
@@ -75,7 +122,23 @@ export default function CartPage() {
   }
 
   function increaseQty(item) {
+    setMessage("");
+
+    if (Number.isFinite(item.stock) && item.stock > 0 && item.qty >= item.stock) {
+      setMessage(`لا يمكن تجاوز المخزون المتاح للمنتج: ${item.name}`);
+      return;
+    }
+
     updateQty(item.id, item.qty + 1);
+  }
+
+  function goToCheckout() {
+    if (!canCheckout) {
+      setMessage(cartIssues[0] || "يرجى مراجعة السلة قبل المتابعة");
+      return;
+    }
+
+    navigate("/checkout");
   }
 
   if (!normalizedCart.length) {
@@ -116,11 +179,24 @@ export default function CartPage() {
           </p>
 
           <div style={s.metaRow}>
-            <span className="ui-chip">{cartCount || normalizedCart.length} عنصر</span>
+            <span className="ui-chip">{displayItemCount} عنصر</span>
             <span className="ui-chip">{sellerCount} بائع</span>
             <span className="ui-chip">{formatMoney(subtotal, currency, locale)}</span>
           </div>
         </div>
+
+        {message ? <div className="message-box">{message}</div> : null}
+
+        {cartIssues.length > 0 ? (
+          <div className="ui-card-soft" style={s.warningBox}>
+            <strong style={s.warningTitle}>راجع السلة قبل الإتمام</strong>
+            <ul style={s.warningList}>
+              {cartIssues.map((issue, index) => (
+                <li key={`${issue}-${index}`}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {sellerCount > 1 ? (
           <div className="ui-card-soft" style={s.splitNotice}>
@@ -156,8 +232,12 @@ export default function CartPage() {
                 <div style={s.groupItems}>
                   {group.items.map((item) => {
                     const lineTotal = item.price * item.qty;
+                    const isOutOfStock = Number.isFinite(item.stock) && item.stock <= 0;
+                    const isOverStock =
+                      Number.isFinite(item.stock) && item.stock > 0 && item.qty > item.stock;
+
                     return (
-                      <article key={item.id} className="ui-card-soft" style={s.itemCard}>
+                      <article key={item.id || `${group.seller_name}-${item.name}`} className="ui-card-soft" style={s.itemCard}>
                         <div style={s.itemTop}>
                           <div style={s.itemInfo}>
                             <div style={s.itemTitle}>{item.name}</div>
@@ -188,6 +268,7 @@ export default function CartPage() {
                               type="button"
                               onClick={() => increaseQty(item)}
                               style={s.qtyBtn}
+                              disabled={isOutOfStock}
                             >
                               +
                             </button>
@@ -213,7 +294,11 @@ export default function CartPage() {
                           </div>
                         </div>
 
-                        {item.stock > 0 ? (
+                        {isOutOfStock ? (
+                          <div style={s.stockDanger}>غير متوفر حالياً — احذف المنتج أو راجع لاحقاً</div>
+                        ) : isOverStock ? (
+                          <div style={s.stockWarn}>الكمية في السلة أكبر من المخزون المتاح ({item.stock})</div>
+                        ) : item.stock > 0 ? (
                           <div style={s.stockOk}>متوفر: {item.stock}</div>
                         ) : (
                           <div style={s.stockWarn}>تحقق من التوفر قبل إتمام الطلب</div>
@@ -232,7 +317,7 @@ export default function CartPage() {
             <div style={s.summaryRows}>
               <div style={s.summaryRow}>
                 <span>عدد العناصر</span>
-                <strong>{cartCount || normalizedCart.length}</strong>
+                <strong>{displayItemCount}</strong>
               </div>
 
               <div style={s.summaryRow}>
@@ -260,8 +345,9 @@ export default function CartPage() {
 
             <button
               type="button"
-              onClick={() => navigate("/checkout")}
+              onClick={goToCheckout}
               className="btn btn-primary full-width"
+              disabled={!canCheckout}
             >
               متابعة إلى إتمام الطلب
             </button>
@@ -286,6 +372,22 @@ const s = {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap"
+  },
+  warningBox: {
+    padding: "14px",
+    display: "grid",
+    gap: "8px",
+    background: "#fff7ed",
+    border: "1px solid #fed7aa"
+  },
+  warningTitle: {
+    color: "#9a3412"
+  },
+  warningList: {
+    margin: 0,
+    paddingInlineStart: "18px",
+    color: "#7c2d12",
+    lineHeight: 1.9
   },
   splitNotice: {
     padding: "14px",
@@ -450,6 +552,11 @@ const s = {
   },
   stockWarn: {
     color: "#b45309",
+    fontSize: "13px",
+    fontWeight: 800
+  },
+  stockDanger: {
+    color: "#b91c1c",
     fontSize: "13px",
     fontWeight: 800
   },
