@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
@@ -8,7 +8,25 @@ function loadGuestOrders() {
   try {
     const raw = localStorage.getItem("guest_orders");
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter((item) => item && typeof item === "object")
+      .map((item) => ({
+        order_id: item.order_id || null,
+        order_number: item.order_number || "",
+        seller: item.seller || "RAHBA",
+        phone: item.phone || "",
+        total_mad: Number(item.total_mad || 0),
+        created_at: item.created_at || null
+      }))
+      .filter((item) => item.order_number)
+      .sort((a, b) => {
+        const da = new Date(a.created_at || 0).getTime();
+        const db = new Date(b.created_at || 0).getTime();
+        return db - da;
+      });
   } catch (error) {
     console.error("Failed to read guest orders", error);
     return [];
@@ -24,6 +42,19 @@ function formatDateTime(value, locale) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString(locale);
+}
+
+function normalizeAccountOrder(order) {
+  return {
+    id: order?.id || "",
+    order_number: order?.order_number || "—",
+    created_at: order?.created_at || null,
+    order_status: order?.order_status || "",
+    seller_name: order?.seller_name || "RAHBA",
+    items_count: Number(order?.items_count || 0),
+    total_mad: Number(order?.total_mad || 0),
+    currency: order?.currency || "MAD"
+  };
 }
 
 function getStatusMeta(status) {
@@ -55,6 +86,9 @@ export default function BuyerOrdersPage() {
   const [message, setMessage] = useState("");
   const [copyMessage, setCopyMessage] = useState("");
 
+  const copyTimerRef = useRef(null);
+  const requestIdRef = useRef(0);
+
   const locale =
     language === "ar" ? "ar-MA" :
     language === "fr" ? "fr-MA" :
@@ -65,10 +99,15 @@ export default function BuyerOrdersPage() {
   }, [currentUser]);
 
   async function loadAccountOrders() {
+    const requestId = ++requestIdRef.current;
+
     try {
       setLoading(true);
       setMessage("");
+
       const result = await apiGet("/commerce/orders");
+
+      if (requestId !== requestIdRef.current) return;
 
       if (!result?.ok) {
         setMessage(getApiErrorMessage(result, "تعذر تحميل الطلبات"));
@@ -77,13 +116,18 @@ export default function BuyerOrdersPage() {
       }
 
       const items = Array.isArray(result?.data) ? result.data : [];
-      setOrders(items);
+      const normalized = items.map(normalizeAccountOrder);
+
+      setOrders(normalized);
     } catch (err) {
       console.error(err);
+      if (requestId !== requestIdRef.current) return;
       setMessage("حدث خطأ أثناء تحميل الطلبات");
       setOrders([]);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
@@ -105,17 +149,28 @@ export default function BuyerOrdersPage() {
     loadAccountOrders();
   }, [authLoading, currentUser, buyerId]);
 
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) {
+        clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
   function copyText(value) {
     if (!value) return;
+
     navigator.clipboard?.writeText(value)
       .then(() => {
         setCopyMessage("تم نسخ رقم الطلب");
-        setTimeout(() => setCopyMessage(""), 1800);
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopyMessage(""), 1800);
       })
       .catch((err) => {
         console.error("copy failed", err);
         setCopyMessage("تعذر النسخ");
-        setTimeout(() => setCopyMessage(""), 1800);
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setCopyMessage(""), 1800);
       });
   }
 
@@ -236,8 +291,9 @@ export default function BuyerOrdersPage() {
             type="button"
             className="btn btn-secondary"
             onClick={loadAccountOrders}
+            disabled={loading}
           >
-            تحديث الطلبات
+            {loading ? "جاري التحديث..." : "تحديث الطلبات"}
           </button>
         </div>
 
