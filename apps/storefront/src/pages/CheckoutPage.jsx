@@ -9,8 +9,9 @@ function saveGuestOrder(entry) {
     const raw = localStorage.getItem("guest_orders");
     const existing = raw ? JSON.parse(raw) : [];
     const next = [entry, ...existing]
-      .filter((item, index, arr) =>
-        index === arr.findIndex((x) => x.order_number === item.order_number)
+      .filter(
+        (item, index, arr) =>
+          index === arr.findIndex((x) => x.order_number === item.order_number)
       )
       .slice(0, 20);
     localStorage.setItem("guest_orders", JSON.stringify(next));
@@ -21,18 +22,62 @@ function saveGuestOrder(entry) {
 
 function normalizeZoneCode(city) {
   const value = String(city || "").trim().toLowerCase();
+
   const map = {
     casablanca: "casablanca",
-    "الدار البيضاء": "casablanca",
     casa: "casablanca",
+    "dar البيضاء": "casablanca",
+    "الدار البيضاء": "casablanca",
+    "الدارالبيضاء": "casablanca",
     rabat: "rabat",
     "الرباط": "rabat",
     tangier: "tangier",
     tanger: "tangier",
-    "طنجة": "tangier",
+    طنجة: "tangier",
     marrakech: "marrakech",
-    "مراكش": "marrakech"
+    marrakesh: "marrakech",
+    مراكش: "marrakech",
+    fes: "fes",
+    fez: "fes",
+    فاس: "fes",
+    agadir: "agadir",
+    أكادير: "agadir",
+    agadir: "agadir",
+    meknes: "meknes",
+    مكناس: "meknes",
+    oujda: "oujda",
+    وجدة: "oujda",
+    kenitra: "kenitra",
+    القنيطرة: "kenitra",
+    tetouan: "tetouan",
+    تطوان: "tetouan",
+    safi: "safi",
+    آسفي: "safi",
+    jadida: "eljadida",
+    "el jadida": "eljadida",
+    الجديدة: "eljadida",
+    larache: "larache",
+    العرائش: "larache",
+    nador: "nador",
+    الناظور: "nador",
+    hoceima: "alhoceima",
+    الحسيمة: "alhoceima",
+    beni_mellal: "benimellal",
+    "beni mellal": "benimellal",
+    بني_ملال: "benimellal",
+    بني: "benimellal",
+    khouribga: "khouribga",
+    خريبكة: "khouribga",
+    settat: "settat",
+    سطات: "settat",
+    sale: "sale",
+    سلا: "sale",
+    temara: "temara",
+    تمارة: "temara",
+    mohammedia: "mohammedia",
+    المحمدية: "mohammedia"
   };
+
   return map[value] || "other";
 }
 
@@ -175,6 +220,16 @@ export default function CheckoutPage() {
     [ordersGrouped]
   );
 
+  const validSellerGroups = useMemo(
+    () => ordersGrouped.filter((group) => group.seller_id),
+    [ordersGrouped]
+  );
+
+  const invalidSellerGroups = useMemo(
+    () => ordersGrouped.filter((group) => !group.seller_id),
+    [ordersGrouped]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -187,15 +242,11 @@ export default function CheckoutPage() {
 
       if (!form.buyer_city.trim()) {
         setShippingState({});
-        setShippingMessage(cityTouched ? "أدخل المدينة لإظهار خيارات الشحن الذكية." : "");
+        setShippingMessage(cityTouched ? "أدخل المدينة لإظهار خيارات الشحن." : "");
         return;
       }
 
-      const groupsToResolve = ordersGrouped.filter(
-        (group) => group.seller_id && group.seller_id !== "default"
-      );
-
-      if (!groupsToResolve.length) {
+      if (!validSellerGroups.length) {
         setShippingState({});
         setShippingMessage("");
         return;
@@ -207,8 +258,8 @@ export default function CheckoutPage() {
 
         const zoneCode = normalizeZoneCode(form.buyer_city);
 
-        const results = await Promise.all(
-          groupsToResolve.map(async (group) => {
+        const resolvedEntries = await Promise.all(
+          validSellerGroups.map(async (group) => {
             const res = await apiPost("/marketplace/logistics/resolve", {
               seller_id: group.seller_id,
               zone_code: zoneCode,
@@ -225,29 +276,39 @@ export default function CheckoutPage() {
               {
                 options,
                 selectedKey,
-                ...ranked
+                ...ranked,
+                zoneCode,
+                loaded: true
               }
             ];
           })
         );
 
-        if (!cancelled) {
-          setShippingState(Object.fromEntries(results));
+        if (cancelled) return;
 
-          const noOptionsCount = results.filter(
-            ([, value]) => !Array.isArray(value.options) || value.options.length === 0
-          ).length;
+        const nextState = Object.fromEntries(resolvedEntries);
+        setShippingState(nextState);
 
+        const noOptionsCount = resolvedEntries.filter(
+          ([, value]) => !Array.isArray(value.options) || value.options.length === 0
+        ).length;
+
+        if (zoneCode === "other" && noOptionsCount > 0) {
           setShippingMessage(
-            noOptionsCount > 0
-              ? "بعض الباعة لا يتوفر لهم شحن ذكي حالياً، وسيبقى الشحن غير محدد لهم."
-              : ""
+            "لم نتمكن من مطابقة المدينة مع منطقة شحن معروفة لبعض الباعة. جرّب كتابة اسم المدينة بشكل أدق."
           );
+        } else if (noOptionsCount > 0) {
+          setShippingMessage(
+            "بعض الباعة لا يتوفر لهم شحن مفعّل لهذه المدينة حالياً."
+          );
+        } else {
+          setShippingMessage("");
         }
       } catch (error) {
         console.error(error);
         if (!cancelled) {
-          setShippingMessage("تعذر تحميل خيارات الشحن الذكية حالياً.");
+          setShippingMessage("تعذر تحميل خيارات الشحن حالياً.");
+          setShippingState({});
         }
       } finally {
         if (!cancelled) setShippingLoading(false);
@@ -259,7 +320,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [ordersGrouped, form.buyer_city, cityTouched]);
+  }, [ordersGrouped, validSellerGroups, form.buyer_city, cityTouched]);
 
   function validateForm() {
     if (!form.buyer_name.trim()) return "يرجى إدخال الاسم الكامل";
@@ -274,22 +335,26 @@ export default function CheckoutPage() {
     if (!form.buyer_address.trim()) return "يرجى إدخال العنوان";
     if (!ordersGrouped.length) return "السلة فارغة";
 
-    const missingSeller = ordersGrouped.some(
-      (group) => !group.seller_id || group.seller_id === "default"
-    );
-    if (missingSeller) {
-      return "بعض المنتجات لا تحتوي على بائع صالح. أعد إضافة المنتجات من صفحاتها الرسمية.";
+    if (invalidSellerGroups.length > 0) {
+      return "بعض المنتجات لا تحتوي على بائع صالح. أعد إضافتها من صفحاتها الرسمية.";
     }
 
-    const needsShippingChoice = ordersGrouped.some(
-      (group) =>
-        Array.isArray(shippingState[group.seller_id]?.options) &&
-        shippingState[group.seller_id].options.length > 0 &&
-        !shippingState[group.seller_id].selectedKey
-    );
+    for (const group of validSellerGroups) {
+      const state = shippingState[group.seller_id];
 
-    if (needsShippingChoice) {
-      return "يرجى اختيار طريقة الشحن لكل بائع";
+      if (!state?.loaded && !shippingLoading) {
+        return "تعذر تحميل الشحن لبعض الباعة. حاول تحديث المدينة أو أعد المحاولة.";
+      }
+
+      const hasOptions = Array.isArray(state?.options) && state.options.length > 0;
+
+      if (!hasOptions) {
+        return `لا توجد طريقة شحن متاحة حالياً للبائع: ${group.seller_name}`;
+      }
+
+      if (hasOptions && !state.selectedKey) {
+        return `يرجى اختيار طريقة الشحن للبائع: ${group.seller_name}`;
+      }
     }
 
     return "";
@@ -304,21 +369,20 @@ export default function CheckoutPage() {
   }
 
   const shippingTotal = useMemo(() => {
-    return ordersGrouped.reduce((sum, group) => {
+    return validSellerGroups.reduce((sum, group) => {
       const selected = getSelectedShipping(group);
       return sum + Number(selected?.shipping_price || 0);
     }, 0);
-  }, [ordersGrouped, shippingState]);
+  }, [validSellerGroups, shippingState]);
 
-  const hasAnyShippingOptions = useMemo(
-    () =>
-      ordersGrouped.some(
-        (group) =>
-          Array.isArray(shippingState[group.seller_id]?.options) &&
-          shippingState[group.seller_id].options.length > 0
-      ),
-    [ordersGrouped, shippingState]
-  );
+  const allShippingResolved = useMemo(() => {
+    if (!validSellerGroups.length) return false;
+
+    return validSellerGroups.every((group) => {
+      const state = shippingState[group.seller_id];
+      return Array.isArray(state?.options) && state.options.length > 0 && state.selectedKey;
+    });
+  }, [validSellerGroups, shippingState]);
 
   const grandTotal = subtotal + shippingTotal;
 
@@ -337,9 +401,18 @@ export default function CheckoutPage() {
 
     const newResults = [];
 
-    for (const group of ordersGrouped) {
+    for (const group of validSellerGroups) {
       try {
         const selectedShipping = getSelectedShipping(group);
+
+        if (!selectedShipping) {
+          newResults.push({
+            ok: false,
+            seller: group.seller_name,
+            error: "تعذر تحديد طريقة الشحن"
+          });
+          continue;
+        }
 
         const payload = {
           buyer_name: form.buyer_name.trim(),
@@ -349,12 +422,10 @@ export default function CheckoutPage() {
           notes: form.notes.trim() || null,
           seller_id: group.seller_id,
           payment_method: "cod",
-          shipping_price: Number(selectedShipping?.shipping_price || 0),
-          shipping_provider_id: selectedShipping?.provider_id || null,
-          shipping_method_id: selectedShipping?.provider_method_id || null,
-          shipping_method_label: selectedShipping
-            ? `${selectedShipping.provider_name} - ${selectedShipping.method_name}`
-            : null,
+          shipping_price: Number(selectedShipping.shipping_price || 0),
+          shipping_provider_id: selectedShipping.provider_id || null,
+          shipping_method_id: selectedShipping.provider_method_id || null,
+          shipping_method_label: `${selectedShipping.provider_name} - ${selectedShipping.method_name}`,
           items: group.items.map((item) => ({
             product_id: item.product_id,
             quantity: item.quantity
@@ -419,19 +490,19 @@ export default function CheckoutPage() {
             <div style={s.successIcon}>{successCount > 0 ? "✅" : "⚠️"}</div>
 
             <div className="ui-chip">
-              {successCount === numSellers
+              {successCount === validSellerGroups.length
                 ? "تم إرسال كل الطلبات"
-                : `تم إرسال ${successCount} من أصل ${numSellers}`}
+                : `تم إرسال ${successCount} من أصل ${validSellerGroups.length}`}
             </div>
 
             <h1 className="page-title">
-              {successCount === numSellers
+              {successCount === validSellerGroups.length
                 ? "تم تأكيد طلباتك بنجاح"
                 : "تم تنفيذ الطلبات بشكل جزئي"}
             </h1>
 
             <p className="page-subtitle">
-              {successCount === numSellers
+              {successCount === validSellerGroups.length
                 ? "توصلنا بجميع طلباتك، وسيتم التواصل معك لتأكيد التفاصيل."
                 : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."}
             </p>
@@ -550,6 +621,15 @@ export default function CheckoutPage() {
         {message ? <div className="message-box">{message}</div> : null}
         {shippingMessage ? <div className="message-box">{shippingMessage}</div> : null}
 
+        {invalidSellerGroups.length > 0 ? (
+          <div className="ui-card-soft" style={s.invalidSellerBox}>
+            <strong style={s.invalidSellerTitle}>منتجات غير صالحة للإتمام</strong>
+            <div style={s.invalidSellerText}>
+              توجد منتجات داخل السلة بدون بائع صالح. ارجع إلى السلة واحذفها أو أعد إضافتها من صفحاتها الرسمية.
+            </div>
+          </div>
+        ) : null}
+
         <div style={s.layout}>
           <form className="ui-card" style={s.formCard} onSubmit={handleSubmit}>
             <h2 className="section-title">بيانات التوصيل</h2>
@@ -619,7 +699,13 @@ export default function CheckoutPage() {
             <button
               type="submit"
               className="btn btn-primary full-width"
-              disabled={submitting || !ordersGrouped.length || shippingLoading}
+              disabled={
+                submitting ||
+                !ordersGrouped.length ||
+                shippingLoading ||
+                invalidSellerGroups.length > 0 ||
+                !allShippingResolved
+              }
             >
               {submitting
                 ? "جاري إنشاء الطلبات..."
@@ -632,7 +718,7 @@ export default function CheckoutPage() {
 
             <div style={s.groupList}>
               {ordersGrouped.map((group) => {
-                const sellerShipping = shippingState[group.seller_id];
+                const sellerShipping = group.seller_id ? shippingState[group.seller_id] : null;
                 const selectedShipping = getSelectedShipping(group);
 
                 return (
@@ -659,7 +745,7 @@ export default function CheckoutPage() {
 
                     {Array.isArray(sellerShipping?.options) && sellerShipping.options.length > 0 ? (
                       <div style={s.shippingBox}>
-                        <div style={s.shippingBoxTitle}>خيارات الشحن الذكية</div>
+                        <div style={s.shippingBoxTitle}>خيارات الشحن</div>
 
                         <div style={s.shippingOptionsList}>
                           {sellerShipping.options.map((option) => {
@@ -724,7 +810,7 @@ export default function CheckoutPage() {
                       <div style={s.shippingEmptyBox}>
                         {shippingLoading
                           ? "جاري تحميل خيارات الشحن..."
-                          : "لا توجد خيارات شحن ذكية متاحة لهذا البائع حالياً."}
+                          : "لا توجد طرق شحن مفعلة حالياً لهذا البائع في هذه المدينة."}
                       </div>
                     ) : (
                       <div style={s.shippingEmptyBox}>
@@ -739,9 +825,9 @@ export default function CheckoutPage() {
                           ? Number(selectedShipping.shipping_price || 0) === 0
                             ? "مجاني"
                             : formatMoney(selectedShipping.shipping_price, currency, locale)
-                          : hasAnyShippingOptions
-                          ? "غير محدد بعد"
-                          : "غير متوفر حالياً"}
+                          : group.seller_id
+                          ? "غير محدد"
+                          : "غير متاح"}
                       </strong>
                     </div>
                   </div>
@@ -763,9 +849,9 @@ export default function CheckoutPage() {
               <div style={s.totalRow}>
                 <span>التوصيل</span>
                 <strong>
-                  {hasAnyShippingOptions
+                  {allShippingResolved
                     ? formatMoney(shippingTotal, currency, locale)
-                    : "غير محدد بعد"}
+                    : "غير مكتمل بعد"}
                 </strong>
               </div>
 
@@ -838,6 +924,20 @@ const s = {
   },
   guestSavedText: {
     color: "#4b5563",
+    lineHeight: 1.8
+  },
+  invalidSellerBox: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px",
+    background: "#fef2f2",
+    border: "1px solid #fecaca"
+  },
+  invalidSellerTitle: {
+    color: "#b91c1c"
+  },
+  invalidSellerText: {
+    color: "#7f1d1d",
     lineHeight: 1.8
   },
   layout: {
