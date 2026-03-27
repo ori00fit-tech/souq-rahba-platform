@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams, Link } from "react-router-dom";
 import { apiGet, apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 
@@ -16,10 +16,92 @@ function renderStars(value) {
   return `${"★".repeat(rounded)}${"☆".repeat(5 - rounded)}`;
 }
 
+function getApiErrorMessage(result, fallback = "تعذر تحميل المنتج") {
+  return result?.error?.message || result?.message || fallback;
+}
+
+function isValidReviewImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return true;
+  return /^https?:\/\/.+/i.test(raw);
+}
+
+function normalizeProductPayload(product) {
+  return {
+    id: product?.id || "",
+    slug: product?.slug || "",
+    title_ar: product?.title_ar || "منتج",
+    description_ar: product?.description_ar || "",
+    description_long_ar: product?.description_long_ar || "",
+    landing_html_ar: product?.landing_html_ar || "",
+    seller_id: product?.seller_id || null,
+    seller_name: product?.seller_name || product?.brand || "RAHBA",
+    brand: product?.brand || product?.seller_name || "RAHBA",
+    category_slug: product?.category_slug || "",
+    price_mad: Number(product?.price_mad || 0),
+    stock: Number(product?.stock || 0),
+    status: product?.status || "active",
+    sku: product?.sku || "",
+    rating_avg: Number(product?.rating_avg || 0),
+    reviews_count: Number(product?.reviews_count || 0),
+    image_url: resolveImageUrl(product?.image_url || ""),
+    media: Array.isArray(product?.media)
+      ? product.media.map((m) => ({
+          id: m?.id || "",
+          url: resolveImageUrl(m?.url || m?.image_url || ""),
+          image_url: resolveImageUrl(m?.image_url || m?.url || ""),
+          media_type: m?.media_type || "image",
+          alt_text: m?.alt_text || product?.title_ar || "product"
+        }))
+      : [],
+    specs: Array.isArray(product?.specs)
+      ? product.specs.map((row) => ({
+          id: row?.id || "",
+          label_ar: row?.label_ar || "تفصيل",
+          value_ar: row?.value_ar || "—"
+        }))
+      : [],
+    faqs: Array.isArray(product?.faqs)
+      ? product.faqs.map((faq) => ({
+          id: faq?.id || "",
+          question_ar: faq?.question_ar || "سؤال",
+          answer_ar: faq?.answer_ar || "—"
+        }))
+      : []
+  };
+}
+
+function normalizeReviewPayload(review) {
+  return {
+    id: review?.id || "",
+    rating: Number(review?.rating || 0),
+    buyer_name: review?.buyer_name || "",
+    title: review?.title || "",
+    comment: review?.comment || "",
+    created_at: review?.created_at || "",
+    review_image_url: resolveImageUrl(review?.review_image_url || "")
+  };
+}
+
+function normalizeSimilarPayload(product) {
+  return {
+    id: product?.id || "",
+    slug: product?.slug || "",
+    title_ar: product?.title_ar || "منتج مشابه",
+    description_ar: product?.description_ar || "",
+    price_mad: Number(product?.price_mad || 0),
+    image_url: resolveImageUrl(product?.image_url || ""),
+    stock: Number(product?.stock || 0),
+    seller_name: product?.seller_name || "RAHBA"
+  };
+}
+
 export default function ProductDetailsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToCart, currentUser, authLoading } = useApp();
+
+  const requestIdRef = useRef(0);
 
   const [product, setProduct] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -38,6 +120,8 @@ export default function ProductDetailsPage() {
   });
 
   async function loadProductPage() {
+    const requestId = ++requestIdRef.current;
+
     try {
       setLoading(true);
       setMessage("");
@@ -45,29 +129,51 @@ export default function ProductDetailsPage() {
 
       const result = await apiGet(`/catalog/products/${slug}/full`);
 
+      if (requestId !== requestIdRef.current) return;
+
       if (!result?.ok || !result?.data?.product) {
         setProduct(null);
         setReviews([]);
         setSimilar([]);
-        setMessage(result?.message || "تعذر تحميل المنتج");
+        setMessage(getApiErrorMessage(result, "تعذر تحميل المنتج"));
         return;
       }
 
-      setProduct(result.data.product);
-      setReviews(Array.isArray(result.data.reviews) ? result.data.reviews : []);
-      setSimilar(Array.isArray(result.data.similar) ? result.data.similar : []);
+      setProduct(normalizeProductPayload(result.data.product));
+      setReviews(
+        Array.isArray(result.data.reviews)
+          ? result.data.reviews.map(normalizeReviewPayload)
+          : []
+      );
+      setSimilar(
+        Array.isArray(result.data.similar)
+          ? result.data.similar.map(normalizeSimilarPayload)
+          : []
+      );
     } catch (err) {
       console.error(err);
+      if (requestId !== requestIdRef.current) return;
       setProduct(null);
       setReviews([]);
       setSimilar([]);
       setMessage("حدث خطأ أثناء تحميل المنتج");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 
   useEffect(() => {
+    if (!slug) {
+      setProduct(null);
+      setReviews([]);
+      setSimilar([]);
+      setMessage("رابط المنتج غير صالح");
+      setLoading(false);
+      return;
+    }
+
     loadProductPage();
   }, [slug]);
 
@@ -166,7 +272,7 @@ export default function ProductDetailsPage() {
     ];
   }, [product]);
 
-  function normalizeProduct(p) {
+  function normalizeProductForCart(p) {
     const mediaImage =
       Array.isArray(p?.media) && p.media.length
         ? resolveImageUrl(p.media[0]?.url || p.media[0]?.image_url || "")
@@ -190,14 +296,14 @@ export default function ProductDetailsPage() {
   }
 
   function handleAddToCart() {
-    if (!product) return;
-    addToCart(normalizeProduct(product));
+    if (!product || product.stock <= 0) return;
+    addToCart(normalizeProductForCart(product));
     setMessage("تمت إضافة المنتج إلى السلة");
   }
 
   function handleGoToCheckout() {
-    if (!product) return;
-    addToCart(normalizeProduct(product));
+    if (!product || product.stock <= 0) return;
+    addToCart(normalizeProductForCart(product));
     navigate("/checkout");
   }
 
@@ -224,6 +330,11 @@ export default function ProductDetailsPage() {
 
       if (!reviewForm.comment.trim()) {
         setReviewMessage("يرجى كتابة تعليق");
+        return;
+      }
+
+      if (!isValidReviewImageUrl(reviewForm.review_image_url)) {
+        setReviewMessage("رابط صورة المراجعة غير صالح");
         return;
       }
 
@@ -266,7 +377,9 @@ export default function ProductDetailsPage() {
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="loading-state">جاري تحميل المنتج...</div>
+        <div className="page-stack">
+          <div className="loading-state">جاري تحميل المنتج...</div>
+        </div>
       </section>
     );
   }
@@ -274,7 +387,13 @@ export default function ProductDetailsPage() {
   if (!product) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="empty-state">المنتج غير موجود</div>
+        <div className="page-stack">
+          {message ? <div className="message-box">{message}</div> : null}
+          <div className="empty-state">المنتج غير موجود</div>
+          <Link to="/products" className="btn btn-primary full-width">
+            الرجوع إلى المنتجات
+          </Link>
+        </div>
       </section>
     );
   }
@@ -517,8 +636,8 @@ export default function ProductDetailsPage() {
                   <div
                     key={p.id}
                     className="product-card"
-                    onClick={() => navigate(`/products/${p.slug}`)}
-                    style={{ cursor: "pointer" }}
+                    onClick={() => p.slug && navigate(`/products/${p.slug}`)}
+                    style={{ cursor: p.slug ? "pointer" : "default" }}
                   >
                     {resolveImageUrl(p.image_url) ? (
                       <img
@@ -535,6 +654,10 @@ export default function ProductDetailsPage() {
                       <p className="product-card__desc">
                         {p.description_ar || "منتج مشابه داخل نفس الفئة"}
                       </p>
+                      <div style={styles.similarMeta}>
+                        <span>{p.seller_name || "RAHBA"}</span>
+                        <span>{p.stock > 0 ? "متوفر" : "غير متوفر"}</span>
+                      </div>
                       <strong className="product-card__price">{p.price_mad} MAD</strong>
                     </div>
                   </div>
@@ -825,6 +948,15 @@ const styles = {
     objectFit: "cover",
     borderRadius: "16px",
     border: "1px solid #e7ddcf"
+  },
+  similarMeta: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
   },
   stickyBarWrap: {
     position: "sticky",
