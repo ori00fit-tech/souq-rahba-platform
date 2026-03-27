@@ -13,7 +13,6 @@ function saveGuestOrder(entry) {
         index === arr.findIndex((x) => x.order_number === item.order_number)
       )
       .slice(0, 20);
-
     localStorage.setItem("guest_orders", JSON.stringify(next));
   } catch (error) {
     console.error("Failed to save guest order", error);
@@ -22,20 +21,18 @@ function saveGuestOrder(entry) {
 
 function normalizeZoneCode(city) {
   const value = String(city || "").trim().toLowerCase();
-
   const map = {
-    "casablanca": "casablanca",
+    casablanca: "casablanca",
     "الدار البيضاء": "casablanca",
-    "casa": "casablanca",
-    "rabat": "rabat",
+    casa: "casablanca",
+    rabat: "rabat",
     "الرباط": "rabat",
-    "tangier": "tangier",
-    "tanger": "tangier",
+    tangier: "tangier",
+    tanger: "tangier",
     "طنجة": "tangier",
-    "marrakech": "marrakech",
-    "مراكش": "marrakech",
+    marrakech: "marrakech",
+    "مراكش": "marrakech"
   };
-
   return map[value] || "other";
 }
 
@@ -48,7 +45,7 @@ function pickSmartShipping(options) {
     return {
       bestKey: null,
       cheapestKey: null,
-      fastestKey: null,
+      fastestKey: null
     };
   }
 
@@ -56,7 +53,7 @@ function pickSmartShipping(options) {
     ...option,
     _key: `${option.provider_method_id}::${option.zone_code}`,
     _price: Number(option.shipping_price || 0),
-    _speed: shippingSpeed(option),
+    _speed: shippingSpeed(option)
   }));
 
   const cheapest = [...keyed].sort((a, b) => {
@@ -77,7 +74,6 @@ function pickSmartShipping(options) {
     const aScore = a._price * 1.0 + a._speed * 8;
     const bScore = b._price * 1.0 + b._speed * 8;
     if (aScore !== bScore) return aScore - bScore;
-
     if (a._price !== b._price) return a._price - b._price;
     return a._speed - b._speed;
   })[0];
@@ -85,7 +81,7 @@ function pickSmartShipping(options) {
   return {
     bestKey: best?._key || null,
     cheapestKey: cheapest?._key || null,
-    fastestKey: fastest?._key || null,
+    fastestKey: fastest?._key || null
   };
 }
 
@@ -93,18 +89,29 @@ function optionKey(option) {
   return `${option.provider_method_id}::${option.zone_code}`;
 }
 
+function normalizeMoroccanPhone(input) {
+  const raw = String(input || "").trim().replace(/\s+/g, "");
+  if (!raw) return "";
+  if (raw.startsWith("+212")) return `0${raw.slice(4)}`;
+  if (raw.startsWith("212")) return `0${raw.slice(3)}`;
+  return raw;
+}
+
+function getApiErrorMessage(result, fallback = "فشل إنشاء الطلب") {
+  return result?.error?.message || result?.message || fallback;
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, total, currency, language, currentUser, removeFromCart } = useApp();
+  const { cart, currency, language, currentUser, removeFromCart } = useApp();
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [results, setResults] = useState([]);
-
   const [shippingLoading, setShippingLoading] = useState(false);
   const [shippingMessage, setShippingMessage] = useState("");
   const [shippingState, setShippingState] = useState({});
-
+  const [cityTouched, setCityTouched] = useState(false);
   const [form, setForm] = useState({
     buyer_name: "",
     buyer_phone: "",
@@ -131,22 +138,24 @@ export default function CheckoutPage() {
   const ordersGrouped = useMemo(() => {
     const groups = {};
 
-    (cart || []).forEach((item) => {
-      const sellerId = item.seller_id || "default";
-      if (!groups[sellerId]) {
-        groups[sellerId] = {
+    (Array.isArray(cart) ? cart : []).forEach((item) => {
+      const sellerId = String(item.seller_id || "").trim();
+      const sellerKey = sellerId || `seller:${item.seller || "RAHBA"}`;
+
+      if (!groups[sellerKey]) {
+        groups[sellerKey] = {
           seller_id: sellerId,
           seller_name: item.seller || "RAHBA",
           items: []
         };
       }
 
-      groups[sellerId].items.push({
+      groups[sellerKey].items.push({
         id: item.id,
         product_id: item.id,
-        quantity: Number(item.qty || item.quantity || 1),
+        quantity: Math.max(1, Number(item.qty || item.quantity || 1)),
         price: Number(item.price || 0),
-        name: item.name || "منتج"
+        name: item.name || item.title_ar || "منتج"
       });
     });
 
@@ -161,6 +170,11 @@ export default function CheckoutPage() {
 
   const numSellers = ordersGrouped.length;
 
+  const subtotal = useMemo(
+    () => ordersGrouped.reduce((sum, group) => sum + group.subtotal, 0),
+    [ordersGrouped]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -173,7 +187,7 @@ export default function CheckoutPage() {
 
       if (!form.buyer_city.trim()) {
         setShippingState({});
-        setShippingMessage("أدخل المدينة لإظهار خيارات الشحن الذكية.");
+        setShippingMessage(cityTouched ? "أدخل المدينة لإظهار خيارات الشحن الذكية." : "");
         return;
       }
 
@@ -203,7 +217,8 @@ export default function CheckoutPage() {
 
             const options = Array.isArray(res?.data) ? res.data : [];
             const ranked = pickSmartShipping(options);
-            const selectedKey = ranked.bestKey || ranked.cheapestKey || ranked.fastestKey || null;
+            const selectedKey =
+              ranked.bestKey || ranked.cheapestKey || ranked.fastestKey || null;
 
             return [
               group.seller_id,
@@ -218,6 +233,16 @@ export default function CheckoutPage() {
 
         if (!cancelled) {
           setShippingState(Object.fromEntries(results));
+
+          const noOptionsCount = results.filter(
+            ([, value]) => !Array.isArray(value.options) || value.options.length === 0
+          ).length;
+
+          setShippingMessage(
+            noOptionsCount > 0
+              ? "بعض الباعة لا يتوفر لهم شحن ذكي حالياً، وسيبقى الشحن غير محدد لهم."
+              : ""
+          );
         }
       } catch (error) {
         console.error(error);
@@ -234,22 +259,30 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [ordersGrouped, form.buyer_city]);
+  }, [ordersGrouped, form.buyer_city, cityTouched]);
 
   function validateForm() {
     if (!form.buyer_name.trim()) return "يرجى إدخال الاسم الكامل";
-    if (!form.buyer_phone.trim()) return "يرجى إدخال رقم الهاتف";
-    if (!/^0[5-7][0-9]{8}$/.test(form.buyer_phone.trim())) {
+
+    const normalizedPhone = normalizeMoroccanPhone(form.buyer_phone);
+    if (!normalizedPhone) return "يرجى إدخال رقم الهاتف";
+    if (!/^0[5-7][0-9]{8}$/.test(normalizedPhone)) {
       return "يرجى إدخال رقم هاتف مغربي صحيح";
     }
+
     if (!form.buyer_city.trim()) return "يرجى إدخال المدينة";
     if (!form.buyer_address.trim()) return "يرجى إدخال العنوان";
     if (!ordersGrouped.length) return "السلة فارغة";
 
+    const missingSeller = ordersGrouped.some(
+      (group) => !group.seller_id || group.seller_id === "default"
+    );
+    if (missingSeller) {
+      return "بعض المنتجات لا تحتوي على بائع صالح. أعد إضافة المنتجات من صفحاتها الرسمية.";
+    }
+
     const needsShippingChoice = ordersGrouped.some(
       (group) =>
-        group.seller_id &&
-        group.seller_id !== "default" &&
         Array.isArray(shippingState[group.seller_id]?.options) &&
         shippingState[group.seller_id].options.length > 0 &&
         !shippingState[group.seller_id].selectedKey
@@ -265,7 +298,6 @@ export default function CheckoutPage() {
   function getSelectedShipping(group) {
     const sellerShipping = shippingState[group.seller_id];
     if (!sellerShipping?.selectedKey) return null;
-
     return (sellerShipping.options || []).find(
       (option) => optionKey(option) === sellerShipping.selectedKey
     ) || null;
@@ -278,10 +310,21 @@ export default function CheckoutPage() {
     }, 0);
   }, [ordersGrouped, shippingState]);
 
-  const grandTotal = total + shippingTotal;
+  const hasAnyShippingOptions = useMemo(
+    () =>
+      ordersGrouped.some(
+        (group) =>
+          Array.isArray(shippingState[group.seller_id]?.options) &&
+          shippingState[group.seller_id].options.length > 0
+      ),
+    [ordersGrouped, shippingState]
+  );
+
+  const grandTotal = subtotal + shippingTotal;
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (submitting) return;
 
     const validationError = validateForm();
     if (validationError) {
@@ -300,11 +343,11 @@ export default function CheckoutPage() {
 
         const payload = {
           buyer_name: form.buyer_name.trim(),
-          buyer_phone: form.buyer_phone.trim(),
+          buyer_phone: normalizeMoroccanPhone(form.buyer_phone),
           buyer_city: form.buyer_city.trim(),
           buyer_address: form.buyer_address.trim(),
           notes: form.notes.trim() || null,
-          seller_id: group.seller_id === "default" ? null : group.seller_id,
+          seller_id: group.seller_id,
           payment_method: "cod",
           shipping_price: Number(selectedShipping?.shipping_price || 0),
           shipping_provider_id: selectedShipping?.provider_id || null,
@@ -322,21 +365,21 @@ export default function CheckoutPage() {
 
         if (res?.ok) {
           const orderNumber = res.data?.order_number || "—";
-          const totalMad =
-            Number(res.data?.total_mad ?? group.subtotal) +
-            Number(selectedShipping?.shipping_price || 0);
+          const totalMad = Number(res.data?.total_mad ?? group.subtotal);
 
           newResults.push({
             ok: true,
             seller: group.seller_name,
+            order_id: res.data?.id || null,
             order_number: orderNumber,
             total_mad: totalMad
           });
 
           if (!currentUser) {
             saveGuestOrder({
+              order_id: res.data?.id || null,
               order_number: orderNumber,
-              phone: form.buyer_phone.trim(),
+              phone: normalizeMoroccanPhone(form.buyer_phone),
               seller: group.seller_name,
               total_mad: totalMad,
               created_at: new Date().toISOString()
@@ -348,7 +391,7 @@ export default function CheckoutPage() {
           newResults.push({
             ok: false,
             seller: group.seller_name,
-            error: res?.message || "فشل إنشاء الطلب"
+            error: getApiErrorMessage(res, "فشل إنشاء الطلب")
           });
         }
       } catch (err) {
@@ -397,7 +440,7 @@ export default function CheckoutPage() {
               <div className="ui-card-soft" style={s.guestSavedBox}>
                 <strong style={s.guestSavedTitle}>تم حفظ طلباتك على هذا الجهاز</strong>
                 <span style={s.guestSavedText}>
-                  يمكنك الرجوع لاحقاً إلى صفحة "طلباتي" من نفس المتصفح ونفس الهاتف.
+                  يمكنك الرجوع لاحقاً إلى صفحة طلباتي من نفس المتصفح ونفس الهاتف.
                 </span>
               </div>
             ) : null}
@@ -537,7 +580,10 @@ export default function CheckoutPage() {
               <input
                 className="ui-input"
                 value={form.buyer_city}
-                onChange={(e) => setForm({ ...form, buyer_city: e.target.value })}
+                onChange={(e) => {
+                  setCityTouched(true);
+                  setForm({ ...form, buyer_city: e.target.value });
+                }}
                 placeholder="مثلاً: الدار البيضاء"
               />
             </label>
@@ -590,7 +636,7 @@ export default function CheckoutPage() {
                 const selectedShipping = getSelectedShipping(group);
 
                 return (
-                  <div key={group.seller_id} className="ui-card-soft" style={s.groupCard}>
+                  <div key={`${group.seller_id || group.seller_name}`} className="ui-card-soft" style={s.groupCard}>
                     <div style={s.groupHead}>
                       <strong style={s.groupSeller}>{group.seller_name}</strong>
                       <span style={s.groupSubtotal}>
@@ -674,13 +720,17 @@ export default function CheckoutPage() {
                           })}
                         </div>
                       </div>
-                    ) : group.seller_id && group.seller_id !== "default" ? (
+                    ) : group.seller_id ? (
                       <div style={s.shippingEmptyBox}>
                         {shippingLoading
                           ? "جاري تحميل خيارات الشحن..."
                           : "لا توجد خيارات شحن ذكية متاحة لهذا البائع حالياً."}
                       </div>
-                    ) : null}
+                    ) : (
+                      <div style={s.shippingEmptyBox}>
+                        هذا المنتج لا يحتوي على بائع صالح لإتمام الشحن.
+                      </div>
+                    )}
 
                     <div style={s.groupShippingRow}>
                       <span>الشحن المختار</span>
@@ -689,7 +739,9 @@ export default function CheckoutPage() {
                           ? Number(selectedShipping.shipping_price || 0) === 0
                             ? "مجاني"
                             : formatMoney(selectedShipping.shipping_price, currency, locale)
-                          : "—"}
+                          : hasAnyShippingOptions
+                          ? "غير محدد بعد"
+                          : "غير متوفر حالياً"}
                       </strong>
                     </div>
                   </div>
@@ -705,13 +757,15 @@ export default function CheckoutPage() {
 
               <div style={s.totalRow}>
                 <span>المجموع الفرعي</span>
-                <strong>{formatMoney(total, currency, locale)}</strong>
+                <strong>{formatMoney(subtotal, currency, locale)}</strong>
               </div>
 
               <div style={s.totalRow}>
                 <span>التوصيل</span>
                 <strong>
-                  {shippingTotal === 0 ? "مجاني" : formatMoney(shippingTotal, currency, locale)}
+                  {hasAnyShippingOptions
+                    ? formatMoney(shippingTotal, currency, locale)
+                    : "غير محدد بعد"}
                 </strong>
               </div>
 
@@ -938,8 +992,8 @@ const s = {
     fontWeight: 800
   },
   codBadge: {
-    background: "#f3e8ff",
-    color: "#7c3aed",
+    background: "#ede9fe",
+    color: "#6d28d9",
     border: "1px solid #c4b5fd",
     borderRadius: "999px",
     padding: "4px 8px",
@@ -949,17 +1003,17 @@ const s = {
   shippingEmptyBox: {
     padding: "12px",
     borderRadius: "14px",
-    background: "#fff7ed",
-    border: "1px solid #fdba74",
-    color: "#9a3412",
-    fontWeight: 700
+    border: "1px dashed #d6d3d1",
+    background: "#fafaf9",
+    color: "#6b7280",
+    lineHeight: 1.8
   },
   groupShippingRow: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
-    color: "#334155",
-    fontWeight: 800
+    gap: "12px",
+    color: "#4b5563",
+    fontWeight: 700
   },
   totals: {
     display: "grid",
@@ -990,24 +1044,23 @@ const s = {
     justifyContent: "center"
   },
   successCard: {
-    padding: "22px",
+    padding: "20px",
     display: "grid",
-    gap: "14px"
+    gap: "14px",
+    textAlign: "center"
   },
   successIcon: {
-    fontSize: "42px",
-    textAlign: "center"
+    fontSize: "42px"
   },
   resultsStats: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "10px"
   },
   statCard: {
     padding: "14px",
     display: "grid",
-    gap: "6px",
-    textAlign: "center"
+    gap: "6px"
   },
   statLabel: {
     color: "#6b7280",
@@ -1015,7 +1068,7 @@ const s = {
     fontWeight: 700
   },
   statSuccess: {
-    color: "#15803d",
+    color: "#166534",
     fontSize: "24px",
     fontWeight: 900
   },
@@ -1026,7 +1079,8 @@ const s = {
   },
   resultsList: {
     display: "grid",
-    gap: "10px"
+    gap: "10px",
+    textAlign: "right"
   },
   resultRow: {
     padding: "14px",
@@ -1045,8 +1099,7 @@ const s = {
   },
   resultMeta: {
     color: "#6b7280",
-    fontSize: "13px",
-    fontWeight: 700
+    fontSize: "13px"
   },
   resultSide: {
     display: "grid",
@@ -1054,18 +1107,14 @@ const s = {
     textAlign: "left"
   },
   orderNumber: {
-    color: "#1f2937",
-    fontWeight: 900
+    color: "#111827"
   },
   orderAmount: {
-    color: "#6b7280",
-    fontSize: "13px",
-    fontWeight: 700
+    color: "#173b74",
+    fontWeight: 900
   },
   errorText: {
-    color: "#b91c1c",
-    fontWeight: 800,
-    maxWidth: "160px"
+    color: "#b91c1c"
   },
   successActions: {
     display: "grid",

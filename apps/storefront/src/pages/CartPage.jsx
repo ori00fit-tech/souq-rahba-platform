@@ -3,9 +3,17 @@ import { useMemo } from "react";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
 
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
+}
+
 export default function CartPage() {
   const navigate = useNavigate();
-  const { cart, removeFromCart, updateQty, total, currency, language, cartCount } = useApp();
+  const { cart, removeFromCart, updateQty, currency, language, cartCount } = useApp();
 
   const locale =
     language === "ar" ? "ar-MA" :
@@ -14,17 +22,17 @@ export default function CartPage() {
 
   const normalizedCart = useMemo(() => {
     if (!Array.isArray(cart)) return [];
-
     return cart.map((item) => ({
       id: item.id,
-      slug: item.slug,
-      name: item.name || "منتج",
-      seller_id: item.seller_id || "unknown",
+      slug: item.slug || "",
+      name: item.name || item.title_ar || "منتج",
+      seller_id: item.seller_id || "",
       seller: item.seller || "بائع غير معروف",
       city: item.city || "",
-      image_url: item.image_url || "",
-      price: Number(item.price ?? 0),
-      qty: Number(item.qty || item.quantity || 1)
+      image_url: resolveImageUrl(item.image_url || ""),
+      price: Number(item.price ?? item.price_mad ?? 0),
+      qty: Math.max(1, Number(item.qty || item.quantity || 1)),
+      stock: Number(item.stock ?? 0)
     }));
   }, [cart]);
 
@@ -32,15 +40,15 @@ export default function CartPage() {
     const map = new Map();
 
     for (const item of normalizedCart) {
-      if (!map.has(item.seller_id)) {
-        map.set(item.seller_id, {
-          seller_id: item.seller_id,
+      const sellerKey = item.seller_id || `seller:${item.seller}`;
+      if (!map.has(sellerKey)) {
+        map.set(sellerKey, {
+          seller_id: item.seller_id || "",
           seller_name: item.seller,
           items: []
         });
       }
-
-      map.get(item.seller_id).items.push(item);
+      map.get(sellerKey).items.push(item);
     }
 
     return Array.from(map.values()).map((group) => ({
@@ -49,9 +57,13 @@ export default function CartPage() {
     }));
   }, [normalizedCart]);
 
+  const subtotal = useMemo(
+    () => normalizedCart.reduce((sum, item) => sum + item.price * item.qty, 0),
+    [normalizedCart]
+  );
+
   const sellerCount = groupedBySeller.length;
-  const shipping = total > 0 ? 0 : 0;
-  const grandTotal = total + shipping;
+  const shippingLabel = "يتم احتسابه في صفحة الإتمام";
 
   function decreaseQty(item) {
     const nextQty = item.qty - 1;
@@ -84,7 +96,6 @@ export default function CartPage() {
             <p style={s.emptyText}>
               تصفح المنتجات المناسبة لك وابدأ بإضافة أول منتج إلى السلة.
             </p>
-
             <Link to="/products" className="btn btn-primary full-width">
               تصفح المنتجات
             </Link>
@@ -107,7 +118,7 @@ export default function CartPage() {
           <div style={s.metaRow}>
             <span className="ui-chip">{cartCount || normalizedCart.length} عنصر</span>
             <span className="ui-chip">{sellerCount} بائع</span>
-            <span className="ui-chip">{formatMoney(total, currency, locale)}</span>
+            <span className="ui-chip">{formatMoney(subtotal, currency, locale)}</span>
           </div>
         </div>
 
@@ -131,15 +142,12 @@ export default function CartPage() {
         <div style={s.layout}>
           <div style={s.itemsCol}>
             {groupedBySeller.map((group) => (
-              <section key={group.seller_id} className="ui-card" style={s.sellerSection}>
+              <section key={`${group.seller_id || group.seller_name}`} className="ui-card" style={s.sellerSection}>
                 <div style={s.sellerHeader}>
                   <div>
                     <div style={s.sellerName}>{group.seller_name}</div>
-                    <div style={s.sellerMeta}>
-                      {group.items.length} منتج
-                    </div>
+                    <div style={s.sellerMeta}>{group.items.length} منتج</div>
                   </div>
-
                   <div style={s.sellerSubtotal}>
                     {formatMoney(group.subtotal, currency, locale)}
                   </div>
@@ -148,7 +156,6 @@ export default function CartPage() {
                 <div style={s.groupItems}>
                   {group.items.map((item) => {
                     const lineTotal = item.price * item.qty;
-
                     return (
                       <article key={item.id} className="ui-card-soft" style={s.itemCard}>
                         <div style={s.itemTop}>
@@ -171,7 +178,9 @@ export default function CartPage() {
 
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} style={s.itemImage} />
-                        ) : null}
+                        ) : (
+                          <div style={s.itemImageFallback}>📦</div>
+                        )}
 
                         <div style={s.itemBottom}>
                           <div style={s.qtyControl}>
@@ -203,6 +212,12 @@ export default function CartPage() {
                             </div>
                           </div>
                         </div>
+
+                        {item.stock > 0 ? (
+                          <div style={s.stockOk}>متوفر: {item.stock}</div>
+                        ) : (
+                          <div style={s.stockWarn}>تحقق من التوفر قبل إتمام الطلب</div>
+                        )}
                       </article>
                     );
                   })}
@@ -227,19 +242,19 @@ export default function CartPage() {
 
               <div style={s.summaryRow}>
                 <span>المجموع الفرعي</span>
-                <strong>{formatMoney(total, currency, locale)}</strong>
+                <strong>{formatMoney(subtotal, currency, locale)}</strong>
               </div>
 
               <div style={s.summaryRow}>
                 <span>التوصيل</span>
-                <strong>{shipping === 0 ? "مجاني" : formatMoney(shipping, currency, locale)}</strong>
+                <strong>{shippingLabel}</strong>
               </div>
 
               <div style={s.divider} />
 
               <div style={s.summaryRowTotal}>
-                <span>الإجمالي</span>
-                <strong>{formatMoney(grandTotal, currency, locale)}</strong>
+                <span>الإجمالي الحالي</span>
+                <strong>{formatMoney(subtotal, currency, locale)}</strong>
               </div>
             </div>
 
@@ -248,7 +263,7 @@ export default function CartPage() {
               onClick={() => navigate("/checkout")}
               className="btn btn-primary full-width"
             >
-              متابعة إلى Checkout
+              متابعة إلى إتمام الطلب
             </button>
 
             <Link to="/products" className="btn btn-secondary full-width" style={s.backBtn}>
@@ -370,6 +385,16 @@ const s = {
     borderRadius: "16px",
     border: "1px solid #ece3d8"
   },
+  itemImageFallback: {
+    width: "100%",
+    minHeight: "140px",
+    borderRadius: "16px",
+    border: "1px solid #ece3d8",
+    background: "#f8f7f3",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "36px"
+  },
   itemBottom: {
     display: "flex",
     justifyContent: "space-between",
@@ -417,6 +442,16 @@ const s = {
     color: "#173b74",
     fontSize: "20px",
     fontWeight: 900
+  },
+  stockOk: {
+    color: "#166534",
+    fontSize: "13px",
+    fontWeight: 800
+  },
+  stockWarn: {
+    color: "#b45309",
+    fontSize: "13px",
+    fontWeight: 800
   },
   summaryCard: {
     padding: "16px",
