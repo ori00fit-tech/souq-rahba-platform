@@ -11,6 +11,8 @@ import BuyerOrdersPage from "./pages/BuyerOrdersPage";
 import BuyerOrderDetailsPage from "./pages/BuyerOrderDetailsPage";
 import AboutPage from "./pages/AboutPage";
 import HelpPage from "./pages/HelpPage";
+import TermsPage from "./pages/TermsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import AuthPage from "./pages/AuthPage";
 import ShowcasePage from "./pages/ShowcasePage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/my-orders/:id" element={<BuyerOrderDetailsPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/help" element={<HelpPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/showcase" element={<ShowcasePage />} />
         <Route path="*" element={<NotFoundPage />} />
