@@ -1,70 +1,78 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet } from "../lib/api";
 
+function resolveImageUrl(url) {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
+  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
+  return url;
+}
+
 function normalizeSeller(seller) {
   return {
-    id: seller.id,
-    slug: seller.slug || "",
-    display_name: seller.display_name || seller.name || "متجر بدون اسم",
-    city: seller.city || "المغرب",
-    verified: Number(seller.verified || 0),
-    kyc_status: seller.kyc_status || "pending",
-    rating: Number(seller.rating || 0),
-    logo_url: seller.logo_url || null,
+    id: seller?.id || "",
+    slug: seller?.slug || "",
+    display_name: seller?.display_name || seller?.name || "متجر بدون اسم",
+    city: seller?.city || "المغرب",
+    verified: Number(seller?.verified || 0),
+    kyc_status: seller?.kyc_status || "pending",
+    rating: Number(seller?.rating || 0),
+    logo_url: resolveImageUrl(seller?.logo_url || ""),
     description:
-      seller.description ||
+      seller?.description ||
       "بائع موثوق داخل منصة رحبة مع منتجات جاهزة للتصفح والطلب."
   };
 }
 
+function getApiErrorMessage(result, fallback = "تعذر تحميل الباعة") {
+  return result?.error?.message || result?.message || fallback;
+}
+
 export default function SellersPage() {
+  const requestIdRef = useRef(0);
+
   const [sellers, setSellers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
+  async function loadSellers() {
+    const requestId = ++requestIdRef.current;
 
-    async function loadSellers() {
-      try {
-        setLoading(true);
-        setMessage("");
+    try {
+      setLoading(true);
+      setMessage("");
 
-        const result = await apiGet("/catalog/home");
+      const result = await apiGet("/catalog/home");
 
-        if (!result?.ok) {
-          throw new Error(
-            result?.error?.message ||
-              result?.message ||
-              "تعذر تحميل الباعة"
-          );
-        }
+      if (requestId !== requestIdRef.current) return;
 
-        const items = Array.isArray(result?.data?.featured_sellers)
-          ? result.data.featured_sellers
-          : [];
+      if (!result?.ok) {
+        setSellers([]);
+        setMessage(getApiErrorMessage(result, "تعذر تحميل الباعة"));
+        return;
+      }
 
-        if (!cancelled) {
-          setSellers(items.map(normalizeSeller));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setSellers([]);
-          setMessage(err?.message || "حدث خطأ أثناء تحميل الباعة");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      const items = Array.isArray(result?.data?.featured_sellers)
+        ? result.data.featured_sellers
+        : [];
+
+      setSellers(items.map(normalizeSeller));
+    } catch (err) {
+      console.error(err);
+      if (requestId !== requestIdRef.current) return;
+      setSellers([]);
+      setMessage("حدث خطأ أثناء تحميل الباعة");
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
       }
     }
+  }
 
+  useEffect(() => {
     loadSellers();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const stats = useMemo(() => {
@@ -102,6 +110,17 @@ export default function SellersPage() {
           </div>
         </div>
 
+        <div style={styles.topActions}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={loadSellers}
+            disabled={loading}
+          >
+            {loading ? "جاري التحديث..." : "تحديث الباعة"}
+          </button>
+        </div>
+
         {loading ? (
           <div className="ui-card" style={styles.infoCard}>
             جاري تحميل الباعة...
@@ -117,7 +136,7 @@ export default function SellersPage() {
         ) : (
           <div style={styles.grid}>
             {sellers.map((seller) => (
-              <article key={seller.id} style={styles.card}>
+              <article key={seller.id || seller.slug} style={styles.card}>
                 <div style={styles.top}>
                   <div style={styles.avatar}>
                     {seller.logo_url ? (
@@ -142,7 +161,7 @@ export default function SellersPage() {
                     <div style={styles.metaRow}>
                       <span>📍 {seller.city}</span>
                       <span style={styles.dot}>·</span>
-                      <span>★ {seller.rating.toFixed(1)}</span>
+                      <span>★ {Number(seller.rating || 0).toFixed(1)}</span>
                     </div>
                   </div>
                 </div>
@@ -159,7 +178,7 @@ export default function SellersPage() {
                   </Link>
 
                   <Link
-                    to={seller.slug ? `/products?seller_id=${seller.id}` : "/products"}
+                    to={seller.id ? `/products?seller_id=${seller.id}` : "/products"}
                     className="btn btn-secondary"
                     style={styles.secondaryBtn}
                   >
@@ -170,6 +189,14 @@ export default function SellersPage() {
             ))}
           </div>
         )}
+
+        <div className="ui-card-soft" style={styles.noteCard}>
+          <strong style={styles.noteTitle}>ملاحظة</strong>
+          <span style={styles.noteText}>
+            هذه الصفحة تعرض حالياً الباعة المميزين أو الظاهرين في الصفحة الرئيسية.
+            يمكن لاحقاً ربطها بمسار مخصص لعرض جميع الباعة بشكل كامل.
+          </span>
+        </div>
       </div>
     </section>
   );
@@ -180,6 +207,11 @@ const styles = {
     display: "grid",
     gap: "14px",
     padding: "18px"
+  },
+
+  topActions: {
+    display: "flex",
+    justifyContent: "flex-start"
   },
 
   statsGrid: {
@@ -324,5 +356,20 @@ const styles = {
 
   secondaryBtn: {
     justifyContent: "center"
+  },
+
+  noteCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px"
+  },
+
+  noteTitle: {
+    color: "#173b74"
+  },
+
+  noteText: {
+    color: "#6b7280",
+    lineHeight: 1.8
   }
 };
