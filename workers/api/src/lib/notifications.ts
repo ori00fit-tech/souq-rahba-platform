@@ -1,18 +1,32 @@
-export interface OrderNotificationItem {
+type WhatsAppEnv = {
+  WHATSAPP_ACCESS_TOKEN?: string;
+  WHATSAPP_PHONE_NUMBER_ID?: string;
+  WHATSAPP_BUSINESS_ACCOUNT_ID?: string;
+  WHATSAPP_DEFAULT_COUNTRY_CODE?: string;
+  WHATSAPP_ADMIN_PHONE?: string;
+  STOREFRONT_URL?: string;
+};
+
+type OrderItem = {
   name: string;
   quantity: number;
-}
+};
 
-export interface OrderNotificationData {
+type NewOrderPayload = {
   order_number: string;
   buyer_name: string;
   buyer_phone: string;
   buyer_city: string;
   total_mad: number;
-  items: OrderNotificationItem[];
-  seller_name: string;
+  subtotal_mad?: number;
+  shipping_mad?: number;
+  shipping_provider_id?: string | null;
+  shipping_method_id?: string | null;
+  shipping_method_label?: string | null;
+  items: OrderItem[];
+  seller_name?: string | null;
   seller_phone?: string | null;
-}
+};
 
 function normalizePhone(input: string, defaultCountryCode = "212") {
   const raw = String(input || "").trim().replace(/[^\d+]/g, "");
@@ -24,46 +38,44 @@ function normalizePhone(input: string, defaultCountryCode = "212") {
   return `${defaultCountryCode}${raw}`;
 }
 
-async function sendWhatsAppTemplateMessage(
-  env: {
-    WHATSAPP_ACCESS_TOKEN?: string;
-    WHATSAPP_PHONE_NUMBER_ID?: string;
-    WHATSAPP_DEFAULT_COUNTRY_CODE?: string;
-  },
-  to: string,
-  templateName: string,
-  languageCode: string,
-  parameters: string[] = []
-) {
-  const accessToken = env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = env.WHATSAPP_PHONE_NUMBER_ID;
+function money(value: unknown) {
+  return `${Number(value || 0)} MAD`;
+}
 
-  if (!accessToken || !phoneNumberId) {
-    return { ok: false, skipped: true, reason: "missing_config" };
+function normalizeOrderStatusText(status: unknown) {
+  const value = String(status || "").trim().toLowerCase();
+  switch (value) {
+    case "pending":
+      return "قيد الانتظار";
+    case "confirmed":
+      return "تم التأكيد";
+    case "processing":
+      return "قيد المعالجة";
+    case "shipped":
+      return "تم الشحن";
+    case "delivered":
+      return "تم التسليم";
+    case "cancelled":
+      return "ملغي";
+    default:
+      return "قيد الانتظار";
+  }
+}
+
+function buildTrackingUrl(baseUrl: string | undefined, orderNumber: string) {
+  const origin = String(baseUrl || "https://rahba.site").replace(/\/+$/, "");
+  return `${origin}/track/${encodeURIComponent(orderNumber)}`;
+}
+
+async function sendWhatsAppText(env: WhatsAppEnv, to: string, body: string) {
+  const phoneNumberId = String(env.WHATSAPP_PHONE_NUMBER_ID || "").trim();
+  const accessToken = String(env.WHATSAPP_ACCESS_TOKEN || "").trim();
+
+  if (!phoneNumberId || !accessToken || !to || !body.trim()) {
+    return { ok: false, skipped: true };
   }
 
-  const normalizedTo = normalizePhone(
-    to,
-    env.WHATSAPP_DEFAULT_COUNTRY_CODE || "212"
-  );
-
-  if (!normalizedTo) {
-    return { ok: false, skipped: true, reason: "invalid_phone" };
-  }
-
-  const components = parameters.length
-    ? [
-        {
-          type: "body",
-          parameters: parameters.map((value) => ({
-            type: "text",
-            text: value
-          }))
-        }
-      ]
-    : [];
-
-  const response = await fetch(
+  const res = await fetch(
     `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
     {
       method: "POST",
@@ -73,87 +85,160 @@ async function sendWhatsAppTemplateMessage(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
-        to: normalizedTo,
-        type: "template",
-        template: {
-          name: templateName,
-          language: { code: languageCode },
-          ...(components.length ? { components } : {})
+        to,
+        type: "text",
+        text: {
+          body
         }
       })
     }
   );
 
-  const data = await response.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({}));
 
-  if (!response.ok) {
-    console.error("WhatsApp template send failed", {
-      status: response.status,
-      data,
-      to: normalizedTo,
-      templateName
-    });
-    return { ok: false, skipped: false, status: response.status, data };
+  if (!res.ok) {
+    console.error("WhatsApp text send failed:", res.status, data);
   }
 
-  console.log("WhatsApp template sent successfully", {
-    to: normalizedTo,
-    templateName,
+  return {
+    ok: res.ok,
+    status: res.status,
     data
-  });
-
-  return { ok: true, skipped: false, data };
+  };
 }
 
-export async function notifyNewOrder(
-  env: {
-    WHATSAPP_ACCESS_TOKEN?: string;
-    WHATSAPP_PHONE_NUMBER_ID?: string;
-    WHATSAPP_BUSINESS_ACCOUNT_ID?: string;
-    WHATSAPP_DEFAULT_COUNTRY_CODE?: string;
-    WHATSAPP_ADMIN_PHONE?: string;
-  },
-  order: OrderNotificationData
+async function sendWhatsAppTemplateOrderTracking(
+  env: WhatsAppEnv,
+  to: string,
+  payload: NewOrderPayload
 ) {
-  try {
-    const buyerResult = await sendWhatsAppTemplateMessage(
-      env,
-      order.buyer_phone,
-      "rahba_order_received",
-      "en",
-      [order.order_number]
-    );
+  const phoneNumberId = String(env.WHATSAPP_PHONE_NUMBER_ID || "").trim();
+  const accessToken = String(env.WHATSAPP_ACCESS_TOKEN || "").trim();
 
-    const sellerRecipient = order.seller_phone || env.WHATSAPP_ADMIN_PHONE || "";
+  if (!phoneNumberId || !accessToken || !to) {
+    return { ok: false, skipped: true };
+  }
 
-    const sellerResult = sellerRecipient
-      ? await sendWhatsAppTemplateMessage(
-          env,
-          sellerRecipient,
-          "rahba_new_order_seller",
-          "ar",
-          [
-            order.order_number,
-            order.buyer_name,
-            order.buyer_phone,
-            order.buyer_city,
-            `${order.total_mad} MAD`
+  const totalMadText = money(payload.total_mad || 0);
+  const orderStatusText = normalizeOrderStatusText("pending");
+  const trackingUrl = buildTrackingUrl(env.STOREFRONT_URL, payload.order_number);
+
+  const res = await fetch(
+    `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "rahba_order_tracking_utility_ar",
+          language: {
+            code: "ar"
+          },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  text: String(payload.buyer_name || "عميل رحبة")
+                },
+                {
+                  type: "text",
+                  text: String(payload.order_number || "")
+                },
+                {
+                  type: "text",
+                  text: totalMadText
+                },
+                {
+                  type: "text",
+                  text: orderStatusText
+                }
+              ]
+            },
+            {
+              type: "button",
+              sub_type: "url",
+              index: "0",
+              parameters: [
+                {
+                  type: "text",
+                  text: String(payload.order_number || "")
+                }
+              ]
+            }
           ]
-        )
-      : { ok: false, skipped: true, reason: "missing_seller_and_admin_phone" };
+        }
+      })
+    }
+  );
 
-    return {
-      ok: true,
-      results: {
-        buyer: buyerResult,
-        seller: sellerResult
-      }
-    };
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    console.error("WhatsApp template send failed:", res.status, data, {
+      order_number: payload.order_number,
+      tracking_url: trackingUrl
+    });
+  }
+
+  return {
+    ok: res.ok,
+    status: res.status,
+    data
+  };
+}
+
+export async function notifyNewOrder(env: WhatsAppEnv, payload: NewOrderPayload) {
+  try {
+    const defaultCountryCode = env.WHATSAPP_DEFAULT_COUNTRY_CODE || "212";
+    const adminPhone = normalizePhone(env.WHATSAPP_ADMIN_PHONE || "", defaultCountryCode);
+    const buyerPhone = normalizePhone(payload.buyer_phone || "", defaultCountryCode);
+    const trackingUrl = buildTrackingUrl(env.STOREFRONT_URL, payload.order_number);
+
+    const itemsText = Array.isArray(payload.items) && payload.items.length > 0
+      ? payload.items
+          .map((item) => `- ${item.name} × ${Number(item.quantity || 0)}`)
+          .join("\n")
+      : "- لا توجد عناصر";
+
+    const shippingLine = payload.shipping_method_label
+      ? `الشحن: ${payload.shipping_method_label} (${money(payload.shipping_mad || 0)})`
+      : `الشحن: ${money(payload.shipping_mad || 0)}`;
+
+    const adminMessage = [
+      "طلب جديد في RAHBA",
+      `رقم الطلب: ${payload.order_number}`,
+      `الزبون: ${payload.buyer_name}`,
+      `الهاتف: ${payload.buyer_phone}`,
+      `المدينة: ${payload.buyer_city}`,
+      `البائع: ${payload.seller_name || "RAHBA"}`,
+      `المجموع الفرعي: ${money(payload.subtotal_mad || 0)}`,
+      shippingLine,
+      `الإجمالي: ${money(payload.total_mad || 0)}`,
+      "العناصر:",
+      itemsText,
+      `رابط التتبع: ${trackingUrl}`
+    ].join("\n");
+
+    const jobs: Promise<unknown>[] = [];
+
+    if (adminPhone) {
+      jobs.push(sendWhatsAppText(env, adminPhone, adminMessage));
+    }
+
+    if (buyerPhone) {
+      jobs.push(sendWhatsAppTemplateOrderTracking(env, buyerPhone, payload));
+    }
+
+    await Promise.allSettled(jobs);
   } catch (error) {
-    console.error("Failed to process notifications:", error);
-    return {
-      ok: false,
-      error: String(error)
-    };
+    console.error("notifyNewOrder failed:", error);
   }
 }
