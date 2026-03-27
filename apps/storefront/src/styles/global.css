@@ -403,3 +403,12 @@ a {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+@keyframes rahbaPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
