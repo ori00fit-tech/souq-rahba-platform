@@ -50,6 +50,15 @@ async function getOptionalAuthUser(c: any): Promise<OptionalAuthUser | null> {
   return (session as OptionalAuthUser | null) || null;
 }
 
+function normalizeMoroccanPhone(input: unknown): string {
+  const raw = String(input || "").trim().replace(/\s+/g, "");
+  if (!raw) return "";
+
+  if (raw.startsWith("+212")) return `0${raw.slice(4)}`;
+  if (raw.startsWith("212")) return `0${raw.slice(3)}`;
+  return raw;
+}
+
 function normalizeStatusInput(value: string) {
   const status = String(value || "").trim().toLowerCase();
   const allowed = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
@@ -847,5 +856,198 @@ orderRouter.patch(
     }
   }
 );
+
+orderRouter.get("/track/:orderNumber", async (c) => {
+  try {
+    const orderNumber = String(c.req.param("orderNumber") || "").trim().toUpperCase();
+    const phone = normalizeMoroccanPhone(c.req.query("phone"));
+
+    if (!orderNumber) {
+      return c.json(
+        {
+          ok: false,
+          data: null,
+          meta: null,
+          error: {
+            code: "ORDER_NUMBER_REQUIRED",
+            message: "order_number is required"
+          }
+        },
+        400
+      );
+    }
+
+    if (!phone) {
+      return c.json(
+        {
+          ok: false,
+          data: null,
+          meta: null,
+          error: {
+            code: "PHONE_REQUIRED",
+            message: "phone is required"
+          }
+        },
+        400
+      );
+    }
+
+    const order = await c.env.DB.prepare(
+      `
+      select
+        o.id,
+        o.order_number,
+        o.buyer_phone,
+        o.buyer_name,
+        o.buyer_city,
+        o.order_status,
+        o.payment_status,
+        o.shipping_status,
+        o.total_mad,
+        o.created_at,
+        o.tracking_number,
+        s.display_name as seller_name
+      from orders o
+      left join sellers s on s.id = o.seller_id
+      where upper(o.order_number) = upper(?)
+      limit 1
+      `
+    )
+      .bind(orderNumber)
+      .first<any>();
+
+    if (!order) {
+      return c.json(
+        {
+          ok: false,
+          data: null,
+          meta: null,
+          error: {
+            code: "ORDER_NOT_FOUND",
+            message: "Order not found"
+          }
+        },
+        404
+      );
+    }
+
+    if (normalizeMoroccanPhone(order.buyer_phone) !== phone) {
+      return c.json(
+        {
+          ok: false,
+          data: null,
+          meta: null,
+          error: {
+            code: "ORDER_NOT_FOUND",
+            message: "Order not found"
+          }
+        },
+        404
+      );
+    }
+
+    const itemsRes = await c.env.DB.prepare(
+      `
+      select
+        oi.id,
+        oi.product_id,
+        oi.quantity,
+        oi.unit_price_mad,
+        p.title_ar,
+        p.slug,
+        (
+          select pm.url
+          from product_media pm
+          where pm.product_id = p.id
+          order by pm.sort_order asc, pm.rowid asc
+          limit 1
+        ) as image_url
+      from order_items oi
+      left join products p on p.id = oi.product_id
+      where oi.order_id = ?
+      order by oi.rowid asc
+      `
+    )
+      .bind(order.id)
+      .all();
+
+    const shipmentsRes = await c.env.DB.prepare(
+      `
+      select
+        os.id,
+        os.provider_id,
+        os.provider_method_id,
+        os.shipping_price,
+        os.shipping_status,
+        os.tracking_number,
+        os.shipped_at,
+        os.delivered_at,
+        lp.name as provider_name,
+        lpm.name as method_name,
+        lpm.code as method_code
+      from order_shipments os
+      left join logistics_providers lp on lp.id = os.provider_id
+      left join logistics_provider_methods lpm on lpm.id = os.provider_method_id
+      where os.order_id = ?
+      order by datetime(os.created_at) asc
+      `
+    )
+      .bind(order.id)
+      .all();
+
+    const shipments = Array.isArray(shipmentsRes.results) ? shipmentsRes.results : [];
+    const primaryShipment = shipments[0] || null;
+
+    return c.json({
+      ok: true,
+      data: {
+        id: order.id,
+        order_number: order.order_number,
+        buyer_name: order.buyer_name || null,
+        buyer_city: order.buyer_city || null,
+        seller_name: order.seller_name || "RAHBA",
+        order_status: order.order_status || "pending",
+        payment_status: order.payment_status || "unpaid",
+        shipping_status: order.shipping_status || "pending",
+        total_mad: Number(order.total_mad || 0),
+        created_at: order.created_at || null,
+        tracking_number:
+          primaryShipment?.tracking_number || order.tracking_number || null,
+        items: Array.isArray(itemsRes.results) ? itemsRes.results : [],
+        shipping: primaryShipment
+          ? {
+              id: primaryShipment.id,
+              provider_id: primaryShipment.provider_id,
+              provider_name: primaryShipment.provider_name || null,
+              provider_method_id: primaryShipment.provider_method_id,
+              method_name: primaryShipment.method_name || null,
+              method_code: primaryShipment.method_code || null,
+              shipping_price: Number(primaryShipment.shipping_price || 0),
+              shipping_status: primaryShipment.shipping_status || null,
+              tracking_number: primaryShipment.tracking_number || order.tracking_number || null,
+              shipped_at: primaryShipment.shipped_at || null,
+              delivered_at: primaryShipment.delivered_at || null
+            }
+          : null
+      },
+      meta: null,
+      error: null
+    });
+  } catch (error) {
+    console.error("GET /track/:orderNumber failed", error);
+    return c.json(
+      {
+        ok: false,
+        data: null,
+        meta: null,
+        error: {
+          code: "ORDER_TRACK_FAILED",
+          message: "Failed to track order"
+        }
+      },
+      500
+    );
+  }
+});
 
 export default orderRouter;

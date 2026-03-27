@@ -552,6 +552,15 @@ export default function CheckoutPage() {
                         <span style={s.orderAmount}>
                           {formatMoney(result.total_mad || 0, currency, locale)}
                         </span>
+                        {result.order_number ? (
+                          <Link
+                            to={`/track/${encodeURIComponent(result.order_number)}`}
+                            className="btn btn-secondary"
+                            style={s.trackBtn}
+                          >
+                            تتبع الطلب
+                          </Link>
+                        ) : null}
                       </>
                     ) : (
                       <strong style={s.errorText}>{result.error}</strong>
@@ -1205,6 +1214,12 @@ const s = {
     display: "grid",
     gap: "4px",
     textAlign: "left"
+  },
+  trackBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "36px"
   },
   orderNumber: {
     color: "#111827"

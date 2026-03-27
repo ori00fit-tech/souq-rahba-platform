@@ -19,6 +19,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import TermsPage from "./pages/TermsPage";
 import SupportPage from "./pages/SupportPage";
 import ContactPage from "./pages/ContactPage";
+import GuestTrackPage from "./pages/GuestTrackPage";
 
 export default function App() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/help" element={<HelpPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/track/:orderNumber" element={<GuestTrackPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/auth" element={<AuthPage />} />
