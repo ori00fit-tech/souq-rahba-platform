@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { translations } from "../data/site";
-import { apiGet } from "../lib/api";
+import { apiGet, apiPost } from "../lib/api";
 
 const AppContext = createContext(null);
 
@@ -29,6 +29,10 @@ function clearAuthToken() {
   } catch (err) {
     console.error("Failed to clear auth token", err);
   }
+}
+
+function getApiErrorCode(res) {
+  return res?.error?.code || res?.code || "";
 }
 
 function normalizeCartItem(product) {
@@ -86,10 +90,44 @@ export function AppProvider({ children }) {
     }
   }, [cart]);
 
+  async function refreshCurrentUser() {
+    const token = getAuthToken();
+
+    if (!token) {
+      setCurrentUser(null);
+      return null;
+    }
+
+    try {
+      const res = await apiGet("/auth/me");
+
+      if (!res?.ok) {
+        const code = getApiErrorCode(res);
+        if (code === "UNAUTHORIZED" || code === "SESSION_EXPIRED") {
+          clearAuthToken();
+          setCurrentUser(null);
+          return null;
+        }
+
+        throw new Error(res?.error?.message || "Failed to load current user");
+      }
+
+      const user = res?.data?.user || null;
+      setCurrentUser(user);
+      return user;
+    } catch (err) {
+      console.error("Failed to load current user", err);
+      clearAuthToken();
+      setCurrentUser(null);
+      return null;
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
 
     async function loadCurrentUser() {
+      setAuthLoading(true);
       const token = getAuthToken();
 
       if (!token) {
@@ -102,8 +140,19 @@ export function AppProvider({ children }) {
 
       try {
         const res = await apiGet("/auth/me");
+
         if (!cancelled) {
-          setCurrentUser(res?.data?.user || null);
+          if (res?.ok) {
+            setCurrentUser(res?.data?.user || null);
+          } else {
+            const code = getApiErrorCode(res);
+            if (code === "UNAUTHORIZED" || code === "SESSION_EXPIRED") {
+              clearAuthToken();
+              setCurrentUser(null);
+            } else {
+              setCurrentUser(null);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load current user", err);
@@ -184,16 +233,23 @@ export function AppProvider({ children }) {
 
     try {
       const res = await apiGet("/auth/me");
-      const user = res?.data?.user || null;
 
-      if (user) {
-        setCurrentUser(user);
-        return user;
+      if (!res?.ok) {
+        clearAuthToken();
+        setCurrentUser(null);
+        throw new Error(res?.error?.message || "Failed to load authenticated user");
       }
 
-      clearAuthToken();
-      setCurrentUser(null);
-      throw new Error("Failed to load authenticated user");
+      const user = res?.data?.user || null;
+
+      if (!user) {
+        clearAuthToken();
+        setCurrentUser(null);
+        throw new Error("Failed to load authenticated user");
+      }
+
+      setCurrentUser(user);
+      return user;
     } catch (err) {
       clearAuthToken();
       setCurrentUser(null);
@@ -201,9 +257,19 @@ export function AppProvider({ children }) {
     }
   };
 
-  const logoutUser = () => {
-    clearAuthToken();
-    setCurrentUser(null);
+  const logoutUser = async () => {
+    const token = getAuthToken();
+
+    try {
+      if (token) {
+        await apiPost("/auth/logout", {});
+      }
+    } catch (err) {
+      console.error("Logout request failed", err);
+    } finally {
+      clearAuthToken();
+      setCurrentUser(null);
+    }
   };
 
   const total = useMemo(
@@ -220,6 +286,11 @@ export function AppProvider({ children }) {
     () => cart.reduce((sum, item) => sum + Number(item.qty || item.quantity || 1), 0),
     [cart]
   );
+
+  const isAuthenticated = !!currentUser;
+  const isBuyer = currentUser?.role === "buyer";
+  const isSeller = currentUser?.role === "seller";
+  const isAdmin = currentUser?.role === "admin";
 
   const value = {
     t,
@@ -240,8 +311,13 @@ export function AppProvider({ children }) {
     setQuery,
     currentUser,
     authLoading,
+    isAuthenticated,
+    isBuyer,
+    isSeller,
+    isAdmin,
     loginUser,
-    logoutUser
+    logoutUser,
+    refreshCurrentUser
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

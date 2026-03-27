@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import HomePage from "./pages/HomePage";
 import ProductsPage from "./pages/ProductsPage";
 import ProductDetailsPage from "./pages/ProductDetailsPage";
@@ -11,11 +12,13 @@ import BuyerOrdersPage from "./pages/BuyerOrdersPage";
 import BuyerOrderDetailsPage from "./pages/BuyerOrderDetailsPage";
 import AboutPage from "./pages/AboutPage";
 import HelpPage from "./pages/HelpPage";
-import TermsPage from "./pages/TermsPage";
-import PrivacyPage from "./pages/PrivacyPage";
 import AuthPage from "./pages/AuthPage";
 import ShowcasePage from "./pages/ShowcasePage";
 import NotFoundPage from "./pages/NotFoundPage";
+import PrivacyPage from "./pages/PrivacyPage";
+import TermsPage from "./pages/TermsPage";
+import SupportPage from "./pages/SupportPage";
+import ContactPage from "./pages/ContactPage";
 
 export default function App() {
   return (
@@ -28,12 +31,30 @@ export default function App() {
         <Route path="/sellers/:slug" element={<SellerStorePage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/my-orders" element={<BuyerOrdersPage />} />
-        <Route path="/my-orders/:id" element={<BuyerOrderDetailsPage />} />
+
+        <Route
+          path="/my-orders"
+          element={
+            <ProtectedRoute allowRoles={["buyer", "admin"]}>
+              <BuyerOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/my-orders/:id"
+          element={
+            <ProtectedRoute allowRoles={["buyer", "admin"]}>
+              <BuyerOrderDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/about" element={<AboutPage />} />
         <Route path="/help" element={<HelpPage />} />
-        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/support" element={<SupportPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/showcase" element={<ShowcasePage />} />
         <Route path="*" element={<NotFoundPage />} />
