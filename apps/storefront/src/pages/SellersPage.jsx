@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiGet } from "../lib/api";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import { UI } from "../components/marketplace/uiTokens";
 
 function resolveImageUrl(url) {
   if (!url) return "";
@@ -85,30 +88,31 @@ export default function SellersPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={styles.heroCard}>
+      <div style={styles.stack}>
+        <SectionShell style={styles.heroShell}>
           <div className="ui-chip">RAHBA SELLERS</div>
-          <h1 className="page-title">باعة رحبة</h1>
-          <p className="page-subtitle">
-            اكتشف متاجر موثوقة داخل المنصة، تصفح ملفات الباعة، وانتقل مباشرة
-            إلى متاجرهم ومنتجاتهم.
-          </p>
+          <SectionHead
+            title="باعة رحبة"
+            subtitle="اكتشف متاجر موثوقة داخل المنصة، تصفح ملفات الباعة، وانتقل مباشرة إلى متاجرهم ومنتجاتهم."
+          />
 
           <div style={styles.statsGrid}>
             <div className="ui-card-soft" style={styles.statCard}>
               <strong style={styles.statValue}>{stats.total}</strong>
               <span style={styles.statLabel}>باعة ظاهرون</span>
             </div>
+
             <div className="ui-card-soft" style={styles.statCard}>
               <strong style={styles.statValue}>{stats.verified}</strong>
               <span style={styles.statLabel}>باعة موثقون</span>
             </div>
+
             <div className="ui-card-soft" style={styles.statCard}>
               <strong style={styles.statValue}>{stats.topRated}</strong>
               <span style={styles.statLabel}>تقييم مرتفع</span>
             </div>
           </div>
-        </div>
+        </SectionShell>
 
         <div style={styles.topActions}>
           <button
@@ -122,91 +126,112 @@ export default function SellersPage() {
         </div>
 
         {loading ? (
-          <div className="ui-card" style={styles.infoCard}>
-            جاري تحميل الباعة...
-          </div>
+          <SectionShell>
+            <div style={styles.stateBox}>جاري تحميل الباعة...</div>
+          </SectionShell>
         ) : message ? (
-          <div className="ui-card" style={styles.errorCard}>
-            {message}
-          </div>
+          <SectionShell style={styles.errorShell}>
+            <div style={styles.errorBox}>{message}</div>
+          </SectionShell>
         ) : !sellers.length ? (
-          <div className="ui-card" style={styles.infoCard}>
-            لا يوجد باعة ظاهرون حالياً.
-          </div>
+          <SectionShell>
+            <div style={styles.stateBox}>لا يوجد باعة ظاهرون حالياً.</div>
+          </SectionShell>
         ) : (
-          <div style={styles.grid}>
-            {sellers.map((seller) => (
-              <article key={seller.id || seller.slug} style={styles.card}>
-                <div style={styles.top}>
-                  <div style={styles.avatar}>
-                    {seller.logo_url ? (
-                      <img
-                        src={seller.logo_url}
-                        alt={seller.display_name}
-                        style={styles.avatarImg}
-                      />
-                    ) : (
-                      seller.display_name.slice(0, 1)
-                    )}
-                  </div>
+          <SectionShell>
+            <SectionHead
+              chip="SELLERS DIRECTORY"
+              title="تصفح الباعة"
+              subtitle="اختر البائع المناسب وادخل إلى متجره لمعاينة المنتجات والتفاصيل."
+            />
 
-                  <div style={styles.topMeta}>
-                    <div style={styles.titleRow}>
-                      <h3 style={styles.cardTitle}>{seller.display_name}</h3>
-                      <span style={styles.statusBadge}>
-                        {seller.verified ? "موثّق" : "قيد المراجعة"}
-                      </span>
+            <div style={styles.grid}>
+              {sellers.map((seller) => (
+                <article key={seller.id || seller.slug} style={styles.card}>
+                  <div style={styles.top}>
+                    <div style={styles.avatar}>
+                      {seller.logo_url ? (
+                        <img
+                          src={seller.logo_url}
+                          alt={seller.display_name}
+                          style={styles.avatarImg}
+                        />
+                      ) : (
+                        seller.display_name.slice(0, 1)
+                      )}
                     </div>
 
-                    <div style={styles.metaRow}>
-                      <span>📍 {seller.city}</span>
-                      <span style={styles.dot}>·</span>
-                      <span>★ {Number(seller.rating || 0).toFixed(1)}</span>
+                    <div style={styles.topMeta}>
+                      <div style={styles.titleRow}>
+                        <h3 style={styles.cardTitle}>{seller.display_name}</h3>
+
+                        <span
+                          style={{
+                            ...styles.statusBadge,
+                            ...(seller.verified ? styles.statusVerified : styles.statusPending)
+                          }}
+                        >
+                          {seller.verified ? "موثّق" : "قيد المراجعة"}
+                        </span>
+                      </div>
+
+                      <div style={styles.metaRow}>
+                        <span>📍 {seller.city}</span>
+                        <span style={styles.dot}>•</span>
+                        <span>★ {Number(seller.rating || 0).toFixed(1)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <p style={styles.description}>{seller.description}</p>
+                  <p style={styles.description}>{seller.description}</p>
 
-                <div style={styles.actions}>
-                  <Link
-                    to={seller.slug ? `/sellers/${seller.slug}` : "/sellers"}
-                    className="btn btn-primary"
-                    style={styles.primaryBtn}
-                  >
-                    زيارة المتجر
-                  </Link>
+                  <div style={styles.actions}>
+                    <Link
+                      to={seller.slug ? `/sellers/${seller.slug}` : "/sellers"}
+                      className="btn btn-primary"
+                      style={styles.primaryBtn}
+                    >
+                      زيارة المتجر
+                    </Link>
 
-                  <Link
-                    to={seller.id ? `/products?seller_id=${seller.id}` : "/products"}
-                    className="btn btn-secondary"
-                    style={styles.secondaryBtn}
-                  >
-                    تصفح المنتجات
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
+                    <Link
+                      to={seller.id ? `/products?seller_id=${seller.id}` : "/products"}
+                      className="btn btn-secondary"
+                      style={styles.secondaryBtn}
+                    >
+                      تصفح المنتجات
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </SectionShell>
         )}
 
-        <div className="ui-card-soft" style={styles.noteCard}>
-          <strong style={styles.noteTitle}>ملاحظة</strong>
-          <span style={styles.noteText}>
-            هذه الصفحة تعرض حالياً الباعة المميزين أو الظاهرين في الصفحة الرئيسية.
-            يمكن لاحقاً ربطها بمسار مخصص لعرض جميع الباعة بشكل كامل.
-          </span>
-        </div>
+        <SectionShell>
+          <div className="ui-card-soft" style={styles.noteCard}>
+            <strong style={styles.noteTitle}>ملاحظة</strong>
+            <span style={styles.noteText}>
+              هذه الصفحة تعرض حالياً الباعة المميزين أو الظاهرين في الصفحة الرئيسية.
+              يمكن لاحقاً ربطها بمسار مخصص لعرض جميع الباعة بشكل كامل.
+            </span>
+          </div>
+        </SectionShell>
       </div>
     </section>
   );
 }
 
 const styles = {
-  heroCard: {
+  stack: {
     display: "grid",
-    gap: "14px",
-    padding: "18px"
+    gap: "26px"
+  },
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
   },
 
   topActions: {
@@ -228,44 +253,50 @@ const styles = {
   },
 
   statValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontSize: "20px",
     fontWeight: 900
   },
 
   statLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
 
-  infoCard: {
-    padding: "18px",
-    textAlign: "center"
-  },
-
-  errorCard: {
+  stateBox: {
     padding: "18px",
     textAlign: "center",
-    border: "1.5px solid #fecaca",
-    color: "#991b1b",
+    color: UI.colors.muted,
+    fontWeight: 700
+  },
+
+  errorShell: {
+    border: `1.5px solid ${UI.colors.dangerBorder}`,
     background: "#fff"
+  },
+
+  errorBox: {
+    padding: "18px",
+    textAlign: "center",
+    color: UI.colors.dangerText,
+    fontWeight: 800
   },
 
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-    gap: "14px"
+    gap: UI.spacing.cardGap
   },
 
   card: {
-    background: "#fff",
-    border: "1.5px solid #ddd5c2",
-    borderRadius: "18px",
-    padding: "18px",
+    background: UI.colors.white,
+    border: `1.5px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.xl,
+    padding: UI.spacing.shellPadding,
     display: "grid",
-    gap: "14px",
-    boxShadow: "0 4px 16px rgba(22,53,107,0.08)"
+    gap: UI.spacing.cardGap,
+    boxShadow: UI.shadow.soft
   },
 
   top: {
@@ -278,10 +309,10 @@ const styles = {
   avatar: {
     width: "56px",
     height: "56px",
-    borderRadius: "16px",
+    borderRadius: UI.radius.lg,
     overflow: "hidden",
-    background: "#eef4ff",
-    color: "#16356b",
+    background: UI.colors.softBlue,
+    color: UI.colors.navy,
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
@@ -309,16 +340,25 @@ const styles = {
 
   cardTitle: {
     margin: 0,
-    fontSize: "16px",
+    fontSize: UI.type.titleSm,
     fontWeight: 900,
-    color: "#16356b"
+    color: UI.colors.navy
   },
 
   statusBadge: {
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800,
     padding: "6px 10px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill
+  },
+
+  statusVerified: {
+    background: UI.colors.successBg,
+    border: `1px solid ${UI.colors.successBorder}`,
+    color: UI.colors.successText
+  },
+
+  statusPending: {
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
     color: "#475569"
@@ -328,8 +368,8 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "6px",
-    color: "#64748b",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     flexWrap: "wrap"
   },
 
@@ -341,7 +381,7 @@ const styles = {
     margin: 0,
     color: "#475569",
     lineHeight: 1.8,
-    fontSize: "14px"
+    fontSize: UI.type.body
   },
 
   actions: {
@@ -365,11 +405,11 @@ const styles = {
   },
 
   noteTitle: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
 
   noteText: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     lineHeight: 1.8
   }
 };
