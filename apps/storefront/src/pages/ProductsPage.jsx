@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
-import { useApp } from "../context/AppContext";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import ProductCard from "../components/marketplace/ProductCard";
+import { UI } from "../components/marketplace/uiTokens";
 
 const PAGE_LIMIT = 10;
 
@@ -25,7 +28,9 @@ function normalizeProduct(product) {
     id: product.id,
     slug: product.slug,
     name: product.title_ar || product.name || "",
+    title: product.title_ar || product.name || "",
     price: Number(product.price_mad || product.price || 0),
+    price_mad: Number(product.price_mad || product.price || 0),
     seller_id: product.seller_id || null,
     seller: product.seller_name || product.seller || product.brand || "RAHBA",
     city: product.city || "",
@@ -39,9 +44,7 @@ function normalizeProduct(product) {
 }
 
 export default function ProductsPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { addToCart } = useApp();
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -181,25 +184,6 @@ export default function ProductsPage() {
     updateFilters({ q: draftQuery.trim(), page: 1 });
   }
 
-  function openProduct(product) {
-    if (!product?.slug) {
-      setErrorMessage("تعذر فتح المنتج");
-      return;
-    }
-
-    navigate(`/products/${product.slug}`);
-  }
-
-  function handleAddToCart(product) {
-    addToCart(normalizeProduct(product));
-    setMessage("تمت إضافة المنتج إلى السلة");
-  }
-
-  function handleCheckout(product) {
-    addToCart(normalizeProduct(product));
-    navigate("/checkout");
-  }
-
   const activeFilters = useMemo(() => {
     const items = [];
 
@@ -224,170 +208,129 @@ export default function ProductsPage() {
     return items;
   }, [q, category, sort, categoryOptions]);
 
+  const normalizedProducts = useMemo(
+    () => products.map(normalizeProduct),
+    [products]
+  );
+
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={styles.heroCard}>
+      <div style={styles.stack}>
+        <SectionShell style={styles.heroShell}>
           <div className="ui-chip">RAHBA PRODUCTS</div>
-          <h1 className="page-title">المنتجات</h1>
-          <p className="page-subtitle">
-            تصفح المنتجات، قارن بسرعة، أضف إلى السلة أو انتقل مباشرة إلى إتمام الطلب.
-          </p>
-        </div>
+          <SectionHead
+            title="تصفح المنتجات"
+            subtitle="ابحث، صفِّ، قارن بسرعة، ثم انتقل إلى المنتج المناسب داخل رحبة."
+          />
 
-        <div className="ui-card" style={styles.filtersCard}>
-          <div style={styles.searchRow}>
-            <input
-              value={draftQuery}
-              onChange={(e) => setDraftQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  applySearch();
-                }
-              }}
-              placeholder="ابحث عن منتج..."
-              className="ui-input"
-            />
-            <button onClick={applySearch} className="btn btn-primary">
-              بحث
-            </button>
+          <div style={styles.heroMetaRow}>
+            <div className="ui-chip">{pagination.total} منتج</div>
+            {categoriesLoading ? <div className="ui-chip">جاري تحميل الفئات...</div> : null}
+          </div>
+        </SectionShell>
+
+        <SectionShell>
+          <div style={styles.filtersGrid}>
+            <div style={styles.searchBlock}>
+              <label style={styles.fieldLabel}>ابحث عن منتج</label>
+              <div style={styles.searchRow}>
+                <input
+                  value={draftQuery}
+                  onChange={(e) => setDraftQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      applySearch();
+                    }
+                  }}
+                  placeholder="مثلاً: هاتف، خلاط، أدوات..."
+                  className="ui-input"
+                />
+                <button onClick={applySearch} className="btn btn-primary">
+                  بحث
+                </button>
+              </div>
+            </div>
+
+            <div style={styles.filterCols}>
+              <div style={styles.selectBlock}>
+                <label style={styles.fieldLabel}>الفئة</label>
+                <select
+                  value={category}
+                  onChange={(e) => updateFilters({ category: e.target.value, page: 1 })}
+                  className="ui-select"
+                  disabled={categoriesLoading}
+                >
+                  {categoryOptions.map((option) => (
+                    <option key={`${option.value}-${option.label}`} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={styles.selectBlock}>
+                <label style={styles.fieldLabel}>الترتيب</label>
+                <select
+                  value={sort}
+                  onChange={(e) => updateFilters({ sort: e.target.value, page: 1 })}
+                  className="ui-select"
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
-          <div style={styles.selectRow}>
-            <select
-              value={category}
-              onChange={(e) => updateFilters({ category: e.target.value, page: 1 })}
-              className="ui-select"
-              disabled={categoriesLoading}
-            >
-              {categoryOptions.map((option) => (
-                <option key={`${option.value}-${option.label}`} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={sort}
-              onChange={(e) => updateFilters({ sort: e.target.value, page: 1 })}
-              className="ui-select"
-            >
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.metaRow}>
-            <div style={styles.metaLeft}>
-              <div className="ui-chip">{pagination.total} منتج</div>
-              {categoriesLoading ? (
-                <div className="ui-chip">جاري تحميل الفئات...</div>
-              ) : null}
+          <div style={styles.filtersFooter}>
+            <div style={styles.chipsWrap}>
+              {activeFilters.length > 0 ? (
+                activeFilters.map((item, index) => (
+                  <span key={`${item}-${index}`} className="ui-chip">
+                    {item}
+                  </span>
+                ))
+              ) : (
+                <span className="ui-chip">بدون فلاتر إضافية</span>
+              )}
             </div>
 
             <button onClick={clearFilters} className="btn btn-soft">
               مسح الفلاتر
             </button>
           </div>
-        </div>
-
-        {activeFilters.length > 0 ? (
-          <div style={styles.chipsWrap}>
-            {activeFilters.map((item, index) => (
-              <span key={`${item}-${index}`} className="ui-chip">
-                {item}
-              </span>
-            ))}
-          </div>
-        ) : null}
+        </SectionShell>
 
         {message ? <div className="message-box">{message}</div> : null}
         {errorMessage ? <div className="message-box">{errorMessage}</div> : null}
 
         {loading ? (
-          <div className="loading-state">جاري تحميل المنتجات...</div>
-        ) : products.length === 0 ? (
-          <div className="empty-state">لا توجد نتائج حالياً</div>
+          <SectionShell>
+            <div className="loading-state">جاري تحميل المنتجات...</div>
+          </SectionShell>
+        ) : normalizedProducts.length === 0 ? (
+          <SectionShell>
+            <div className="empty-state">لا توجد نتائج حالياً</div>
+          </SectionShell>
         ) : (
-          <div className="product-list">
-            {products.map((product) => {
-              const item = normalizeProduct(product);
+          <SectionShell>
+            <div style={styles.resultsHead}>
+              <SectionHead
+                chip="RESULTS"
+                title="نتائج التصفح"
+                subtitle="اختر المنتج المناسب وادخل إلى التفاصيل لمزيد من المعلومات."
+              />
+            </div>
 
-              return (
-                <article key={product.id} className="product-card">
-                  {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="product-card__image"
-                    />
-                  ) : (
-                    <div className="product-card__image" style={styles.noImage}>
-                      لا توجد صورة
-                    </div>
-                  )}
-
-                  <div className="product-card__body">
-                    <div className="product-card__meta">
-                      <span>
-                        {item.seller}
-                        {item.city ? ` • ${item.city}` : ""}
-                      </span>
-
-                      {item.rating > 0 ? (
-                        <span>⭐ {item.rating} ({item.reviews})</span>
-                      ) : (
-                        <span>جديد</span>
-                      )}
-                    </div>
-
-                    <h3 className="product-card__title">{item.name}</h3>
-
-                    <p className="product-card__desc">
-                      {item.description || "بدون وصف متاح حالياً"}
-                    </p>
-
-                    <div style={styles.priceRow}>
-                      <strong className="product-card__price">{item.price} MAD</strong>
-                      <span
-                        style={{
-                          ...styles.stock,
-                          color: item.stock > 0 ? "#166534" : "#b91c1c"
-                        }}
-                      >
-                        {item.stock > 0 ? `المخزون: ${item.stock}` : "غير متوفر"}
-                      </span>
-                    </div>
-
-                    <div style={styles.actions}>
-                      <button onClick={() => openProduct(product)} className="btn btn-outline">
-                        التفاصيل
-                      </button>
-
-                      <button
-                        onClick={() => handleAddToCart(product)}
-                        disabled={item.stock <= 0}
-                        className="btn btn-secondary"
-                      >
-                        أضف للسلة
-                      </button>
-
-                      <button
-                        onClick={() => handleCheckout(product)}
-                        disabled={item.stock <= 0}
-                        className="btn btn-primary"
-                      >
-                        إتمام الطلب
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+            <div style={styles.productsGrid}>
+              {normalizedProducts.map((product) => (
+                <ProductCard key={product.id || product.slug || product.name} product={product} />
+              ))}
+            </div>
+          </SectionShell>
         )}
 
         {pagination.pages > 1 ? (
@@ -421,65 +364,82 @@ export default function ProductsPage() {
 }
 
 const styles = {
-  heroCard: {
-    padding: "18px",
+  stack: {
     display: "grid",
-    gap: "10px"
+    gap: "26px"
   },
-  filtersCard: {
-    padding: "14px",
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
+  },
+
+  heroMetaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    alignItems: "center"
+  },
+
+  filtersGrid: {
     display: "grid",
-    gap: "10px"
+    gap: UI.spacing.sectionGap
   },
+
+  searchBlock: {
+    display: "grid",
+    gap: "8px"
+  },
+
+  fieldLabel: {
+    color: UI.colors.navy,
+    fontSize: UI.type.bodySm,
+    fontWeight: 800
+  },
+
   searchRow: {
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: "8px"
   },
-  selectRow: {
+
+  filterCols: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "8px"
   },
-  metaRow: {
+
+  selectBlock: {
+    display: "grid",
+    gap: "8px"
+  },
+
+  filtersFooter: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
     gap: "10px",
-    flexWrap: "wrap"
-  },
-  metaLeft: {
-    display: "flex",
-    gap: "8px",
     alignItems: "center",
     flexWrap: "wrap"
   },
+
   chipsWrap: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap"
   },
-  noImage: {
+
+  resultsHead: {
     display: "grid",
-    placeItems: "center",
-    color: "#94a3b8"
-  },
-  priceRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "10px",
-    flexWrap: "wrap"
-  },
-  stock: {
-    fontSize: "13px",
-    fontWeight: 900
-  },
-  actions: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
     gap: "8px"
   },
+
+  productsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+    gap: UI.spacing.cardGap
+  },
+
   pagination: {
     display: "flex",
     justifyContent: "center",
