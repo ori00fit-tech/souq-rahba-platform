@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
-import { formatMoney } from "../lib/utils";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import ProductCard from "../components/marketplace/ProductCard";
+import { UI } from "../components/marketplace/uiTokens";
 
 function resolveImageUrl(url) {
   if (!url) return "";
@@ -38,14 +41,21 @@ function normalizeProduct(product) {
   return {
     id: product?.id || "",
     slug: product?.slug || "",
-    title_ar: product?.title_ar || product?.name || "بدون اسم",
-    description_ar: product?.description_ar || "",
+    name: product?.title_ar || product?.name || "بدون اسم",
+    title: product?.title_ar || product?.name || "بدون اسم",
+    description: product?.description_ar || "",
     category_slug: product?.category_slug || product?.category || "",
+    price: Number(product?.price_mad || product?.price || 0),
     price_mad: Number(product?.price_mad || product?.price || 0),
     stock: Number(product?.stock || 0),
+    rating: 0,
+    reviews: 0,
     featured: Number(product?.featured || 0),
-    image_url: resolveImageUrl(product?.image_url || ""),
-    status: product?.status || ""
+    seller: product?.seller_name || "RAHBA",
+    seller_id: product?.seller_id || null,
+    city: "",
+    badge: product?.featured ? "مميز" : product?.status || "",
+    image_url: resolveImageUrl(product?.image_url || "")
   };
 }
 
@@ -135,11 +145,14 @@ export default function SellerStorePage() {
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={styles.stack}>
+          <SectionShell style={styles.heroShell}>
             <div className="ui-chip">RAHBA STORE</div>
-            <h1 className="page-title">جاري تحميل صفحة البائع...</h1>
-          </div>
+            <SectionHead
+              title="جاري تحميل صفحة البائع..."
+              subtitle="نقوم بجلب معلومات المتجر والمنتجات المتاحة."
+            />
+          </SectionShell>
         </div>
       </section>
     );
@@ -148,12 +161,14 @@ export default function SellerStorePage() {
   if (!seller) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={styles.stack}>
+          <SectionShell style={styles.heroShell}>
             <div className="ui-chip">RAHBA STORE</div>
-            <h1 className="page-title">تعذر العثور على البائع</h1>
-            <p className="page-subtitle">{message || "هذه الصفحة غير متوفرة حالياً."}</p>
-          </div>
+            <SectionHead
+              title="تعذر العثور على البائع"
+              subtitle={message || "هذه الصفحة غير متوفرة حالياً."}
+            />
+          </SectionShell>
 
           <Link to="/sellers" className="btn btn-primary full-width">
             الرجوع إلى الباعة
@@ -165,237 +180,247 @@ export default function SellerStorePage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={s.heroCard}>
-          <div style={s.brandRow}>
-            <div style={s.brandAvatar}>
+      <div style={styles.stack}>
+        <SectionShell style={styles.heroShell}>
+          <div style={styles.brandRow}>
+            <div style={styles.brandAvatar}>
               {seller.logo_url ? (
                 <img
                   src={seller.logo_url}
                   alt={seller.display_name}
-                  style={s.brandAvatarImg}
+                  style={styles.brandAvatarImg}
                 />
               ) : (
-                <span style={s.brandInitial}>
+                <span style={styles.brandInitial}>
                   {(seller.display_name || "R").slice(0, 1)}
                 </span>
               )}
             </div>
 
-            <div style={s.brandMeta}>
-              <div style={s.brandChips}>
+            <div style={styles.brandMeta}>
+              <div style={styles.brandChips}>
                 <div className="ui-chip">
                   {Number(seller.verified) === 1 ? "بائع موثق" : "متجر على رحبة"}
                 </div>
-                {seller.category ? (
-                  <div className="ui-chip">{seller.category}</div>
-                ) : null}
+                {seller.category ? <div className="ui-chip">{seller.category}</div> : null}
+                <div className="ui-chip">
+                  {seller.kyc_status === "approved" ? "توثيق مكتمل" : "قيد التحقق"}
+                </div>
               </div>
 
-              <h1 className="page-title" style={{ margin: 0 }}>
-                {seller.display_name || "متجر بدون اسم"}
-              </h1>
+              <h1 style={styles.storeTitle}>{seller.display_name || "متجر بدون اسم"}</h1>
 
-              <p className="page-subtitle" style={{ margin: 0 }}>
-                {seller.city || "المغرب"}
-                {seller.rating > 0 ? ` · ★ ${seller.rating.toFixed(1)}` : ""}
-              </p>
+              <div style={styles.storeMetaLine}>
+                <span>📍 {seller.city || "المغرب"}</span>
+                {seller.rating > 0 ? <span>• ⭐ {seller.rating.toFixed(1)}</span> : null}
+                <span>• {stats.totalProducts} منتج</span>
+              </div>
             </div>
           </div>
 
-          <p style={s.brandDescription}>
-            {seller.description}
-          </p>
+          <p style={styles.brandDescription}>{seller.description}</p>
 
-          <div style={s.statsGrid}>
-            <div className="ui-card-soft" style={s.statCard}>
-              <strong style={s.statValue}>{stats.totalProducts}</strong>
-              <span style={s.statLabel}>منتج</span>
+          <div style={styles.statsGrid}>
+            <div className="ui-card-soft" style={styles.statCard}>
+              <strong style={styles.statValue}>{stats.totalProducts}</strong>
+              <span style={styles.statLabel}>منتج</span>
             </div>
 
-            <div className="ui-card-soft" style={s.statCard}>
-              <strong style={s.statValue}>{stats.featured}</strong>
-              <span style={s.statLabel}>منتجات مميزة</span>
+            <div className="ui-card-soft" style={styles.statCard}>
+              <strong style={styles.statValue}>{stats.featured}</strong>
+              <span style={styles.statLabel}>منتجات مميزة</span>
             </div>
 
-            <div className="ui-card-soft" style={s.statCard}>
-              <strong style={s.statValue}>{stats.available}</strong>
-              <span style={s.statLabel}>متوفر الآن</span>
+            <div className="ui-card-soft" style={styles.statCard}>
+              <strong style={styles.statValue}>{stats.available}</strong>
+              <span style={styles.statLabel}>متوفر الآن</span>
             </div>
           </div>
-        </div>
 
-        <div style={s.topActions}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={loadSellerStore}
-            disabled={loading}
-          >
-            {loading ? "جاري التحديث..." : "تحديث الصفحة"}
-          </button>
-        </div>
+          <div style={styles.actionRow}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={loadSellerStore}
+              disabled={loading}
+            >
+              {loading ? "جاري التحديث..." : "تحديث الصفحة"}
+            </button>
+
+            {seller.phone ? (
+              <a
+                href={`https://wa.me/${String(seller.phone).replace(/\D/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-soft"
+              >
+                واتساب
+              </a>
+            ) : null}
+          </div>
+        </SectionShell>
 
         {message ? <div className="message-box">{message}</div> : null}
 
         {!products.length ? (
-          <div className="ui-card" style={s.emptyCard}>
-            <div style={s.emptyIcon}>📦</div>
-            <h3 style={s.emptyTitle}>لا توجد منتجات حالياً</h3>
-            <p style={s.emptyText}>هذا المتجر لم يضف منتجات منشورة بعد.</p>
-          </div>
+          <SectionShell>
+            <div style={styles.emptyState}>
+              <div style={styles.emptyIcon}>📦</div>
+              <h3 style={styles.emptyTitle}>لا توجد منتجات حالياً</h3>
+              <p style={styles.emptyText}>هذا المتجر لم يضف منتجات منشورة بعد.</p>
+            </div>
+          </SectionShell>
         ) : (
-          <div style={s.productsGrid}>
-            {products.map((product) => (
-              <article key={product.id} className="product-card">
-                <Link to={product.slug ? `/products/${product.slug}` : "/products"}>
-                  {product.image_url ? (
-                    <img
-                      src={product.image_url}
-                      alt={product.title_ar || "product"}
-                      className="product-card__image"
-                    />
-                  ) : (
-                    <div className="product-card__image" style={s.noImage}>
-                      لا توجد صورة
-                    </div>
-                  )}
-                </Link>
+          <SectionShell>
+            <SectionHead
+              chip="STORE PRODUCTS"
+              title="منتجات هذا المتجر"
+              subtitle="تصفح المنتجات المنشورة داخل هذا المتجر واختر المنتج المناسب."
+            />
 
-                <div className="product-card__body">
-                  <div className="product-card__meta">
-                    <span>{product.category_slug || "منتج"}</span>
-                    <span>{product.stock > 0 ? "متوفر" : "غير متوفر"}</span>
-                  </div>
-
-                  <h3 className="product-card__title">
-                    {product.title_ar || "بدون اسم"}
-                  </h3>
-
-                  <p className="product-card__desc">
-                    {product.description_ar || "منتج من متجر هذا البائع داخل رحبة."}
-                  </p>
-
-                  <div className="product-card__price">
-                    {formatMoney(product.price_mad || 0, "MAD", "fr-MA")}
-                  </div>
-
-                  <div className="product-card__actions">
-                    <Link
-                      to={product.slug ? `/products/${product.slug}` : "/products"}
-                      className="btn btn-primary"
-                      style={{ height: "42px", fontSize: "14px" }}
-                    >
-                      عرض المنتج
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
+            <div style={styles.productsGrid}>
+              {products.map((product) => (
+                <ProductCard key={product.id || product.slug || product.name} product={product} />
+              ))}
+            </div>
+          </SectionShell>
         )}
       </div>
     </section>
   );
 }
 
-const s = {
-  heroCard: {
-    padding: "18px",
+const styles = {
+  stack: {
     display: "grid",
-    gap: "14px"
+    gap: "26px"
   },
-  topActions: {
-    display: "flex",
-    justifyContent: "flex-start"
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
   },
+
   brandRow: {
     display: "grid",
     gridTemplateColumns: "72px 1fr",
     gap: "14px",
     alignItems: "center"
   },
+
   brandAvatar: {
     width: "72px",
     height: "72px",
     borderRadius: "22px",
     overflow: "hidden",
-    background: "#eef6ff",
+    background: UI.colors.softBlue,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     border: "1px solid #dbeafe"
   },
+
   brandAvatarImg: {
     width: "100%",
     height: "100%",
     objectFit: "cover"
   },
+
   brandInitial: {
     fontSize: "28px",
     fontWeight: 900,
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   brandMeta: {
     display: "grid",
     gap: "8px"
   },
+
   brandChips: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap"
   },
+
+  storeTitle: {
+    margin: 0,
+    color: UI.colors.navy,
+    fontSize: "30px",
+    lineHeight: 1.2,
+    fontWeight: 900
+  },
+
+  storeMetaLine: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
+    fontWeight: 700
+  },
+
   brandDescription: {
     margin: 0,
     color: "#4b5563",
     lineHeight: 1.9,
     fontSize: "15px"
   },
+
   statsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(3, 1fr)",
     gap: "10px"
   },
+
   statCard: {
     padding: "14px",
     display: "grid",
     gap: "6px",
     textAlign: "center"
   },
+
   statValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontSize: "20px",
     fontWeight: 900
   },
+
   statLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
+  actionRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+
   productsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "12px"
+    gap: UI.spacing.cardGap
   },
-  noImage: {
-    display: "grid",
-    placeItems: "center",
-    color: "#94a3b8",
-    background: "#f8fafc"
-  },
-  emptyCard: {
+
+  emptyState: {
     display: "grid",
     gap: "12px",
     textAlign: "center"
   },
+
   emptyIcon: {
     fontSize: "40px"
   },
+
   emptyTitle: {
     margin: 0,
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   emptyText: {
     margin: 0,
     color: "#7a6f63",
