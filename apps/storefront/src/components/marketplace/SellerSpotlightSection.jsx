@@ -1,14 +1,8 @@
-import { Link } from "react-router-dom";
 import SectionHead from "./SectionHead";
-
-const T = {
-  navy: "#16356b",
-  ink: "#243041",
-  muted: "#6b7280",
-  line: "#e8dfd0",
-  card: "#fffdfa",
-  white: "#ffffff"
-};
+import SectionShell from "./SectionShell";
+import SectionActionLink from "./SectionActionLink";
+import { UI } from "./uiTokens";
+import { Link } from "react-router-dom";
 
 function normalizeSeller(seller) {
   return {
@@ -29,14 +23,14 @@ export default function SellerSpotlightSection({ sellers = [] }) {
   if (!items.length) return null;
 
   return (
-    <section style={s.section} dir="rtl">
+    <SectionShell>
       <div style={s.headRow}>
         <SectionHead
           chip="SELLERS"
           title="باعة ومتاجر مميزة"
           subtitle="اكتشف متاجر نشيطة داخل رحبة وابدأ التسوق من بائعين واضحين"
         />
-        <Link to="/sellers" style={s.seeAll}>عرض الكل ←</Link>
+        <SectionActionLink to="/sellers">عرض الكل ←</SectionActionLink>
       </div>
 
       <div style={s.grid}>
@@ -86,16 +80,11 @@ export default function SellerSpotlightSection({ sellers = [] }) {
           </div>
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
 const s = {
-  section: {
-    display: "grid",
-    gap: "18px"
-  },
-
   headRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -103,31 +92,19 @@ const s = {
     gap: "12px"
   },
 
-  seeAll: {
-    textDecoration: "none",
-    fontSize: "13px",
-    fontWeight: 800,
-    color: T.navy,
-    whiteSpace: "nowrap",
-    alignSelf: "center",
-    padding: "8px 14px",
-    borderRadius: "10px",
-    border: "1.5px solid #ddd5c2",
-    background: T.white
-  },
-
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "14px"
+    gap: UI.spacing.cardGap
   },
 
   card: {
-    padding: "14px",
+    padding: UI.spacing.cardPadding,
     display: "grid",
-    gap: "14px",
-    border: `1px solid ${T.line}`,
-    background: T.card
+    gap: UI.spacing.cardGap,
+    border: `1px solid ${UI.colors.line}`,
+    background: UI.colors.softBg,
+    borderRadius: UI.radius.xl
   },
 
   cardTop: {
@@ -140,8 +117,8 @@ const s = {
     width: "46px",
     height: "46px",
     borderRadius: "14px",
-    background: "#eef6ff",
-    color: T.navy,
+    background: UI.colors.softBlue,
+    color: UI.colors.navy,
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
@@ -162,16 +139,16 @@ const s = {
   },
 
   name: {
-    color: T.ink,
+    color: UI.colors.ink,
     fontSize: "16px"
   },
 
   verified: {
     padding: "4px 8px",
-    borderRadius: "999px",
-    background: "#ecfdf5",
-    color: "#166534",
-    border: "1px solid #a7f3d0",
+    borderRadius: UI.radius.pill,
+    background: UI.colors.successBg,
+    color: UI.colors.successText,
+    border: `1px solid ${UI.colors.successBorder}`,
     fontSize: "11px",
     fontWeight: 900
   },
@@ -180,8 +157,8 @@ const s = {
     display: "flex",
     gap: "6px",
     flexWrap: "wrap",
-    color: T.muted,
-    fontSize: "12px",
+    color: UI.colors.muted,
+    fontSize: UI.type.caption,
     fontWeight: 700
   },
 
@@ -195,21 +172,21 @@ const s = {
     display: "grid",
     gap: "4px",
     padding: "10px",
-    borderRadius: "12px",
-    background: T.white,
-    border: `1px solid ${T.line}`,
+    borderRadius: UI.radius.md,
+    background: UI.colors.white,
+    border: `1px solid ${UI.colors.line}`,
     textAlign: "center"
   },
 
   statValue: {
-    color: T.navy,
+    color: UI.colors.navy,
     fontSize: "16px",
     fontWeight: 900
   },
 
   statLabel: {
-    color: T.muted,
-    fontSize: "12px",
+    color: UI.colors.muted,
+    fontSize: UI.type.caption,
     fontWeight: 700
   },
 
@@ -217,10 +194,10 @@ const s = {
     textDecoration: "none",
     textAlign: "center",
     padding: "12px 14px",
-    borderRadius: "12px",
-    background: T.white,
-    border: `1px solid ${T.line}`,
-    color: T.navy,
+    borderRadius: UI.radius.md,
+    background: UI.colors.white,
+    border: `1px solid ${UI.colors.line}`,
+    color: UI.colors.navy,
     fontWeight: 900
   }
 };

@@ -1,14 +1,6 @@
 import SectionHead from "./SectionHead";
-
-const T = {
-  navy: "#16356b",
-  ink: "#243041",
-  muted: "#64748b",
-  border: "#ddd5c2",
-  line: "#e8dfd0",
-  white: "#ffffff",
-  shadow: "rgba(22,53,107,0.08)"
-};
+import SectionShell from "./SectionShell";
+import { UI } from "./uiTokens";
 
 const items = [
   {
@@ -47,7 +39,7 @@ const items = [
 
 export default function TrustSection() {
   return (
-    <section className="ui-card" style={s.section} dir="rtl">
+    <SectionShell>
       <div style={s.headWrap}>
         <SectionHead
           chip="WHY RAHBA"
@@ -88,20 +80,11 @@ export default function TrustSection() {
           بطريقة مفهومة للمستخدم المغربي.
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
 const s = {
-  section: {
-    display: "grid",
-    gap: "18px",
-    padding: "18px",
-    background: T.white,
-    border: `1px solid ${T.line}`,
-    boxShadow: `0 8px 24px ${T.shadow}`
-  },
-
   headWrap: {
     display: "grid",
     gap: "10px"
@@ -110,17 +93,17 @@ const s = {
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "14px"
+    gap: UI.spacing.cardGap
   },
 
   card: {
-    padding: "16px",
+    padding: UI.spacing.cardPadding,
     display: "grid",
-    gap: "14px",
-    border: `1px solid ${T.line}`,
-    background: "#fffdfa",
+    gap: UI.spacing.cardGap,
+    border: `1px solid ${UI.colors.line}`,
+    background: UI.colors.softBg,
     textAlign: "right",
-    borderRadius: "18px"
+    borderRadius: UI.radius.xl
   },
 
   cardTop: {
@@ -147,7 +130,7 @@ const s = {
   topAccent: {
     width: "44px",
     height: "6px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "#eef2f7",
     marginTop: "8px"
   },
@@ -159,15 +142,15 @@ const s = {
 
   title: {
     margin: 0,
-    fontSize: "16px",
+    fontSize: UI.type.titleSm,
     fontWeight: 900,
     lineHeight: 1.4
   },
 
   text: {
     margin: 0,
-    color: T.muted,
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     lineHeight: 1.9
   },
 
@@ -175,20 +158,20 @@ const s = {
     padding: "16px",
     display: "grid",
     gap: "6px",
-    borderRadius: "16px",
-    border: `1px solid ${T.line}`,
+    borderRadius: UI.radius.lg,
+    border: `1px solid ${UI.colors.line}`,
     background: "#f8fafc"
   },
 
   bottomStripTitle: {
-    color: T.navy,
+    color: UI.colors.navy,
     fontWeight: 900,
     fontSize: "15px"
   },
 
   bottomStripText: {
-    color: T.muted,
+    color: UI.colors.muted,
     lineHeight: 1.9,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   }
 };

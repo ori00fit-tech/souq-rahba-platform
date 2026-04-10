@@ -1,12 +1,8 @@
-import { Link } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import SectionHead from "./SectionHead";
-
-const T = {
-  navy: "#16356b",
-  border: "#ddd5c2",
-  white: "#ffffff"
-};
+import SectionShell from "./SectionShell";
+import SectionActionLink from "./SectionActionLink";
+import { UI } from "./uiTokens";
 
 export default function FeaturedProductsSection({ products = [] }) {
   const items = products.map((p) => ({
@@ -30,14 +26,14 @@ export default function FeaturedProductsSection({ products = [] }) {
   if (!items.length) return null;
 
   return (
-    <section style={s.section} dir="rtl">
+    <SectionShell>
       <div style={s.headRow}>
         <SectionHead
           chip="FEATURED"
           title="منتجات مميزة"
           subtitle="اختيارات بارزة من باعة مختلفين داخل رحبة"
         />
-        <Link to="/products" style={s.seeAll}>عرض الكل ←</Link>
+        <SectionActionLink to="/products">عرض الكل ←</SectionActionLink>
       </div>
 
       <div style={s.grid}>
@@ -45,16 +41,11 @@ export default function FeaturedProductsSection({ products = [] }) {
           <ProductCard key={p.id || p.slug || p.title} product={p} />
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
 const s = {
-  section: {
-    display: "grid",
-    gap: "18px"
-  },
-
   headRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -62,22 +53,9 @@ const s = {
     gap: "12px"
   },
 
-  seeAll: {
-    textDecoration: "none",
-    fontSize: "13px",
-    fontWeight: 800,
-    color: T.navy,
-    whiteSpace: "nowrap",
-    alignSelf: "center",
-    padding: "8px 14px",
-    borderRadius: "10px",
-    border: `1.5px solid ${T.border}`,
-    background: T.white
-  },
-
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "14px"
+    gap: UI.spacing.cardGap
   }
 };
