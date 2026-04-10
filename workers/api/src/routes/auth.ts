@@ -470,3 +470,60 @@ authRouter.post("/logout", authMiddleware, async (c) => {
     );
   }
 });
+
+
+import { authMiddleware } from "../middleware/auth";
+import { hashPassword, verifyPassword } from "../lib/password";
+
+authRouter.post("/change-password", authMiddleware, async (c) => {
+  try {
+    const user = c.get("authUser");
+
+    if (!user?.id) {
+      return c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } }, 401);
+    }
+
+    const body = await c.req.json().catch(() => null);
+
+    const currentPassword = String(body?.current_password || "");
+    const newPassword = String(body?.new_password || "");
+
+    if (!currentPassword || !newPassword) {
+      return c.json({ ok: false, error: { code: "INVALID_INPUT", message: "Missing passwords" } }, 400);
+    }
+
+    if (newPassword.length < 8) {
+      return c.json({ ok: false, error: { code: "WEAK_PASSWORD", message: "Password too short" } }, 400);
+    }
+
+    const userRow = await c.env.DB.prepare(
+      "select id, password_hash from users where id = ? limit 1"
+    )
+      .bind(user.id)
+      .first();
+
+    if (!userRow) {
+      return c.json({ ok: false, error: { code: "NOT_FOUND", message: "User not found" } }, 404);
+    }
+
+    const isValid = await verifyPassword(currentPassword, userRow.password_hash);
+
+    if (!isValid) {
+      return c.json({ ok: false, error: { code: "INVALID_CREDENTIALS", message: "Wrong password" } }, 401);
+    }
+
+    const newHash = await hashPassword(newPassword);
+
+    await c.env.DB.prepare(
+      "update users set password_hash = ? where id = ?"
+    )
+      .bind(newHash, user.id)
+      .run();
+
+    return c.json({ ok: true, data: { message: "Password updated" } });
+
+  } catch (err) {
+    console.error("change-password failed", err);
+    return c.json({ ok: false, error: { code: "SERVER_ERROR", message: "Failed to update password" } }, 500);
+  }
+});
