@@ -96,6 +96,24 @@ function normalizeSimilarPayload(product) {
   };
 }
 
+function getStockLabel(stock) {
+  if (Number(stock || 0) <= 0) return "غير متوفر حالياً";
+  if (Number(stock || 0) <= 3) return "متبقي عدد قليل";
+  return "متوفر الآن";
+}
+
+function getStockTone(stock) {
+  if (Number(stock || 0) <= 0) return "danger";
+  if (Number(stock || 0) <= 3) return "warning";
+  return "success";
+}
+
+function normalizeCategoryLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "منتج";
+  return raw.replace(/[-_]/g, " ");
+}
+
 export default function ProductDetailsPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
@@ -255,6 +273,8 @@ export default function ProductDetailsPage() {
     ];
   }, [product]);
 
+  const quickSpecs = useMemo(() => specs.slice(0, 5), [specs]);
+
   const faqs = useMemo(() => {
     if (Array.isArray(product?.faqs) && product.faqs.length > 0) {
       return product.faqs;
@@ -268,9 +288,15 @@ export default function ProductDetailsPage() {
       {
         question_ar: "كيف أشتري هذا المنتج؟",
         answer_ar: "يمكنك إضافته إلى السلة أو الضغط على إتمام الطلب للشراء بسرعة."
+      },
+      {
+        question_ar: "هل الدفع عند الاستلام متاح؟",
+        answer_ar: "نعم، يمكن إتمام الطلب مع الدفع عند الاستلام حسب توفر الخدمة."
       }
     ];
   }, [product]);
+
+  const previewReviews = useMemo(() => reviews.slice(0, 3), [reviews]);
 
   function normalizeProductForCart(p) {
     const mediaImage =
@@ -398,90 +424,170 @@ export default function ProductDetailsPage() {
     );
   }
 
+  const stockTone = getStockTone(product.stock);
+
   return (
     <>
       <section className="container section-space" dir="rtl">
         <div className="page-stack">
-          <div className="ui-card" style={styles.heroCard}>
-            <div style={styles.brandRow}>
-              <span className="ui-chip">{product.brand || product.seller_name || "RAHBA"}</span>
-              <span className="ui-chip">{product.category_slug || "منتج"}</span>
-            </div>
+          <section className="ui-card" style={styles.heroShell}>
+            <div style={styles.heroGrid}>
+              <div style={styles.galleryCol}>
+                <div style={styles.galleryCard}>
+                  {selectedImage ? (
+                    <img src={selectedImage} alt={product.title_ar} style={styles.mainImage} />
+                  ) : (
+                    <div style={styles.noImage}>لا توجد صورة</div>
+                  )}
 
-            <h1 className="page-title">{product.title_ar}</h1>
+                  <div style={styles.galleryBadges}>
+                    <span style={styles.badgeNeutral}>{normalizeCategoryLabel(product.category_slug)}</span>
+                    {product.stock > 0 ? (
+                      <span
+                        style={{
+                          ...styles.badgeSuccess,
+                          ...(stockTone === "warning" ? styles.badgeWarning : {})
+                        }}
+                      >
+                        {getStockLabel(product.stock)}
+                      </span>
+                    ) : (
+                      <span style={styles.badgeDanger}>غير متوفر</span>
+                    )}
+                  </div>
+                </div>
 
-            <div style={styles.ratingLine}>
-              <span style={styles.stars}>{renderStars(ratingSummary.avg)}</span>
-              <span>{ratingSummary.avg || 0}</span>
-              <span>({ratingSummary.count || 0})</span>
-            </div>
+                {galleryImages.length > 1 ? (
+                  <div style={styles.thumbsRow}>
+                    {galleryImages.map((img, idx) => (
+                      <button
+                        key={`${img}-${idx}`}
+                        type="button"
+                        onClick={() => setSelectedImage(img)}
+                        style={{
+                          ...styles.thumbBtn,
+                          ...(selectedImage === img ? styles.thumbBtnActive : {})
+                        }}
+                      >
+                        <img src={img} alt={`thumb-${idx}`} style={styles.thumbImg} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
-            <div style={styles.galleryCard}>
-              {selectedImage ? (
-                <img src={selectedImage} alt={product.title_ar} style={styles.mainImage} />
-              ) : (
-                <div style={styles.noImage}>لا توجد صورة</div>
-              )}
-            </div>
+              <div style={styles.infoCol}>
+                <div style={styles.identityBlock}>
+                  <div style={styles.brandRow}>
+                    <span className="ui-chip">{product.brand || product.seller_name || "RAHBA"}</span>
+                    <span className="ui-chip">{normalizeCategoryLabel(product.category_slug)}</span>
+                  </div>
 
-            {galleryImages.length > 1 ? (
-              <div style={styles.thumbsRow}>
-                {galleryImages.map((img, idx) => (
+                  <h1 className="page-title" style={styles.productTitle}>
+                    {product.title_ar}
+                  </h1>
+
+                  <div style={styles.ratingLine}>
+                    <span style={styles.stars}>{renderStars(ratingSummary.avg)}</span>
+                    <span>{ratingSummary.avg || 0}</span>
+                    <span>({ratingSummary.count || 0} تقييم)</span>
+                  </div>
+                </div>
+
+                <div className="ui-card-soft" style={styles.commerceCard}>
+                  <div style={styles.priceRow}>
+                    <strong style={styles.priceBox}>{product.price_mad} MAD</strong>
+                    <span
+                      style={{
+                        ...styles.stockPill,
+                        ...(stockTone === "success"
+                          ? styles.stockSuccess
+                          : stockTone === "warning"
+                          ? styles.stockWarning
+                          : styles.stockDanger)
+                      }}
+                    >
+                      {getStockLabel(product.stock)}
+                    </span>
+                  </div>
+
+                  <div style={styles.trustList}>
+                    <div style={styles.trustItem}>✔ شراء آمن عبر رحبة</div>
+                    <div style={styles.trustItem}>🚚 التوصيل متاح حسب المدينة</div>
+                    <div style={styles.trustItem}>💵 الدفع عند الاستلام</div>
+                    <div style={styles.trustItem}>
+                      {product.stock > 0 ? "📦 جاهز للطلب الآن" : "⛔ غير متوفر حالياً"}
+                    </div>
+                  </div>
+
+                  <p style={styles.shortDesc}>
+                    {product.description_ar || "وصف مختصر غير متوفر حالياً"}
+                  </p>
+                </div>
+
+                <div className="ui-card-soft" style={styles.sellerCard}>
+                  <div style={styles.sellerHead}>
+                    <div>
+                      <div style={styles.sellerLabel}>يباع بواسطة</div>
+                      <div style={styles.sellerValue}>{product.seller_name || product.brand || "RAHBA"}</div>
+                    </div>
+
+                    <div style={styles.sellerTrustBadge}>بائع داخل رحبة</div>
+                  </div>
+
+                  <div style={styles.sellerMetaRow}>
+                    <span>⭐ {ratingSummary.avg || 0}</span>
+                    <span>•</span>
+                    <span>{ratingSummary.count || 0} تقييم</span>
+                  </div>
+
+                  <div style={styles.sellerActionRow}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => navigate(`/marketplace/sellers/${product.seller_id || ""}`)}
+                      disabled={!product.seller_id}
+                    >
+                      عرض المتجر
+                    </button>
+
+                    <a
+                      href="https://wa.me/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-secondary"
+                      style={styles.whatsappBtn}
+                    >
+                      واتساب
+                    </a>
+                  </div>
+                </div>
+
+                <div style={styles.inlineCtaRow}>
                   <button
-                    key={`${img}-${idx}`}
-                    type="button"
-                    onClick={() => setSelectedImage(img)}
-                    style={{
-                      ...styles.thumbBtn,
-                      ...(selectedImage === img ? styles.thumbBtnActive : {})
-                    }}
+                    onClick={handleGoToCheckout}
+                    disabled={product.stock <= 0}
+                    className="btn btn-primary"
                   >
-                    <img src={img} alt={`thumb-${idx}`} style={styles.thumbImg} />
+                    إتمام الطلب الآن
                   </button>
-                ))}
-              </div>
-            ) : null}
 
-            <div className="ui-card-soft" style={styles.summaryCard}>
-              <div style={styles.summaryTop}>
-                <div style={styles.priceBox}>{product.price_mad} MAD</div>
-                <div
-                  style={{
-                    ...styles.stockPill,
-                    color: product.stock > 0 ? "#166534" : "#b91c1c"
-                  }}
-                >
-                  {product.stock > 0 ? `متوفر: ${product.stock}` : "غير متوفر حالياً"}
-                </div>
-              </div>
-
-              <p style={styles.shortDesc}>
-                {product.description_ar || "بدون وصف مختصر"}
-              </p>
-
-              <div style={styles.sellerBox}>
-                <div style={styles.sellerLabel}>البائع</div>
-                <div style={styles.sellerValue}>
-                  {product.seller_name || product.brand || "RAHBA"}
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={product.stock <= 0}
+                    className="btn btn-secondary"
+                  >
+                    أضف إلى السلة
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
           {message ? <div className="message-box">{message}</div> : null}
 
-          {product.landing_html_ar ? (
-            <section className="ui-card" style={styles.sectionCard}>
-              <h2 className="section-title">عرض تفصيلي للمنتج</h2>
-              <div
-                style={styles.htmlBlock}
-                dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
-              />
-            </section>
-          ) : null}
-
           <section className="ui-card" style={styles.sectionCard}>
-            <h2 className="section-title">أهم المميزات</h2>
+            <h2 className="section-title">لماذا تختار هذا المنتج؟</h2>
             <div style={styles.highlightsGrid}>
               {highlights.map((item, idx) => (
                 <div key={`${item}-${idx}`} className="ui-card-soft" style={styles.highlightCard}>
@@ -493,9 +599,9 @@ export default function ProductDetailsPage() {
           </section>
 
           <section className="ui-card" style={styles.sectionCard}>
-            <h2 className="section-title">تفاصيل المنتج</h2>
+            <h2 className="section-title">تفاصيل سريعة</h2>
             <div style={styles.detailsGrid}>
-              {specs.map((row, idx) => (
+              {quickSpecs.map((row, idx) => (
                 <DetailRow
                   key={row.id || `${row.label_ar}-${idx}`}
                   label={row.label_ar}
@@ -504,6 +610,16 @@ export default function ProductDetailsPage() {
               ))}
             </div>
           </section>
+
+          {product.landing_html_ar ? (
+            <section className="ui-card" style={styles.sectionCard}>
+              <h2 className="section-title">عرض تفصيلي للمنتج</h2>
+              <div
+                style={styles.htmlBlock}
+                dangerouslySetInnerHTML={{ __html: product.landing_html_ar }}
+              />
+            </section>
+          ) : null}
 
           <section className="ui-card" style={styles.sectionCard}>
             <h2 className="section-title">أسئلة شائعة</h2>
@@ -527,6 +643,39 @@ export default function ProductDetailsPage() {
                 </div>
                 <div style={styles.reviewCount}>{ratingSummary.count || 0} تقييم</div>
               </div>
+            </div>
+
+            <div style={styles.reviewsList}>
+              {previewReviews.length === 0 ? (
+                <div className="empty-state">لا توجد مراجعات بعد</div>
+              ) : (
+                previewReviews.map((review) => (
+                  <article key={review.id} className="ui-card-soft" style={styles.reviewCard}>
+                    <div style={styles.reviewCardTop}>
+                      <div style={styles.stars}>{renderStars(review.rating)}</div>
+                      <div style={styles.reviewDate}>{review.created_at}</div>
+                    </div>
+
+                    {review.buyer_name ? (
+                      <div style={styles.reviewerName}>{review.buyer_name}</div>
+                    ) : null}
+
+                    {review.title ? (
+                      <strong style={styles.reviewTitle}>{review.title}</strong>
+                    ) : null}
+
+                    <p style={styles.reviewText}>{review.comment}</p>
+
+                    {review.review_image_url ? (
+                      <img
+                        src={resolveImageUrl(review.review_image_url)}
+                        alt="صورة المراجعة"
+                        style={styles.reviewImage}
+                      />
+                    ) : null}
+                  </article>
+                ))
+              )}
             </div>
 
             <form onSubmit={handleSubmitReview} style={styles.reviewForm}>
@@ -593,39 +742,6 @@ export default function ProductDetailsPage() {
                 {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
               </button>
             </form>
-
-            <div style={styles.reviewsList}>
-              {reviews.length === 0 ? (
-                <div className="empty-state">لا توجد مراجعات بعد</div>
-              ) : (
-                reviews.map((review) => (
-                  <article key={review.id} className="ui-card-soft" style={styles.reviewCard}>
-                    <div style={styles.reviewCardTop}>
-                      <div style={styles.stars}>{renderStars(review.rating)}</div>
-                      <div style={styles.reviewDate}>{review.created_at}</div>
-                    </div>
-
-                    {review.buyer_name ? (
-                      <div style={styles.reviewerName}>{review.buyer_name}</div>
-                    ) : null}
-
-                    {review.title ? (
-                      <strong style={styles.reviewTitle}>{review.title}</strong>
-                    ) : null}
-
-                    <p style={styles.reviewText}>{review.comment}</p>
-
-                    {review.review_image_url ? (
-                      <img
-                        src={resolveImageUrl(review.review_image_url)}
-                        alt="صورة المراجعة"
-                        style={styles.reviewImage}
-                      />
-                    ) : null}
-                  </article>
-                ))
-              )}
-            </div>
           </section>
 
           {similar.length > 0 ? (
@@ -651,9 +767,6 @@ export default function ProductDetailsPage() {
 
                     <div className="product-card__body">
                       <h3 className="product-card__title">{p.title_ar}</h3>
-                      <p className="product-card__desc">
-                        {p.description_ar || "منتج مشابه داخل نفس الفئة"}
-                      </p>
                       <div style={styles.similarMeta}>
                         <span>{p.seller_name || "RAHBA"}</span>
                         <span>{p.stock > 0 ? "متوفر" : "غير متوفر"}</span>
@@ -674,7 +787,7 @@ export default function ProductDetailsPage() {
             <div style={styles.stickyPrice}>
               <strong>{product.price_mad} MAD</strong>
               <span style={styles.stickyStock}>
-                {product.stock > 0 ? "متوفر" : "غير متوفر"}
+                {getStockLabel(product.stock)}
               </span>
             </div>
 
@@ -712,10 +825,29 @@ function DetailRow({ label, value }) {
 }
 
 const styles = {
-  heroCard: {
+  heroShell: {
     padding: "16px",
     display: "grid",
-    gap: "14px"
+    gap: "18px"
+  },
+  heroGrid: {
+    display: "grid",
+    gap: "18px"
+  },
+  galleryCol: {
+    display: "grid",
+    gap: "10px"
+  },
+  infoCol: {
+    display: "grid",
+    gap: "12px"
+  },
+  identityBlock: {
+    display: "grid",
+    gap: "10px"
+  },
+  productTitle: {
+    margin: 0
   },
   brandRow: {
     display: "flex",
@@ -735,10 +867,51 @@ const styles = {
     fontWeight: 900
   },
   galleryCard: {
+    position: "relative",
     overflow: "hidden",
     borderRadius: "22px",
     border: "1px solid #e7ddcf",
     background: "#fff"
+  },
+  galleryBadges: {
+    position: "absolute",
+    top: "12px",
+    right: "12px",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px"
+  },
+  badgeNeutral: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.92)",
+    border: "1px solid #e5dcc9",
+    color: "#475569",
+    fontWeight: 800,
+    fontSize: "12px"
+  },
+  badgeSuccess: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    background: "rgba(220,252,231,0.95)",
+    border: "1px solid #86efac",
+    color: "#166534",
+    fontWeight: 900,
+    fontSize: "12px"
+  },
+  badgeWarning: {
+    background: "rgba(254,243,199,0.95)",
+    border: "1px solid #fcd34d",
+    color: "#92400e"
+  },
+  badgeDanger: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    background: "rgba(254,226,226,0.95)",
+    border: "1px solid #fecaca",
+    color: "#b91c1c",
+    fontWeight: 900,
+    fontSize: "12px"
   },
   mainImage: {
     width: "100%",
@@ -777,12 +950,12 @@ const styles = {
     height: "100%",
     objectFit: "cover"
   },
-  summaryCard: {
-    padding: "14px",
+  commerceCard: {
+    padding: "16px",
     display: "grid",
     gap: "12px"
   },
-  summaryTop: {
+  priceRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
@@ -791,30 +964,99 @@ const styles = {
   },
   priceBox: {
     color: "#173b74",
-    fontSize: "28px",
-    fontWeight: 900
+    fontSize: "30px",
+    fontWeight: 900,
+    lineHeight: 1.1
   },
   stockPill: {
+    padding: "8px 12px",
+    borderRadius: "999px",
     fontSize: "13px",
     fontWeight: 900
+  },
+  stockSuccess: {
+    background: "#ecfdf5",
+    color: "#166534",
+    border: "1px solid #a7f3d0"
+  },
+  stockWarning: {
+    background: "#fffbeb",
+    color: "#92400e",
+    border: "1px solid #fde68a"
+  },
+  stockDanger: {
+    background: "#fef2f2",
+    color: "#b91c1c",
+    border: "1px solid #fecaca"
+  },
+  trustList: {
+    display: "grid",
+    gap: "8px"
+  },
+  trustItem: {
+    color: "#475569",
+    fontWeight: 700,
+    lineHeight: 1.6
   },
   shortDesc: {
     margin: 0,
     color: "#64748b",
     lineHeight: 1.8
   },
-  sellerBox: {
+  sellerCard: {
+    padding: "16px",
     display: "grid",
-    gap: "4px"
+    gap: "12px"
+  },
+  sellerHead: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
   },
   sellerLabel: {
     color: "#8a8175",
     fontSize: "13px",
-    fontWeight: 700
+    fontWeight: 700,
+    marginBottom: "4px"
   },
   sellerValue: {
     color: "#1f2937",
+    fontWeight: 900,
+    fontSize: "18px"
+  },
+  sellerTrustBadge: {
+    background: "#eef6ff",
+    border: "1px solid #cfe0fb",
+    color: "#173b74",
+    padding: "8px 10px",
+    borderRadius: "999px",
+    fontSize: "12px",
     fontWeight: 900
+  },
+  sellerMetaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    color: "#6b7280",
+    fontSize: "13px",
+    fontWeight: 700
+  },
+  sellerActionRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px"
+  },
+  whatsappBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  inlineCtaRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "8px"
   },
   sectionCard: {
     padding: "16px",
@@ -907,7 +1149,8 @@ const styles = {
   },
   reviewForm: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    paddingTop: "8px"
   },
   reviewsList: {
     display: "grid",
