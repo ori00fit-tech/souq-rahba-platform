@@ -131,6 +131,7 @@ export default function ProductDetailsPage() {
   const [selectedImage, setSelectedImage] = useState("");
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [showAllSpecs, setShowAllSpecs] = useState(false);
 
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
@@ -275,7 +276,10 @@ export default function ProductDetailsPage() {
     ];
   }, [product]);
 
-  const quickSpecs = useMemo(() => specs.slice(0, 5), [specs]);
+  const quickSpecs = useMemo(
+    () => (showAllSpecs ? specs : specs.slice(0, 5)),
+    [specs, showAllSpecs]
+  );
 
   const faqs = useMemo(() => {
     if (Array.isArray(product?.faqs) && product.faqs.length > 0) {
@@ -604,7 +608,19 @@ export default function ProductDetailsPage() {
           </section>
 
           <section className="ui-card" style={styles.sectionCard}>
-            <h2 className="section-title">تفاصيل سريعة</h2>
+            <div style={styles.sectionHeadRow}>
+              <h2 className="section-title">تفاصيل سريعة</h2>
+              {specs.length > 5 ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAllSpecs((prev) => !prev)}
+                >
+                  {showAllSpecs ? "عرض أقل" : "عرض كل التفاصيل"}
+                </button>
+              ) : null}
+            </div>
+
             <div style={styles.detailsGrid}>
               {quickSpecs.map((row, idx) => (
                 <DetailRow
@@ -613,6 +629,43 @@ export default function ProductDetailsPage() {
                   value={row.value_ar}
                 />
               ))}
+            </div>
+          </section>
+
+          <section className="ui-card" style={styles.sectionCard}>
+            <h2 className="section-title">معلومات الشراء</h2>
+            <div style={styles.reassuranceGrid}>
+              <div className="ui-card-soft" style={styles.reassuranceCard}>
+                <div style={styles.reassuranceIcon}>🚚</div>
+                <div>
+                  <div style={styles.reassuranceTitle}>التوصيل</div>
+                  <div style={styles.reassuranceText}>التوصيل متاح حسب المدينة والبائع.</div>
+                </div>
+              </div>
+
+              <div className="ui-card-soft" style={styles.reassuranceCard}>
+                <div style={styles.reassuranceIcon}>💵</div>
+                <div>
+                  <div style={styles.reassuranceTitle}>الدفع</div>
+                  <div style={styles.reassuranceText}>الدفع عند الاستلام متاح لهذا الطلب.</div>
+                </div>
+              </div>
+
+              <div className="ui-card-soft" style={styles.reassuranceCard}>
+                <div style={styles.reassuranceIcon}>📞</div>
+                <div>
+                  <div style={styles.reassuranceTitle}>التواصل</div>
+                  <div style={styles.reassuranceText}>يمكنك التواصل مع البائع قبل أو بعد الطلب.</div>
+                </div>
+              </div>
+
+              <div className="ui-card-soft" style={styles.reassuranceCard}>
+                <div style={styles.reassuranceIcon}>🔒</div>
+                <div>
+                  <div style={styles.reassuranceTitle}>الطلب الآمن</div>
+                  <div style={styles.reassuranceText}>يتم تسجيل الطلب ومتابعته داخل رحبة.</div>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -774,31 +827,33 @@ export default function ProductDetailsPage() {
           {similar.length > 0 ? (
             <section className="ui-card" style={styles.sectionCard}>
               <h2 className="section-title">منتجات مشابهة</h2>
-              <div className="product-list">
+              <div style={styles.similarGrid}>
                 {similar.map((p) => (
                   <div
                     key={p.id}
-                    className="product-card"
+                    className="ui-card-soft"
                     onClick={() => p.slug && navigate(`/products/${p.slug}`)}
-                    style={{ cursor: p.slug ? "pointer" : "default" }}
+                    style={{ ...styles.similarCard, cursor: p.slug ? "pointer" : "default" }}
                   >
                     {resolveImageUrl(p.image_url) ? (
                       <img
                         src={resolveImageUrl(p.image_url)}
                         alt={p.title_ar}
-                        className="product-card__image"
+                        style={styles.similarImage}
                       />
                     ) : (
-                      <div className="product-card__image" style={styles.noImage}>لا توجد صورة</div>
+                      <div style={{ ...styles.similarImage, ...styles.noImage }}>لا توجد صورة</div>
                     )}
 
-                    <div className="product-card__body">
-                      <h3 className="product-card__title">{p.title_ar}</h3>
+                    <div style={styles.similarBody}>
+                      <h3 style={styles.similarTitle}>{p.title_ar}</h3>
+
                       <div style={styles.similarMeta}>
                         <span>{p.seller_name || "RAHBA"}</span>
                         <span>{p.stock > 0 ? "متوفر" : "غير متوفر"}</span>
                       </div>
-                      <strong className="product-card__price">{p.price_mad} MAD</strong>
+
+                      <strong style={styles.similarPrice}>{p.price_mad} MAD</strong>
                     </div>
                   </div>
                 ))}
@@ -1090,6 +1145,43 @@ const styles = {
     display: "grid",
     gap: "14px"
   },
+  sectionHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+  reassuranceGrid: {
+    display: "grid",
+    gap: "10px"
+  },
+  reassuranceCard: {
+    padding: "14px",
+    display: "flex",
+    gap: "12px",
+    alignItems: "flex-start"
+  },
+  reassuranceIcon: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "999px",
+    background: "#eef6ff",
+    color: "#173b74",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "16px",
+    flexShrink: 0
+  },
+  reassuranceTitle: {
+    color: "#173b74",
+    fontWeight: 900,
+    marginBottom: "4px"
+  },
+  reassuranceText: {
+    color: "#4b5563",
+    lineHeight: 1.8
+  },
   htmlBlock: {
     lineHeight: 1.9,
     color: "#374151"
@@ -1224,14 +1316,48 @@ const styles = {
     borderRadius: "16px",
     border: "1px solid #e7ddcf"
   },
+  similarGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+    gap: "12px"
+  },
+  similarCard: {
+    padding: "10px",
+    display: "grid",
+    gap: "10px"
+  },
+  similarImage: {
+    width: "100%",
+    height: "150px",
+    objectFit: "cover",
+    borderRadius: "16px",
+    border: "1px solid #e7ddcf",
+    background: "#fff"
+  },
+  similarBody: {
+    display: "grid",
+    gap: "8px"
+  },
+  similarTitle: {
+    margin: 0,
+    color: "#1f2937",
+    fontSize: "14px",
+    lineHeight: 1.5,
+    fontWeight: 900
+  },
   similarMeta: {
     display: "flex",
     justifyContent: "space-between",
     gap: "8px",
     flexWrap: "wrap",
     color: "#6b7280",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: 700
+  },
+  similarPrice: {
+    color: "#173b74",
+    fontSize: "16px",
+    fontWeight: 900
   },
   stickyBarWrap: {
     position: "sticky",
