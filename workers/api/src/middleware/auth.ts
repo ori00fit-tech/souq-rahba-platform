@@ -1,12 +1,14 @@
 import type { Context, Next } from "hono";
 import { AuthErrors } from "../utils/auth-errors";
+import type { AuthUser } from "../types";
 
 type SessionRow = {
   id: string;
   user_id: string;
   email: string;
   full_name: string | null;
-  role: string;
+  phone: string | null;
+  role: "buyer" | "seller" | "admin" | string;
   expires_at?: string | null;
 };
 
@@ -15,6 +17,21 @@ function isExpired(expiresAt: string | null | undefined): boolean {
   const ts = Date.parse(expiresAt);
   if (Number.isNaN(ts)) return false;
   return ts <= Date.now();
+}
+
+function mapSessionRowToAuthUser(row: SessionRow): AuthUser {
+  const normalizedRole =
+    row.role === "buyer" || row.role === "seller" || row.role === "admin"
+      ? row.role
+      : "buyer";
+
+  return {
+    user_id: row.user_id,
+    email: row.email,
+    full_name: row.full_name,
+    phone: row.phone || null,
+    role: normalizedRole
+  };
 }
 
 export async function authMiddleware(c: Context, next: Next) {
@@ -43,6 +60,7 @@ export async function authMiddleware(c: Context, next: Next) {
       s.expires_at,
       u.email,
       u.full_name,
+      u.phone,
       u.role
     from sessions s
     join users u on u.id = s.user_id
@@ -70,6 +88,6 @@ export async function authMiddleware(c: Context, next: Next) {
     );
   }
 
-  c.set("authUser", session);
+  c.set("authUser", mapSessionRowToAuthUser(session));
   await next();
 }
