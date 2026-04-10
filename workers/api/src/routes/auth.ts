@@ -472,44 +472,58 @@ authRouter.post("/logout", authMiddleware, async (c) => {
 });
 
 
-import { authMiddleware } from "../middleware/auth";
-import { hashPassword, verifyPassword } from "../lib/password";
 
 authRouter.post("/change-password", authMiddleware, async (c) => {
   try {
-    const user = c.get("authUser");
+    const authUser = c.get("authUser");
 
-    if (!user?.id) {
-      return c.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Not authenticated" } }, 401);
+    if (!authUser?.user_id) {
+      return c.json(
+        fail("UNAUTHORIZED", "Not authenticated"),
+        401
+      );
     }
 
     const body = await c.req.json().catch(() => null);
-
     const currentPassword = String(body?.current_password || "");
     const newPassword = String(body?.new_password || "");
 
     if (!currentPassword || !newPassword) {
-      return c.json({ ok: false, error: { code: "INVALID_INPUT", message: "Missing passwords" } }, 400);
+      return c.json(
+        fail("INVALID_INPUT", "Missing passwords"),
+        400
+      );
     }
 
     if (newPassword.length < 8) {
-      return c.json({ ok: false, error: { code: "WEAK_PASSWORD", message: "Password too short" } }, 400);
+      return c.json(
+        fail("WEAK_PASSWORD", "Password too short"),
+        400
+      );
     }
 
-    const userRow = await c.env.DB.prepare(
+    const userRowRaw = await c.env.DB.prepare(
       "select id, password_hash from users where id = ? limit 1"
     )
-      .bind(user.id)
+      .bind(authUser.user_id)
       .first();
 
+    const userRow = userRowRaw as { id: string; password_hash: string | null } | null;
+
     if (!userRow) {
-      return c.json({ ok: false, error: { code: "NOT_FOUND", message: "User not found" } }, 404);
+      return c.json(
+        fail("NOT_FOUND", "User not found"),
+        404
+      );
     }
 
-    const isValid = await verifyPassword(currentPassword, userRow.password_hash);
+    const passwordCheck = await verifyPassword(currentPassword, userRow.password_hash);
 
-    if (!isValid) {
-      return c.json({ ok: false, error: { code: "INVALID_CREDENTIALS", message: "Wrong password" } }, 401);
+    if (!passwordCheck.valid) {
+      return c.json(
+        fail("INVALID_CREDENTIALS", "Wrong password"),
+        401
+      );
     }
 
     const newHash = await hashPassword(newPassword);
@@ -517,13 +531,17 @@ authRouter.post("/change-password", authMiddleware, async (c) => {
     await c.env.DB.prepare(
       "update users set password_hash = ? where id = ?"
     )
-      .bind(newHash, user.id)
+      .bind(newHash, authUser.user_id)
       .run();
 
-    return c.json({ ok: true, data: { message: "Password updated" } });
-
+    return c.json(
+      ok({ message: "Password updated" })
+    );
   } catch (err) {
     console.error("change-password failed", err);
-    return c.json({ ok: false, error: { code: "SERVER_ERROR", message: "Failed to update password" } }, 500);
+    return c.json(
+      fail("SERVER_ERROR", "Failed to update password"),
+      500
+    );
   }
 });
