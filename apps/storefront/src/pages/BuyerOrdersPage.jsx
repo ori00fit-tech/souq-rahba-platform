@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import { UI } from "../components/marketplace/uiTokens";
 
 function loadGuestOrders() {
   try {
@@ -177,13 +180,18 @@ export default function BuyerOrdersPage() {
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.heroShell}>
             <div className="ui-chip">RAHBA ORDERS</div>
-            <h1 className="page-title">طلباتي</h1>
-            <p className="page-subtitle">جاري تحميل الطلبات...</p>
-          </div>
-          <div className="loading-state">جاري تحميل الطلبات...</div>
+            <SectionHead
+              title="طلباتي"
+              subtitle="جاري تحميل الطلبات..."
+            />
+          </SectionShell>
+
+          <SectionShell>
+            <div className="loading-state">جاري تحميل الطلبات...</div>
+          </SectionShell>
         </div>
       </section>
     );
@@ -192,83 +200,95 @@ export default function BuyerOrdersPage() {
   if (!currentUser) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.heroShell}>
             <div className="ui-chip">RAHBA GUEST ORDERS</div>
-            <h1 className="page-title">طلباتك الأخيرة</h1>
-            <p className="page-subtitle">
-              هذه الطلبات محفوظة محلياً على هذا الجهاز فقط.
-            </p>
-          </div>
+            <SectionHead
+              title="طلباتك الأخيرة"
+              subtitle="هذه الطلبات محفوظة محلياً على هذا الجهاز فقط."
+            />
+          </SectionShell>
 
-          <div className="ui-card-soft" style={s.infoCard}>
-            <strong style={s.infoTitle}>مهم</strong>
-            <span style={s.infoText}>
-              في وضع الزائر، نحفظ رقم الطلب وبعض المعلومات الأساسية فقط على هذا الجهاز.
-              التفاصيل الكاملة للطلب تتطلب تسجيل الدخول أو الرجوع للتواصل عبر رقم الطلب.
-            </span>
-          </div>
+          <SectionShell>
+            <div className="ui-card-soft" style={s.infoCard}>
+              <strong style={s.infoTitle}>مهم</strong>
+              <span style={s.infoText}>
+                في وضع الزائر، نحفظ رقم الطلب وبعض المعلومات الأساسية فقط على هذا الجهاز.
+                التفاصيل الكاملة للطلب تتطلب تسجيل الدخول أو الرجوع للتواصل عبر رقم الطلب.
+              </span>
+            </div>
+          </SectionShell>
 
           {copyMessage ? <div className="message-box">{copyMessage}</div> : null}
 
           {guestOrders.length === 0 ? (
-            <div className="empty-state" style={s.emptyCard}>
-              <div style={s.emptyIcon}>📦</div>
-              <h3 style={s.emptyTitle}>لا توجد طلبات محفوظة على هذا الجهاز</h3>
-              <p style={s.emptyText}>
-                عند إتمام طلب كزائر، سيتم حفظه هنا تلقائياً لتتمكن من الرجوع إليه لاحقاً.
-              </p>
+            <SectionShell>
+              <div style={s.emptyCard}>
+                <div style={s.emptyIcon}>📦</div>
+                <h3 style={s.emptyTitle}>لا توجد طلبات محفوظة على هذا الجهاز</h3>
+                <p style={s.emptyText}>
+                  عند إتمام طلب كزائر، سيتم حفظه هنا تلقائياً لتتمكن من الرجوع إليه لاحقاً.
+                </p>
 
-              <Link to="/products" className="btn btn-primary full-width">
-                تصفح المنتجات
-              </Link>
-            </div>
+                <Link to="/products" className="btn btn-primary full-width">
+                  تصفح المنتجات
+                </Link>
+              </div>
+            </SectionShell>
           ) : (
-            <div style={s.list}>
-              {guestOrders.map((order, idx) => (
-                <article key={`${order.order_number}-${idx}`} className="ui-card" style={s.orderCard}>
-                  <div style={s.orderHead}>
-                    <div style={s.orderTopInfo}>
-                      <div style={s.orderNumber}>{order.order_number || "—"}</div>
-                      <div style={s.orderDate}>
-                        {formatDateTime(order.created_at, locale)}
+            <SectionShell>
+              <SectionHead
+                chip="GUEST ORDERS"
+                title="طلبات الزائر"
+                subtitle="هذه السجلات مرتبطة بهذا المتصفح وهذا الجهاز فقط."
+              />
+
+              <div style={s.list}>
+                {guestOrders.map((order, idx) => (
+                  <article key={`${order.order_number}-${idx}`} className="ui-card-soft" style={s.orderCard}>
+                    <div style={s.orderHead}>
+                      <div style={s.orderTopInfo}>
+                        <div style={s.orderNumber}>{order.order_number || "—"}</div>
+                        <div style={s.orderDate}>
+                          {formatDateTime(order.created_at, locale)}
+                        </div>
+                      </div>
+
+                      <div style={s.guestPill}>طلب زائر</div>
+                    </div>
+
+                    <div style={s.orderBody}>
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>البائع</span>
+                        <strong style={s.infoValue}>{order.seller || "RAHBA"}</strong>
+                      </div>
+
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>الهاتف</span>
+                        <strong style={s.infoValue}>{order.phone || "—"}</strong>
+                      </div>
+
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>الإجمالي</span>
+                        <strong style={s.priceValue}>
+                          {formatMoney(Number(order.total_mad || 0), currency, locale)}
+                        </strong>
                       </div>
                     </div>
 
-                    <div style={s.guestPill}>طلب زائر</div>
-                  </div>
-
-                  <div style={s.orderBody}>
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>البائع</span>
-                      <strong style={s.infoValue}>{order.seller || "RAHBA"}</strong>
+                    <div style={s.actions}>
+                      <button
+                        type="button"
+                        className="btn btn-primary full-width"
+                        onClick={() => copyText(order.order_number || "")}
+                      >
+                        نسخ رقم الطلب
+                      </button>
                     </div>
-
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>الهاتف</span>
-                      <strong style={s.infoValue}>{order.phone || "—"}</strong>
-                    </div>
-
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>الإجمالي</span>
-                      <strong style={s.priceValue}>
-                        {formatMoney(Number(order.total_mad || 0), currency, locale)}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <div style={s.actions}>
-                    <button
-                      type="button"
-                      className="btn btn-primary full-width"
-                      onClick={() => copyText(order.order_number || "")}
-                    >
-                      نسخ رقم الطلب
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            </SectionShell>
           )}
         </div>
       </section>
@@ -277,14 +297,14 @@ export default function BuyerOrdersPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={s.heroCard}>
+      <div style={s.stack}>
+        <SectionShell style={s.heroShell}>
           <div className="ui-chip">RAHBA ORDERS</div>
-          <h1 className="page-title">طلباتي</h1>
-          <p className="page-subtitle">
-            تتبع حالة طلباتك، واطلع على التفاصيل وأرقام التتبع إن وجدت.
-          </p>
-        </div>
+          <SectionHead
+            title="طلباتي"
+            subtitle="تتبع حالة طلباتك، واطلع على التفاصيل وأرقام التتبع إن وجدت."
+          />
+        </SectionShell>
 
         <div style={s.topActions}>
           <button
@@ -301,82 +321,92 @@ export default function BuyerOrdersPage() {
         {copyMessage ? <div className="message-box">{copyMessage}</div> : null}
 
         {orders.length === 0 ? (
-          <div className="empty-state" style={s.emptyCard}>
-            <div style={s.emptyIcon}>📦</div>
-            <h3 style={s.emptyTitle}>لا توجد طلبات بعد</h3>
-            <p style={s.emptyText}>
-              بعد إتمام أول عملية شراء من حسابك، ستظهر طلباتك هنا.
-            </p>
+          <SectionShell>
+            <div style={s.emptyCard}>
+              <div style={s.emptyIcon}>📦</div>
+              <h3 style={s.emptyTitle}>لا توجد طلبات بعد</h3>
+              <p style={s.emptyText}>
+                بعد إتمام أول عملية شراء من حسابك، ستظهر طلباتك هنا.
+              </p>
 
-            <Link to="/products" className="btn btn-primary full-width">
-              تصفح المنتجات
-            </Link>
-          </div>
+              <Link to="/products" className="btn btn-primary full-width">
+                تصفح المنتجات
+              </Link>
+            </div>
+          </SectionShell>
         ) : (
-          <div style={s.list}>
-            {orders.map((order) => {
-              const status = getStatusMeta(order.order_status);
+          <SectionShell>
+            <SectionHead
+              chip="ACCOUNT ORDERS"
+              title="سجل الطلبات"
+              subtitle="راجع الطلبات السابقة، انسخ رقم الطلب، أو ادخل إلى التفاصيل."
+            />
 
-              return (
-                <article key={order.id} className="ui-card" style={s.orderCard}>
-                  <div style={s.orderHead}>
-                    <div style={s.orderTopInfo}>
-                      <div style={s.orderNumber}>{order.order_number || "—"}</div>
-                      <div style={s.orderDate}>{formatDateTime(order.created_at, locale)}</div>
+            <div style={s.list}>
+              {orders.map((order) => {
+                const status = getStatusMeta(order.order_status);
+
+                return (
+                  <article key={order.id} className="ui-card-soft" style={s.orderCard}>
+                    <div style={s.orderHead}>
+                      <div style={s.orderTopInfo}>
+                        <div style={s.orderNumber}>{order.order_number || "—"}</div>
+                        <div style={s.orderDate}>{formatDateTime(order.created_at, locale)}</div>
+                      </div>
+
+                      <div
+                        style={{
+                          ...s.statusPill,
+                          background: status.bg,
+                          color: status.color,
+                          borderColor: status.border
+                        }}
+                      >
+                        {status.label}
+                      </div>
                     </div>
 
-                    <div
-                      style={{
-                        ...s.statusPill,
-                        background: status.bg,
-                        color: status.color,
-                        borderColor: status.border
-                      }}
-                    >
-                      {status.label}
-                    </div>
-                  </div>
+                    <div style={s.orderBody}>
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>البائع</span>
+                        <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
+                      </div>
 
-                  <div style={s.orderBody}>
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>البائع</span>
-                      <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
-                    </div>
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>عدد المنتجات</span>
+                        <strong style={s.infoValue}>{Number(order.items_count || 0)}</strong>
+                      </div>
 
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>عدد المنتجات</span>
-                      <strong style={s.infoValue}>{Number(order.items_count || 0)}</strong>
+                      <div style={s.infoRow}>
+                        <span style={s.infoLabel}>الإجمالي</span>
+                        <strong style={s.priceValue}>
+                          {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
+                        </strong>
+                      </div>
                     </div>
 
-                    <div style={s.infoRow}>
-                      <span style={s.infoLabel}>الإجمالي</span>
-                      <strong style={s.priceValue}>
-                        {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
-                      </strong>
+                    <div style={s.actions}>
+                      <button
+                        type="button"
+                        className="btn btn-primary full-width"
+                        onClick={() => navigate(`/my-orders/${order.id}`)}
+                      >
+                        عرض التفاصيل
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn btn-secondary full-width"
+                        onClick={() => copyText(order.order_number || "")}
+                      >
+                        نسخ رقم الطلب
+                      </button>
                     </div>
-                  </div>
-
-                  <div style={s.actions}>
-                    <button
-                      type="button"
-                      className="btn btn-primary full-width"
-                      onClick={() => navigate(`/my-orders/${order.id}`)}
-                    >
-                      عرض التفاصيل
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn btn-secondary full-width"
-                      onClick={() => copyText(order.order_number || "")}
-                    >
-                      نسخ رقم الطلب
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+                  </article>
+                );
+              })}
+            </div>
+          </SectionShell>
         )}
       </div>
     </section>
@@ -384,36 +414,48 @@ export default function BuyerOrdersPage() {
 }
 
 const s = {
-  heroCard: {
-    padding: "18px",
+  stack: {
     display: "grid",
-    gap: "10px"
+    gap: "26px"
   },
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
+  },
+
   topActions: {
     display: "flex",
     justifyContent: "flex-start"
   },
+
   infoCard: {
     padding: "14px",
     display: "grid",
     gap: "6px"
   },
+
   infoTitle: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   infoText: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     lineHeight: 1.8
   },
+
   list: {
     display: "grid",
     gap: "12px"
   },
+
   orderCard: {
     padding: "16px",
     display: "grid",
     gap: "14px"
   },
+
   orderHead: {
     display: "flex",
     justifyContent: "space-between",
@@ -421,48 +463,55 @@ const s = {
     alignItems: "start",
     flexWrap: "wrap"
   },
+
   orderTopInfo: {
     display: "grid",
     gap: "6px"
   },
+
   orderNumber: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900,
     fontSize: "18px"
   },
+
   orderDate: {
     color: "#7a6f63",
-    fontSize: "13px",
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   guestPill: {
     minHeight: "34px",
     padding: "0 12px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "#f8fafc",
     border: "1px solid #e2e8f0",
     color: "#475569",
     fontWeight: 800,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   statusPill: {
     minHeight: "34px",
     padding: "0 12px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     border: "1px solid transparent",
     fontWeight: 800,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   orderBody: {
     display: "grid",
     gap: "10px"
   },
+
   infoRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -470,35 +519,44 @@ const s = {
     alignItems: "center",
     flexWrap: "wrap"
   },
+
   infoLabel: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     fontWeight: 700
   },
+
   infoValue: {
-    color: "#1f2937",
+    color: UI.colors.ink,
     fontWeight: 800
   },
+
   priceValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900,
     fontSize: "18px"
   },
+
   actions: {
     display: "grid",
     gap: "10px"
   },
+
   emptyCard: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    textAlign: "center"
   },
+
   emptyIcon: {
     fontSize: "40px"
   },
+
   emptyTitle: {
     margin: 0,
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   emptyText: {
     margin: 0,
     color: "#7a6f63",
