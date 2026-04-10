@@ -7,6 +7,12 @@ export const adminRouter = new Hono<{ Bindings: import("../types").Bindings }>()
 
 adminRouter.use("*", authMiddleware, requireRole("admin"));
 
+function parseLimit(value: string | undefined, fallback = 10, max = 50) {
+  const n = Number(value || fallback);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+
 adminRouter.get("/sellers", async (c) => {
   const rows = await c.env.DB.prepare(
     `select
@@ -164,6 +170,135 @@ adminRouter.post("/system/cleanup-sessions", async (c) => {
     console.error("POST /admin/system/cleanup-sessions failed", error);
     return c.json(
       fail("SESSION_CLEANUP_FAILED", "Failed to cleanup expired sessions"),
+      500
+    );
+  }
+});
+
+adminRouter.get("/system/recent-orders", async (c) => {
+  try {
+    const limit = parseLimit(c.req.query("limit"), 10, 50);
+
+    const rows = await c.env.DB.prepare(
+      `
+      select
+        o.id,
+        o.order_number,
+        o.buyer_user_id,
+        o.seller_id,
+        o.order_status,
+        o.payment_method,
+        o.payment_status,
+        o.shipping_status,
+        o.total_mad,
+        o.buyer_name,
+        o.buyer_phone,
+        o.buyer_city,
+        o.created_at,
+        s.display_name as seller_name,
+        (
+          select count(*)
+          from order_items oi
+          where oi.order_id = o.id
+        ) as items_count
+      from orders o
+      left join sellers s on s.id = o.seller_id
+      order by datetime(o.created_at) desc
+      limit ?
+      `
+    )
+      .bind(limit)
+      .all();
+
+    return c.json(
+      ok({
+        limit,
+        items: rows.results || []
+      })
+    );
+  } catch (error) {
+    console.error("GET /admin/system/recent-orders failed", error);
+    return c.json(
+      fail("RECENT_ORDERS_FAILED", "Failed to load recent orders"),
+      500
+    );
+  }
+});
+
+adminRouter.get("/system/recent-users", async (c) => {
+  try {
+    const limit = parseLimit(c.req.query("limit"), 10, 50);
+
+    const rows = await c.env.DB.prepare(
+      `
+      select
+        id,
+        email,
+        full_name,
+        phone,
+        role,
+        locale,
+        auth_provider,
+        google_id,
+        avatar_url,
+        created_at
+      from users
+      order by datetime(created_at) desc
+      limit ?
+      `
+    )
+      .bind(limit)
+      .all();
+
+    return c.json(
+      ok({
+        limit,
+        items: rows.results || []
+      })
+    );
+  } catch (error) {
+    console.error("GET /admin/system/recent-users failed", error);
+    return c.json(
+      fail("RECENT_USERS_FAILED", "Failed to load recent users"),
+      500
+    );
+  }
+});
+
+adminRouter.get("/system/recent-sessions", async (c) => {
+  try {
+    const limit = parseLimit(c.req.query("limit"), 10, 50);
+
+    const rows = await c.env.DB.prepare(
+      `
+      select
+        s.id,
+        s.user_id,
+        s.token,
+        s.created_at,
+        s.expires_at,
+        u.email,
+        u.full_name,
+        u.role
+      from sessions s
+      left join users u on u.id = s.user_id
+      order by datetime(s.created_at) desc
+      limit ?
+      `
+    )
+      .bind(limit)
+      .all();
+
+    return c.json(
+      ok({
+        limit,
+        items: rows.results || []
+      })
+    );
+  } catch (error) {
+    console.error("GET /admin/system/recent-sessions failed", error);
+    return c.json(
+      fail("RECENT_SESSIONS_FAILED", "Failed to load recent sessions"),
       500
     );
   }
