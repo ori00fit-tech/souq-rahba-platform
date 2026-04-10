@@ -23,6 +23,14 @@ function makeOrderNumber() {
   return `RB-${year}-${short}`;
 }
 
+async function sha256Hex(input: string): Promise<string> {
+  const bytes = new TextEncoder().encode(input);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 async function getOptionalAuthUser(c: any): Promise<OptionalAuthUser | null> {
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
@@ -93,12 +101,6 @@ function normalizePaymentStatus(paymentMethod: string, orderStatus: string) {
   return "unpaid";
 }
 
-/**
- * GET /orders
- * - buyer: يشوف غير طلباته
- * - seller: يشوف طلبات seller_id ديالو
- * - admin: يشوف الكل أو حسب buyer/seller
- */
 orderRouter.get("/orders", authMiddleware, async (c) => {
   try {
     const authUser = c.get("authUser");
@@ -126,10 +128,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
 
     if (authUser.role === "seller") {
       if (!sellerId) {
-        return c.json(
-          fail("SELLER_ID_REQUIRED", "seller_id is required"),
-          400
-        );
+        return c.json(fail("SELLER_ID_REQUIRED", "seller_id is required"), 400);
       }
 
       const sellerAccess = await c.env.DB.prepare(
@@ -139,10 +138,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
         .first();
 
       if (!sellerAccess) {
-        return c.json(
-          fail("FORBIDDEN", "Forbidden"),
-          403
-        );
+        return c.json(fail("FORBIDDEN", "Forbidden"), 403);
       }
 
       const rows = await c.env.DB.prepare(
@@ -217,10 +213,7 @@ orderRouter.get("/orders", authMiddleware, async (c) => {
     return c.json(ok(rows.results || []));
   } catch (error) {
     console.error("GET /orders failed", error);
-    return c.json(
-      fail("ORDERS_LIST_FAILED", "Failed to load orders"),
-      500
-    );
+    return c.json(fail("ORDERS_LIST_FAILED", "Failed to load orders"), 500);
   }
 });
 
@@ -230,10 +223,7 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
     const sellerId = c.req.query("seller_id");
 
     if (!sellerId) {
-      return c.json(
-        fail("SELLER_ID_REQUIRED", "seller_id is required"),
-        400
-      );
+      return c.json(fail("SELLER_ID_REQUIRED", "seller_id is required"), 400);
     }
 
     if (authUser.role === "seller") {
@@ -244,10 +234,7 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
         .first();
 
       if (!sellerAccess) {
-        return c.json(
-          fail("FORBIDDEN", "Forbidden"),
-          403
-        );
+        return c.json(fail("FORBIDDEN", "Forbidden"), 403);
       }
     }
 
@@ -270,32 +257,22 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
         total_orders: Number(stats?.total_orders || 0),
         total_revenue: Number(stats?.total_revenue || 0),
         pending_orders: Number(stats?.pending_orders || 0),
-        confirmed_orders: Number(stats?.confirmed_orders || 0),
+        confirmed_orders: Number(stats?.confirmed_orders || 0)
       })
     );
   } catch (error) {
     console.error("GET /stats failed", error);
-    return c.json(
-      fail("STATS_FETCH_FAILED", "Failed to load stats"),
-      500
-    );
+    return c.json(fail("STATS_FETCH_FAILED", "Failed to load stats"), 500);
   }
 });
 
-/**
- * POST /orders
- * route مفتوح للضيف أو للمستخدم المسجل
- */
 orderRouter.post("/orders", async (c) => {
   try {
     const authUser = await getOptionalAuthUser(c);
     const body = await c.req.json().catch(() => null);
 
     if (!body) {
-      return c.json(
-        fail("INVALID_JSON", "Invalid request body"),
-        400
-      );
+      return c.json(fail("INVALID_JSON", "Invalid request body"), 400);
     }
 
     const sellerId = String(body.seller_id || "").trim();
@@ -319,52 +296,85 @@ orderRouter.post("/orders", async (c) => {
       ? String(body.shipping_method_label).trim()
       : null;
 
+    const headerIdempotencyKey = String(c.req.header("Idempotency-Key") || "").trim();
+    const bodyIdempotencyKey = String(body.idempotency_key || "").trim();
+    const idempotencyKey = headerIdempotencyKey || bodyIdempotencyKey || crypto.randomUUID();
+
     if (!sellerId) {
-      return c.json(
-        fail("SELLER_ID_REQUIRED", "seller_id is required"),
-        400
-      );
+      return c.json(fail("SELLER_ID_REQUIRED", "seller_id is required"), 400);
     }
 
     if (!items.length) {
-      return c.json(
-        fail("ITEMS_REQUIRED", "Order items are required"),
-        400
-      );
+      return c.json(fail("ITEMS_REQUIRED", "Order items are required"), 400);
     }
 
     if (!buyerName) {
-      return c.json(
-        fail("BUYER_NAME_REQUIRED", "Buyer name is required"),
-        400
-      );
+      return c.json(fail("BUYER_NAME_REQUIRED", "Buyer name is required"), 400);
     }
 
     if (!buyerPhone) {
-      return c.json(
-        fail("BUYER_PHONE_REQUIRED", "Buyer phone is required"),
-        400
-      );
+      return c.json(fail("BUYER_PHONE_REQUIRED", "Buyer phone is required"), 400);
     }
 
     if (!buyerCity) {
-      return c.json(
-        fail("BUYER_CITY_REQUIRED", "Buyer city is required"),
-        400
-      );
+      return c.json(fail("BUYER_CITY_REQUIRED", "Buyer city is required"), 400);
     }
 
     if (!buyerAddress) {
-      return c.json(
-        fail("BUYER_ADDRESS_REQUIRED", "Buyer address is required"),
-        400
-      );
+      return c.json(fail("BUYER_ADDRESS_REQUIRED", "Buyer address is required"), 400);
     }
 
     if (paymentMethod !== "cod") {
       return c.json(
         fail("PAYMENT_METHOD_NOT_SUPPORTED", "Only cash on delivery is supported حاليا"),
         400
+      );
+    }
+
+    const requestFingerprint = await sha256Hex(
+      JSON.stringify({
+        seller_id: sellerId,
+        items: items.map((item: any) => ({
+          product_id: String(item?.product_id || "").trim(),
+          quantity: Number(item?.quantity || 0)
+        })),
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        buyer_city: buyerCity,
+        buyer_address: buyerAddress,
+        payment_method: paymentMethod,
+        shipping_provider_id: shippingProviderId,
+        shipping_method_id: shippingMethodId,
+        shipping_price: shippingPriceRaw ?? null
+      })
+    );
+
+    const existingOrder = await c.env.DB.prepare(
+      `
+      select
+        id,
+        order_number,
+        total_mad,
+        order_status,
+        payment_method,
+        buyer_name,
+        buyer_phone,
+        buyer_city,
+        buyer_address
+      from orders
+      where idempotency_key = ?
+      limit 1
+      `
+    )
+      .bind(idempotencyKey)
+      .first<any>();
+
+    if (existingOrder) {
+      return c.json(
+        ok({
+          ...existingOrder,
+          reused: true
+        })
       );
     }
 
@@ -375,10 +385,7 @@ orderRouter.post("/orders", async (c) => {
       .first<{ id: string; display_name: string | null; phone: string | null }>();
 
     if (!seller) {
-      return c.json(
-        fail("SELLER_NOT_FOUND", "Seller not found"),
-        404
-      );
+      return c.json(fail("SELLER_NOT_FOUND", "Seller not found"), 404);
     }
 
     let subtotalMad = 0;
@@ -396,10 +403,7 @@ orderRouter.post("/orders", async (c) => {
       const quantity = Number(item?.quantity || 0);
 
       if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
-        return c.json(
-          fail("INVALID_ITEM", "Invalid order item"),
-          400
-        );
+        return c.json(fail("INVALID_ITEM", "Invalid order item"), 400);
       }
 
       const product = await c.env.DB.prepare(
@@ -427,10 +431,7 @@ orderRouter.post("/orders", async (c) => {
         }>();
 
       if (!product) {
-        return c.json(
-          fail("PRODUCT_NOT_FOUND", "Invalid product"),
-          404
-        );
+        return c.json(fail("PRODUCT_NOT_FOUND", "Invalid product"), 404);
       }
 
       if (product.seller_id !== sellerId) {
@@ -473,10 +474,7 @@ orderRouter.post("/orders", async (c) => {
       const parsedShipping = Number(shippingPriceRaw);
 
       if (!Number.isFinite(parsedShipping) || parsedShipping < 0) {
-        return c.json(
-          fail("INVALID_SHIPPING_PRICE", "Invalid shipping price"),
-          400
-        );
+        return c.json(fail("INVALID_SHIPPING_PRICE", "Invalid shipping price"), 400);
       }
 
       shippingMad = Math.round(parsedShipping);
@@ -490,44 +488,81 @@ orderRouter.post("/orders", async (c) => {
     const paymentStatus = normalizePaymentStatus(paymentMethod, orderStatus);
     const shippingStatus = normalizeShippingStatus(orderStatus);
 
-    await c.env.DB.prepare(
-      `
-      insert into orders (
-        id,
-        order_number,
-        buyer_user_id,
-        seller_id,
-        order_status,
-        payment_method,
-        payment_status,
-        shipping_status,
-        total_mad,
-        buyer_name,
-        buyer_phone,
-        buyer_city,
-        buyer_address,
-        notes
+    try {
+      await c.env.DB.prepare(
+        `
+        insert into orders (
+          id,
+          order_number,
+          buyer_user_id,
+          seller_id,
+          order_status,
+          payment_method,
+          payment_status,
+          shipping_status,
+          total_mad,
+          buyer_name,
+          buyer_phone,
+          buyer_city,
+          buyer_address,
+          notes,
+          idempotency_key,
+          request_fingerprint
+        )
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `
       )
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
-    )
-      .bind(
-        orderId,
-        orderNumber,
-        buyerUserId,
-        sellerId,
-        orderStatus,
-        paymentMethod,
-        paymentStatus,
-        shippingStatus,
-        totalMad,
-        buyerName,
-        buyerPhone,
-        buyerCity,
-        buyerAddress,
-        notes
+        .bind(
+          orderId,
+          orderNumber,
+          buyerUserId,
+          sellerId,
+          orderStatus,
+          paymentMethod,
+          paymentStatus,
+          shippingStatus,
+          totalMad,
+          buyerName,
+          buyerPhone,
+          buyerCity,
+          buyerAddress,
+          notes,
+          idempotencyKey,
+          requestFingerprint
+        )
+        .run();
+    } catch (error) {
+      const reused = await c.env.DB.prepare(
+        `
+        select
+          id,
+          order_number,
+          total_mad,
+          order_status,
+          payment_method,
+          buyer_name,
+          buyer_phone,
+          buyer_city,
+          buyer_address
+        from orders
+        where idempotency_key = ?
+        limit 1
+        `
       )
-      .run();
+        .bind(idempotencyKey)
+        .first<any>();
+
+      if (reused) {
+        return c.json(
+          ok({
+            ...reused,
+            reused: true
+          })
+        );
+      }
+
+      throw error;
+    }
 
     for (const item of validatedItems) {
       await c.env.DB.prepare(
@@ -632,22 +667,16 @@ orderRouter.post("/orders", async (c) => {
         buyer_name: buyerName,
         buyer_phone: buyerPhone,
         buyer_city: buyerCity,
-        buyer_address: buyerAddress
+        buyer_address: buyerAddress,
+        reused: false
       })
     );
   } catch (error) {
     console.error("POST /orders failed", error);
-    return c.json(
-      fail("ORDER_CREATE_FAILED", "Failed to create order"),
-      500
-    );
+    return c.json(fail("ORDER_CREATE_FAILED", "Failed to create order"), 500);
   }
 });
 
-/**
- * GET /orders/:id
- * route محمي
- */
 orderRouter.get("/orders/:id", authMiddleware, async (c) => {
   try {
     const authUser = c.get("authUser");
@@ -669,10 +698,7 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
       .first<any>();
 
     if (!order) {
-      return c.json(
-        fail("ORDER_NOT_FOUND", "Order not found"),
-        404
-      );
+      return c.json(fail("ORDER_NOT_FOUND", "Order not found"), 404);
     }
 
     const isBuyerOwner =
@@ -684,10 +710,7 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
     const isAdmin = authUser.role === "admin";
 
     if (!isBuyerOwner && !isSellerOwner && !isAdmin) {
-      return c.json(
-        fail("FORBIDDEN", "Forbidden"),
-        403
-      );
+      return c.json(fail("FORBIDDEN", "Forbidden"), 403);
     }
 
     const itemsRes = await c.env.DB.prepare(
@@ -756,17 +779,10 @@ orderRouter.get("/orders/:id", authMiddleware, async (c) => {
     );
   } catch (error) {
     console.error("GET /orders/:id failed", error);
-    return c.json(
-      fail("ORDER_DETAILS_FAILED", "Failed to load order details"),
-      500
-    );
+    return c.json(fail("ORDER_DETAILS_FAILED", "Failed to load order details"), 500);
   }
 });
 
-/**
- * PATCH /orders/:id/status
- * محمي للبائع أو admin
- */
 orderRouter.patch(
   "/orders/:id/status",
   authMiddleware,
@@ -783,10 +799,7 @@ orderRouter.patch(
         : null;
 
       if (!nextStatus) {
-        return c.json(
-          fail("INVALID_STATUS", "Invalid order status"),
-          400
-        );
+        return c.json(fail("INVALID_STATUS", "Invalid order status"), 400);
       }
 
       const order = await c.env.DB.prepare(
@@ -806,20 +819,14 @@ orderRouter.patch(
         .first<any>();
 
       if (!order) {
-        return c.json(
-          fail("ORDER_NOT_FOUND", "Order not found"),
-          404
-        );
+        return c.json(fail("ORDER_NOT_FOUND", "Order not found"), 404);
       }
 
       if (
         authUser.role === "seller" &&
         order.seller_owner_user_id !== authUser.user_id
       ) {
-        return c.json(
-          fail("FORBIDDEN", "Forbidden"),
-          403
-        );
+        return c.json(fail("FORBIDDEN", "Forbidden"), 403);
       }
 
       const shippingStatus = normalizeShippingStatus(nextStatus);
@@ -865,17 +872,11 @@ orderRouter.get(
       const phone = normalizeMoroccanPhone(c.req.query("phone"));
 
       if (!orderNumber) {
-        return c.json(
-          fail("ORDER_NUMBER_REQUIRED", "order_number is required"),
-          400
-        );
+        return c.json(fail("ORDER_NUMBER_REQUIRED", "order_number is required"), 400);
       }
 
       if (!phone) {
-        return c.json(
-          fail("PHONE_REQUIRED", "phone is required"),
-          400
-        );
+        return c.json(fail("PHONE_REQUIRED", "phone is required"), 400);
       }
 
       const order = await c.env.DB.prepare(
@@ -903,17 +904,11 @@ orderRouter.get(
         .first<any>();
 
       if (!order) {
-        return c.json(
-          fail("ORDER_NOT_FOUND", "Order not found"),
-          404
-        );
+        return c.json(fail("ORDER_NOT_FOUND", "Order not found"), 404);
       }
 
       if (normalizeMoroccanPhone(order.buyer_phone) !== phone) {
-        return c.json(
-          fail("ORDER_NOT_FOUND", "Order not found"),
-          404
-        );
+        return c.json(fail("ORDER_NOT_FOUND", "Order not found"), 404);
       }
 
       const itemsRes = await c.env.DB.prepare(
@@ -1003,10 +998,7 @@ orderRouter.get(
       );
     } catch (error) {
       console.error("GET /track/:orderNumber failed", error);
-      return c.json(
-        fail("ORDER_TRACK_FAILED", "Failed to track order"),
-        500
-      );
+      return c.json(fail("ORDER_TRACK_FAILED", "Failed to track order"), 500);
     }
   }
 );
