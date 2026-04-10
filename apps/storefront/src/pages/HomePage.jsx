@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import PromoHero from "../components/marketplace/PromoHero";
 import CategoryGrid from "../components/marketplace/CategoryGrid";
 import FeaturedProductsSection from "../components/marketplace/FeaturedProductsSection";
@@ -15,23 +16,60 @@ function normalizeHomePayload(data) {
   };
 }
 
+function TrustStrip() {
+  const items = [
+    { icon: "💵", title: "الدفع عند الاستلام", text: "اطلب بثقة وخلّص عند الاستلام" },
+    { icon: "🚚", title: "توصيل لجميع المدن", text: "الباعة يرسلون الطلبات حسب المدينة" },
+    { icon: "🔒", title: "شراء آمن", text: "تتبع الطلبات وإدارة أفضل داخل رحبة" },
+    { icon: "📞", title: "تواصل مباشر", text: "سهولة التواصل مع البائع عند الحاجة" }
+  ];
+
+  return (
+    <section className="ui-card" style={styles.trustStripShell}>
+      <div style={styles.sectionHeadingWrap}>
+        <div className="ui-chip">RAHBA TRUST</div>
+        <h2 style={styles.sectionHeading}>تجربة شراء مغربية واضحة وموثوقة</h2>
+        <p style={styles.sectionSubheading}>
+          بنينا رحبة لتكون بسيطة، سريعة، وقريبة من طريقة الشراء الحقيقية في السوق المغربي.
+        </p>
+      </div>
+
+      <div style={styles.trustGrid}>
+        {items.map((item) => (
+          <div key={item.title} className="ui-card-soft" style={styles.trustMiniCard}>
+            <div style={styles.trustMiniIcon}>{item.icon}</div>
+            <div style={styles.trustMiniBody}>
+              <div style={styles.trustMiniTitle}>{item.title}</div>
+              <div style={styles.trustMiniText}>{item.text}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HomePageSkeleton() {
   return (
     <div style={styles.stack}>
-      <div className="ui-card" style={styles.statusCard}>
-        <div style={styles.skeletonHeader}>
-          <div style={{ ...styles.skeletonLine, width: "120px", height: "14px" }} />
-          <div style={{ ...styles.skeletonLine, width: "220px", height: "26px" }} />
-          <div style={{ ...styles.skeletonLine, width: "70%", height: "14px" }} />
+      <div className="ui-card" style={styles.heroSkeletonCard}>
+        <div style={styles.heroSkeletonInner}>
+          <div style={{ ...styles.skeletonLine, width: "110px", height: "14px" }} />
+          <div style={{ ...styles.skeletonLine, width: "260px", height: "28px" }} />
+          <div style={{ ...styles.skeletonLine, width: "80%", height: "14px" }} />
+          <div style={styles.heroSkeletonButtons}>
+            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: "999px" }} />
+            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: "999px" }} />
+          </div>
         </div>
       </div>
 
       <div style={styles.skeletonGrid}>
         {Array.from({ length: 4 }).map((_, idx) => (
-          <div key={idx} className="ui-card" style={styles.skeletonCard}>
+          <div key={idx} className="ui-card-soft" style={styles.skeletonCard}>
             <div style={{ ...styles.skeletonLine, width: "46px", height: "46px", borderRadius: "14px" }} />
             <div style={{ ...styles.skeletonLine, width: "60%", height: "16px" }} />
-            <div style={{ ...styles.skeletonLine, width: "80%", height: "12px" }} />
+            <div style={{ ...styles.skeletonLine, width: "82%", height: "12px" }} />
           </div>
         ))}
       </div>
@@ -39,10 +77,10 @@ function HomePageSkeleton() {
       <div style={styles.skeletonGrid}>
         {Array.from({ length: 3 }).map((_, idx) => (
           <div key={idx} className="ui-card" style={styles.skeletonProductCard}>
-            <div style={{ ...styles.skeletonLine, width: "100%", height: "160px", borderRadius: "16px" }} />
-            <div style={{ ...styles.skeletonLine, width: "45%", height: "12px" }} />
-            <div style={{ ...styles.skeletonLine, width: "80%", height: "16px" }} />
-            <div style={{ ...styles.skeletonLine, width: "35%", height: "18px" }} />
+            <div style={{ ...styles.skeletonLine, width: "100%", height: "170px", borderRadius: "18px" }} />
+            <div style={{ ...styles.skeletonLine, width: "40%", height: "12px" }} />
+            <div style={{ ...styles.skeletonLine, width: "78%", height: "16px" }} />
+            <div style={{ ...styles.skeletonLine, width: "34%", height: "18px" }} />
           </div>
         ))}
       </div>
@@ -50,7 +88,7 @@ function HomePageSkeleton() {
   );
 }
 
-function HomePageState({ title, text, tone = "neutral", actionLabel, onAction }) {
+function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref, onAction }) {
   const toneStyle =
     tone === "error"
       ? styles.errorCard
@@ -63,14 +101,76 @@ function HomePageState({ title, text, tone = "neutral", actionLabel, onAction })
       <div style={styles.stateIcon}>
         {tone === "error" ? "⚠️" : tone === "empty" ? "📭" : "ℹ️"}
       </div>
-      <h2 style={styles.stateTitle}>{title}</h2>
-      <p style={styles.stateText}>{text}</p>
-      {actionLabel && onAction ? (
-        <button type="button" className="btn btn-primary" onClick={onAction}>
-          {actionLabel}
-        </button>
+
+      <div style={styles.sectionHeadingWrap}>
+        <h2 style={styles.stateTitle}>{title}</h2>
+        <p style={styles.stateText}>{text}</p>
+      </div>
+
+      {actionLabel ? (
+        actionHref ? (
+          <Link to={actionHref} className="btn btn-primary">
+            {actionLabel}
+          </Link>
+        ) : onAction ? (
+          <button type="button" className="btn btn-primary" onClick={onAction}>
+            {actionLabel}
+          </button>
+        ) : null
       ) : null}
     </div>
+  );
+}
+
+function HomeHeroShell() {
+  return (
+    <section className="ui-card" style={styles.heroShell}>
+      <div style={styles.heroBadgeRow}>
+        <span className="ui-chip">RAHBA MARKETPLACE</span>
+        <span style={styles.heroCityPill}>🇲🇦 السوق المغربي أولاً</span>
+      </div>
+
+      <div style={styles.heroContent}>
+        <div style={styles.heroTextCol}>
+          <h1 style={styles.heroTitle}>
+            سوق مغربي موثوق
+            <br />
+            للشراء من بائعين حقيقيين
+          </h1>
+
+          <p style={styles.heroText}>
+            رحبة تجمع بين بساطة الشراء، وضوح الأسعار، وسهولة التواصل، مع تجربة أنظف وأسرع
+            للمستخدم المغربي.
+          </p>
+
+          <div style={styles.heroActionRow}>
+            <Link to="/products" className="btn btn-primary">
+              ابدأ التسوق
+            </Link>
+            <Link to="/sell" className="btn btn-secondary">
+              ابدأ البيع
+            </Link>
+          </div>
+        </div>
+
+        <div style={styles.heroStatsCol}>
+          <div className="ui-card-soft" style={styles.heroStatCard}>
+            <strong style={styles.heroStatValue}>COD</strong>
+            <span style={styles.heroStatLabel}>الدفع عند الاستلام</span>
+          </div>
+
+          <div className="ui-card-soft" style={styles.heroStatCard}>
+            <strong style={styles.heroStatValue}>Sellers</strong>
+            <span style={styles.heroStatLabel}>بائعون ومتاجر داخل رحبة</span>
+          </div>
+
+          <div className="ui-card-soft" style={styles.heroStatCard}>
+            <strong style={styles.heroStatValue}>Tracking</strong>
+            <span style={styles.heroStatLabel}>متابعة الطلبات بسهولة</span>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -131,7 +231,8 @@ export default function HomePage() {
   return (
     <section className="container section-space" dir="rtl">
       <div style={styles.stack}>
-        <PromoHero />
+        <HomeHeroShell />
+        <TrustStrip />
 
         {loading ? (
           <HomePageSkeleton />
@@ -149,9 +250,7 @@ export default function HomePage() {
             title="لا توجد بيانات كافية للعرض حالياً"
             text="سنضيف الفئات والمنتجات والباعة المميزين هنا بمجرد توفرهم."
             actionLabel="تصفح المنتجات"
-            onAction={() => {
-              window.location.href = "/products";
-            }}
+            actionHref="/products"
           />
         ) : (
           <>
@@ -161,6 +260,7 @@ export default function HomePage() {
           </>
         )}
 
+        <PromoHero />
         <TrustSection />
         <SellCTA />
       </div>
@@ -171,7 +271,173 @@ export default function HomePage() {
 const styles = {
   stack: {
     display: "grid",
-    gap: "28px"
+    gap: "26px"
+  },
+
+  heroShell: {
+    padding: "18px",
+    display: "grid",
+    gap: "16px",
+    overflow: "hidden",
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.08) 0%, rgba(20,184,166,0.08) 100%)",
+    border: "1px solid #dfe7f3"
+  },
+
+  heroBadgeRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    alignItems: "center"
+  },
+
+  heroCityPill: {
+    padding: "7px 10px",
+    borderRadius: "999px",
+    background: "#fff",
+    border: "1px solid #dbe4ee",
+    color: "#475569",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+
+  heroContent: {
+    display: "grid",
+    gap: "14px"
+  },
+
+  heroTextCol: {
+    display: "grid",
+    gap: "12px"
+  },
+
+  heroTitle: {
+    margin: 0,
+    color: "#16356b",
+    fontSize: "32px",
+    lineHeight: 1.2,
+    fontWeight: 900
+  },
+
+  heroText: {
+    margin: 0,
+    color: "#475569",
+    lineHeight: 1.9,
+    fontSize: "15px"
+  },
+
+  heroActionRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+
+  heroStatsCol: {
+    display: "grid",
+    gap: "10px"
+  },
+
+  heroStatCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "4px"
+  },
+
+  heroStatValue: {
+    color: "#173b74",
+    fontSize: "18px",
+    fontWeight: 900
+  },
+
+  heroStatLabel: {
+    color: "#64748b",
+    lineHeight: 1.7,
+    fontSize: "13px",
+    fontWeight: 700
+  },
+
+  trustStripShell: {
+    padding: "16px",
+    display: "grid",
+    gap: "14px"
+  },
+
+  sectionHeadingWrap: {
+    display: "grid",
+    gap: "8px"
+  },
+
+  sectionHeading: {
+    margin: 0,
+    color: "#16356b",
+    fontSize: "24px",
+    lineHeight: 1.3,
+    fontWeight: 900
+  },
+
+  sectionSubheading: {
+    margin: 0,
+    color: "#64748b",
+    lineHeight: 1.9,
+    fontSize: "14px"
+  },
+
+  trustGrid: {
+    display: "grid",
+    gap: "10px"
+  },
+
+  trustMiniCard: {
+    padding: "14px",
+    display: "flex",
+    gap: "12px",
+    alignItems: "flex-start"
+  },
+
+  trustMiniIcon: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "999px",
+    background: "#eef6ff",
+    color: "#173b74",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "16px",
+    flexShrink: 0
+  },
+
+  trustMiniBody: {
+    display: "grid",
+    gap: "4px"
+  },
+
+  trustMiniTitle: {
+    color: "#16356b",
+    fontWeight: 900
+  },
+
+  trustMiniText: {
+    color: "#64748b",
+    lineHeight: 1.8,
+    fontSize: "13px"
+  },
+
+  heroSkeletonCard: {
+    padding: "20px",
+    display: "grid",
+    gap: "14px"
+  },
+
+  heroSkeletonInner: {
+    display: "grid",
+    gap: "12px"
+  },
+
+  heroSkeletonButtons: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginTop: "4px"
   },
 
   statusCard: {
@@ -217,12 +483,6 @@ const styles = {
     fontSize: "15px",
     lineHeight: 1.9,
     color: "#475569"
-  },
-
-  skeletonHeader: {
-    display: "grid",
-    gap: "12px",
-    justifyItems: "center"
   },
 
   skeletonGrid: {
