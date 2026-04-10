@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { authMiddleware } from "../middleware/auth";
 import { ok, fail } from "../utils/response";
 import { AuthErrors } from "../utils/auth-errors";
+import { rateLimit } from "../middleware/rateLimit";
+import { hashPassword, verifyPassword } from "../lib/password";
 import type { AppEnv } from "../types";
 
 export const authRouter = new Hono<AppEnv>();
@@ -11,7 +13,7 @@ function isValidEmail(email: string): boolean {
 }
 
 function isStrongPassword(password: string): boolean {
-  return typeof password === "string" && password.length >= 6;
+  return typeof password === "string" && password.length >= 8;
 }
 
 function normalizeEmail(email: unknown): string {
@@ -27,175 +29,188 @@ type UserRow = {
   password_hash: string | null;
 };
 
-function hashPassword(password: string) {
-  return btoa(password);
-}
+authRouter.post(
+  "/register",
+  rateLimit({ keyPrefix: "register", limit: 3, windowSeconds: 1800 }),
+  async (c) => {
+    try {
+      const body = await c.req.json().catch(() => null);
 
-authRouter.get("/debug-google-env", async (c) => {
-  return c.json(
-    ok({
-      has_client_id: !!c.env.GOOGLE_CLIENT_ID,
-      has_client_secret: !!c.env.GOOGLE_CLIENT_SECRET,
-      has_redirect_uri: !!c.env.GOOGLE_REDIRECT_URI,
-    })
-  );
-});
+      if (!body || typeof body !== "object") {
+        return c.json(AuthErrors.invalidBody(), 400);
+      }
 
-authRouter.post("/register", async (c) => {
-  try {
-    const body = await c.req.json().catch(() => null);
+      const email = normalizeEmail(body.email);
+      const password = String(body.password || "");
+      const fullName = String(body.full_name || "").trim();
+      const phone = String(body.phone || "").trim();
+      const locale = String(body.locale || "ar").trim() || "ar";
+      const requestedRole = String(body.role || "buyer").trim().toLowerCase();
+      const role = requestedRole === "seller" ? "seller" : "buyer";
 
-    if (!body || typeof body !== "object") {
-      return c.json(AuthErrors.invalidBody(), 400);
-    }
+      if (!email || !isValidEmail(email)) {
+        return c.json(AuthErrors.invalidEmail(), 400);
+      }
 
-    const email = normalizeEmail(body.email);
-    const password = String(body.password || "");
-    const fullName = String(body.full_name || "").trim();
-    const phone = String(body.phone || "").trim();
-    const locale = String(body.locale || "ar").trim() || "ar";
-    const requestedRole = String(body.role || "buyer").trim().toLowerCase();
-    const role = requestedRole === "seller" ? "seller" : "buyer";
+      if (!isStrongPassword(password)) {
+        return c.json(AuthErrors.weakPassword(), 400);
+      }
 
-    if (!email || !isValidEmail(email)) {
-      return c.json(AuthErrors.invalidEmail(), 400);
-    }
-
-    if (!isStrongPassword(password)) {
-      return c.json(AuthErrors.weakPassword(), 400);
-    }
-
-    const existing = await c.env.DB.prepare(
-      `select id from users where email = ? limit 1`
-    )
-      .bind(email)
-      .first<{ id: string }>();
-
-    if (existing) {
-      return c.json(AuthErrors.emailAlreadyExists(), 409);
-    }
-
-    const userId = crypto.randomUUID();
-
-    await c.env.DB.prepare(
-      `insert into users (
-        id,
-        email,
-        full_name,
-        phone,
-        role,
-        locale,
-        password_hash
-      ) values (?, ?, ?, ?, ?, ?, ?)`
-    )
-      .bind(
-        userId,
-        email,
-        fullName || null,
-        phone || null,
-        role,
-        locale,
-        hashPassword(password)
+      const existing = await c.env.DB.prepare(
+        `select id from users where email = ? limit 1`
       )
-      .run();
+        .bind(email)
+        .first<{ id: string }>();
 
-    return c.json(
-      ok({
-        user: {
-          id: userId,
+      if (existing) {
+        return c.json(AuthErrors.emailAlreadyExists(), 409);
+      }
+
+      const userId = crypto.randomUUID();
+      const passwordHash = await hashPassword(password);
+
+      await c.env.DB.prepare(
+        `insert into users (
+          id,
           email,
-          full_name: fullName || null,
-          phone: phone || null,
+          full_name,
+          phone,
           role,
-        },
-      }),
-      201
-    );
-  } catch (err) {
-    return c.json(
-      fail(
-        "REGISTER_FAILED",
-        "Registration failed",
-        err instanceof Error ? err.message : String(err)
-      ),
-      500
-    );
-  }
-});
+          locale,
+          password_hash
+        ) values (?, ?, ?, ?, ?, ?, ?)`
+      )
+        .bind(
+          userId,
+          email,
+          fullName || null,
+          phone || null,
+          role,
+          locale,
+          passwordHash
+        )
+        .run();
 
-authRouter.post("/login", async (c) => {
-  try {
-    const body = await c.req.json().catch(() => null);
-
-    if (!body || typeof body !== "object") {
-      return c.json(AuthErrors.invalidBody(), 400);
-    }
-
-    const email = normalizeEmail(body.email);
-    const password = String(body.password || "");
-
-    if (!email || !password) {
       return c.json(
-        AuthErrors.invalidBody("Email and password are required"),
-        400
+        ok({
+          user: {
+            id: userId,
+            email,
+            full_name: fullName || null,
+            phone: phone || null,
+            role
+          }
+        }),
+        201
+      );
+    } catch (err) {
+      return c.json(
+        fail(
+          "REGISTER_FAILED",
+          "Registration failed",
+          err instanceof Error ? err.message : String(err)
+        ),
+        500
       );
     }
-
-    if (!isValidEmail(email)) {
-      return c.json(AuthErrors.invalidEmail(), 400);
-    }
-
-    const user = await c.env.DB.prepare(
-      `select id, email, full_name, phone, role, password_hash
-       from users
-       where email = ?
-       limit 1`
-    )
-      .bind(email)
-      .first<UserRow>();
-
-    if (!user || user.password_hash !== hashPassword(password)) {
-      return c.json(AuthErrors.invalidCredentials(), 401);
-    }
-
-    const token = crypto.randomUUID();
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString();
-
-    await c.env.DB.prepare(
-      `insert into sessions (
-        id,
-        user_id,
-        token,
-        expires_at
-      ) values (?, ?, ?, ?)`
-    )
-      .bind(sessionId, user.id, token, expiresAt)
-      .run();
-
-    return c.json(
-      ok({
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          phone: user.phone,
-          role: user.role,
-        },
-      })
-    );
-  } catch (err) {
-    return c.json(
-      fail(
-        "LOGIN_FAILED",
-        "Login failed",
-        err instanceof Error ? err.message : String(err)
-      ),
-      500
-    );
   }
-});
+);
+
+authRouter.post(
+  "/login",
+  rateLimit({ keyPrefix: "login", limit: 5, windowSeconds: 600 }),
+  async (c) => {
+    try {
+      const body = await c.req.json().catch(() => null);
+
+      if (!body || typeof body !== "object") {
+        return c.json(AuthErrors.invalidBody(), 400);
+      }
+
+      const email = normalizeEmail(body.email);
+      const password = String(body.password || "");
+
+      if (!email || !password) {
+        return c.json(
+          AuthErrors.invalidBody("Email and password are required"),
+          400
+        );
+      }
+
+      if (!isValidEmail(email)) {
+        return c.json(AuthErrors.invalidEmail(), 400);
+      }
+
+      const user = await c.env.DB.prepare(
+        `select id, email, full_name, phone, role, password_hash
+         from users
+         where email = ?
+         limit 1`
+      )
+        .bind(email)
+        .first<UserRow>();
+
+      if (!user || !user.password_hash) {
+        return c.json(AuthErrors.invalidCredentials(), 401);
+      }
+
+      const passwordCheck = await verifyPassword(password, user.password_hash);
+
+      if (!passwordCheck.valid) {
+        return c.json(AuthErrors.invalidCredentials(), 401);
+      }
+
+      if (passwordCheck.needsRehash) {
+        const upgradedHash = await hashPassword(password);
+
+        await c.env.DB.prepare(
+          `update users set password_hash = ? where id = ?`
+        )
+          .bind(upgradedHash, user.id)
+          .run();
+      }
+
+      const token = crypto.randomUUID();
+      const sessionId = crypto.randomUUID();
+      const expiresAt = new Date(
+        Date.now() + 1000 * 60 * 60 * 24 * 30
+      ).toISOString();
+
+      await c.env.DB.prepare(
+        `insert into sessions (
+          id,
+          user_id,
+          token,
+          expires_at
+        ) values (?, ?, ?, ?)`
+      )
+        .bind(sessionId, user.id, token, expiresAt)
+        .run();
+
+      return c.json(
+        ok({
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            phone: user.phone,
+            role: user.role
+          }
+        })
+      );
+    } catch (err) {
+      return c.json(
+        fail(
+          "LOGIN_FAILED",
+          "Login failed",
+          err instanceof Error ? err.message : String(err)
+        ),
+        500
+      );
+    }
+  }
+);
 
 authRouter.get("/me", authMiddleware, async (c) => {
   const authUser = c.get("authUser");
@@ -206,8 +221,8 @@ authRouter.get("/me", authMiddleware, async (c) => {
         id: authUser.user_id,
         email: authUser.email,
         full_name: authUser.full_name,
-        role: authUser.role,
-      },
+        role: authUser.role
+      }
     })
   );
 });
@@ -243,18 +258,18 @@ authRouter.get("/google/callback", async (c) => {
         client_id: c.env.GOOGLE_CLIENT_ID,
         client_secret: c.env.GOOGLE_CLIENT_SECRET,
         redirect_uri: c.env.GOOGLE_REDIRECT_URI,
-        grant_type: "authorization_code",
-      }),
+        grant_type: "authorization_code"
+      })
     });
 
-    const tokenData = (await tokenRes.json().catch(() => ({}))) as any;
+    const tokenData = await tokenRes.json().catch(() => ({}));
 
     if (!tokenRes.ok || !tokenData?.access_token) {
       return c.json(
         fail(
           "GOOGLE_TOKEN_EXCHANGE_FAILED",
           "Failed to exchange Google code",
-          { step, tokenData }
+          { step }
         ),
         400
       );
@@ -264,18 +279,18 @@ authRouter.get("/google/callback", async (c) => {
 
     const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
+        Authorization: `Bearer ${tokenData.access_token}`
+      }
     });
 
-    const profile = (await profileRes.json().catch(() => ({}))) as any;
+    const profile = await profileRes.json().catch(() => ({}));
 
     if (!profileRes.ok || !profile?.email || !profile?.id) {
       return c.json(
         fail(
           "GOOGLE_PROFILE_FAILED",
           "Failed to fetch Google profile",
-          { step, profile }
+          { step }
         ),
         400
       );
@@ -348,7 +363,7 @@ authRouter.get("/google/callback", async (c) => {
         email: profile.email,
         full_name: profile.name || profile.email,
         phone: null,
-        role: "buyer",
+        role: "buyer"
       };
     } else {
       step = "update_existing_user_google_fields";
@@ -399,7 +414,7 @@ authRouter.get("/google/callback", async (c) => {
         "Google callback crashed",
         {
           step,
-          details: err instanceof Error ? err.message : String(err),
+          details: err instanceof Error ? err.message : String(err)
         }
       ),
       500
@@ -422,7 +437,7 @@ authRouter.post("/logout", authMiddleware, async (c) => {
 
     return c.json(
       ok({
-        message: "Logged out successfully",
+        message: "Logged out successfully"
       })
     );
   } catch (err) {
