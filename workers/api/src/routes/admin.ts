@@ -313,3 +313,137 @@ adminRouter.get("/system/recent-sessions", async (c) => {
     );
   }
 });
+
+adminRouter.post("/system/revoke-session/:id", async (c) => {
+  try {
+    const sessionId = String(c.req.param("id") || "").trim();
+
+    if (!sessionId) {
+      return c.json(
+        fail("SESSION_ID_REQUIRED", "Session id is required"),
+        400
+      );
+    }
+
+    const existing = await c.env.DB.prepare(
+      `
+      select
+        s.id,
+        s.user_id,
+        s.created_at,
+        s.expires_at,
+        u.email,
+        u.full_name,
+        u.role
+      from sessions s
+      left join users u on u.id = s.user_id
+      where s.id = ?
+      limit 1
+      `
+    )
+      .bind(sessionId)
+      .first<any>();
+
+    if (!existing) {
+      return c.json(
+        fail("SESSION_NOT_FOUND", "Session not found"),
+        404
+      );
+    }
+
+    await c.env.DB.prepare(
+      `delete from sessions where id = ?`
+    )
+      .bind(sessionId)
+      .run();
+
+    return c.json(
+      ok({
+        revoked: true,
+        session: {
+          id: existing.id,
+          user_id: existing.user_id,
+          email: existing.email || null,
+          full_name: existing.full_name || null,
+          role: existing.role || null,
+          created_at: existing.created_at || null,
+          expires_at: existing.expires_at || null
+        }
+      })
+    );
+  } catch (error) {
+    console.error("POST /admin/system/revoke-session/:id failed", error);
+    return c.json(
+      fail("REVOKE_SESSION_FAILED", "Failed to revoke session"),
+      500
+    );
+  }
+});
+
+adminRouter.post("/system/revoke-user-sessions/:userId", async (c) => {
+  try {
+    const userId = String(c.req.param("userId") || "").trim();
+
+    if (!userId) {
+      return c.json(
+        fail("USER_ID_REQUIRED", "User id is required"),
+        400
+      );
+    }
+
+    const user = await c.env.DB.prepare(
+      `
+      select
+        id,
+        email,
+        full_name,
+        role
+      from users
+      where id = ?
+      limit 1
+      `
+    )
+      .bind(userId)
+      .first<any>();
+
+    if (!user) {
+      return c.json(
+        fail("USER_NOT_FOUND", "User not found"),
+        404
+      );
+    }
+
+    const beforeRow = await c.env.DB.prepare(
+      `select count(*) as total from sessions where user_id = ?`
+    )
+      .bind(userId)
+      .first<{ total: number }>();
+
+    const before = Number(beforeRow?.total || 0);
+
+    await c.env.DB.prepare(
+      `delete from sessions where user_id = ?`
+    )
+      .bind(userId)
+      .run();
+
+    return c.json(
+      ok({
+        revoked: true,
+        user: {
+          id: user.id,
+          email: user.email || null,
+          full_name: user.full_name || null,
+          role: user.role || null
+        },
+        deleted_sessions: before
+      })
+    );
+  } catch (error) {
+    console.error("POST /admin/system/revoke-user-sessions/:userId failed", error);
+    return c.json(
+      fail("REVOKE_USER_SESSIONS_FAILED", "Failed to revoke user sessions"),
+      500
+    );
+  }
+});
