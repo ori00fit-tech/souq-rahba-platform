@@ -2,7 +2,11 @@ import { Link } from "react-router-dom";
 import ProductCard from "./ProductCard";
 import SectionHead from "./SectionHead";
 
-const T = { navy: "#16356b" };
+const T = {
+  navy: "#16356b",
+  border: "#ddd5c2",
+  white: "#ffffff"
+};
 
 export default function FeaturedProductsSection({ products = [] }) {
   const items = products.map((p) => ({
@@ -31,7 +35,7 @@ export default function FeaturedProductsSection({ products = [] }) {
         <SectionHead
           chip="FEATURED"
           title="منتجات مميزة"
-          subtitle="اختيارات شائعة من باعة مختلفين داخل السوق"
+          subtitle="اختيارات بارزة من باعة مختلفين داخل رحبة"
         />
         <Link to="/products" style={s.seeAll}>عرض الكل ←</Link>
       </div>
@@ -67,13 +71,13 @@ const s = {
     alignSelf: "center",
     padding: "8px 14px",
     borderRadius: "10px",
-    border: "1.5px solid #ddd5c2",
-    background: "#fff"
+    border: `1.5px solid ${T.border}`,
+    background: T.white
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
     gap: "14px"
   }
 };
