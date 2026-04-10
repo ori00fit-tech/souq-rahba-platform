@@ -1,147 +1,141 @@
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-const T = {
-  navy: "#16356b",
-  blue: "#1d4ed8",
-  teal: "#0f766e",
-  sand: "#f5f1e8",
-  border: "#ddd5c2",
-  shadow: "rgba(22,53,107,0.08)",
-};
-
-const fallbackIcons = {
-  electronics: "📱",
-  appliances: "🧊",
-  tools: "🛠️",
-  agriculture: "🌾",
-  fishing: "🎣",
-  construction: "🏗️",
-  fashion: "👕",
-  food: "🥫",
-  home: "🏠",
-  beauty: "💄",
-  sports: "🏃",
-  automotive: "🚗",
-  garden: "🌿",
-};
+function normalizeCategory(category) {
+  return {
+    id: category?.id || "",
+    slug: category?.slug || "",
+    name: category?.name || category?.name_ar || "فئة",
+    description:
+      category?.description ||
+      category?.description_ar ||
+      "تصفح المنتجات داخل هذه الفئة",
+    icon: category?.icon || "📦"
+  };
+}
 
 export default function CategoryGrid({ categories = [] }) {
-  const items = categories.map((cat) => ({
-    ...cat,
-    icon: fallbackIcons[cat.slug] || "📦",
-    text: `تصفح منتجات ${cat.name_ar}`,
-  }));
+  const navigate = useNavigate();
+
+  const items = categories.map(normalizeCategory);
+
+  if (!items.length) return null;
 
   return (
-    <section style={s.section} dir="rtl">
-      <SectionHead
-        title="تصفح الفئات"
-        sub="ابدأ استكشاف السوق من خلال الفئات الرئيسية للمنتجات"
-      />
+    <section className="ui-card" style={styles.wrapper}>
+      <div style={styles.header}>
+        <div className="ui-chip">CATEGORIES</div>
+        <h2 style={styles.title}>تصفح حسب الفئة</h2>
+        <p style={styles.subtitle}>
+          اختار الفئة المناسبة وابدأ رحلة البحث بسرعة
+        </p>
+      </div>
 
-      <div style={s.grid}>
+      <div style={styles.grid}>
         {items.map((cat) => (
-          <Link key={cat.id || cat.slug} to={`/products?category=${cat.slug}`} style={s.card}>
-            <div style={s.iconWrap}>
-              <span style={s.icon}>{cat.icon}</span>
+          <button
+            key={cat.id || cat.slug}
+            onClick={() =>
+              navigate(`/products?category=${encodeURIComponent(cat.slug)}`)
+            }
+            style={styles.card}
+          >
+            <div style={styles.iconWrap}>
+              <span style={styles.icon}>{cat.icon}</span>
             </div>
 
-            <div style={s.content}>
-              <div style={s.cardTitle}>{cat.name_ar}</div>
-              <div style={s.cardText}>{cat.text}</div>
+            <div style={styles.body}>
+              <div style={styles.name}>{cat.name}</div>
+              <div style={styles.desc}>{cat.description}</div>
             </div>
-          </Link>
+
+            <div style={styles.arrow}>←</div>
+          </button>
         ))}
       </div>
     </section>
   );
 }
 
-export function SectionHead({ title, sub }) {
-  return (
-    <div style={s.head} dir="rtl">
-      <h2 style={s.headTitle}>{title}</h2>
-      {sub ? <p style={s.headSub}>{sub}</p> : null}
-    </div>
-  );
-}
-
-const s = {
-  section: {
+const styles = {
+  wrapper: {
+    padding: "18px",
     display: "grid",
-    gap: "18px",
+    gap: "16px"
   },
 
-  head: {
+  header: {
     display: "grid",
-    gap: "6px",
-    textAlign: "right",
+    gap: "8px"
   },
 
-  headTitle: {
+  title: {
     margin: 0,
+    color: "#16356b",
     fontSize: "22px",
-    fontWeight: 900,
-    color: T.navy,
+    fontWeight: 900
   },
 
-  headSub: {
+  subtitle: {
     margin: 0,
     color: "#64748b",
     fontSize: "14px",
-    lineHeight: 1.8,
+    lineHeight: 1.8
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))",
-    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+    gap: "12px"
   },
 
   card: {
-    textDecoration: "none",
-    background: "#fff",
-    border: `1.5px solid ${T.border}`,
-    borderRadius: "18px",
-    padding: "16px",
     display: "grid",
-    gap: "12px",
-    boxShadow: `0 4px 16px ${T.shadow}`,
-    cursor: "pointer",
+    gap: "10px",
+    padding: "14px",
+    borderRadius: "18px",
+    border: "1px solid #e7ddcf",
+    background: "#fff",
     textAlign: "right",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    position: "relative"
   },
 
   iconWrap: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "14px",
-    background: T.sand,
-    border: `1px solid ${T.border}`,
+    width: "42px",
+    height: "42px",
+    borderRadius: "12px",
+    background: "#eef6ff",
     display: "grid",
-    placeItems: "center",
-    justifySelf: "start",
+    placeItems: "center"
   },
 
   icon: {
-    fontSize: "24px",
-    lineHeight: 1,
+    fontSize: "20px"
   },
 
-  content: {
+  body: {
     display: "grid",
-    gap: "4px",
+    gap: "4px"
   },
 
-  cardTitle: {
-    fontSize: "15px",
-    fontWeight: 800,
-    color: T.navy,
-    marginBottom: "2px",
+  name: {
+    fontWeight: 900,
+    color: "#1f2937",
+    fontSize: "15px"
   },
 
-  cardText: {
+  desc: {
     fontSize: "12px",
     color: "#64748b",
-    lineHeight: 1.7,
+    lineHeight: 1.6
   },
+
+  arrow: {
+    position: "absolute",
+    left: "10px",
+    bottom: "10px",
+    fontSize: "14px",
+    color: "#94a3b8"
+  }
 };
