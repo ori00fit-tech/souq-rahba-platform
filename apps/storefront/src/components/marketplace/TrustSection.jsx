@@ -1,4 +1,4 @@
-import { SectionHead } from "./CategoryGrid";
+import SectionHead from "./SectionHead";
 
 const T = { navy: "#16356b", sand: "#f5f1e8", border: "#ddd5c2", shadow: "rgba(22,53,107,0.08)" };
 
