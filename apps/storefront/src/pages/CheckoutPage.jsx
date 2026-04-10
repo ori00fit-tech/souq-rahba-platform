@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
@@ -42,7 +42,6 @@ function normalizeZoneCode(city) {
     فاس: "fes",
     agadir: "agadir",
     أكادير: "agadir",
-    agadir: "agadir",
     meknes: "meknes",
     مكناس: "meknes",
     oujda: "oujda",
@@ -146,6 +145,43 @@ function getApiErrorMessage(result, fallback = "فشل إنشاء الطلب") {
   return result?.error?.message || result?.message || fallback;
 }
 
+function sanitizeIdPart(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, "")
+    .slice(0, 64);
+}
+
+function buildGroupIdempotencyKey(group, form, selectedShipping) {
+  const sellerPart = sanitizeIdPart(group.seller_id || group.seller_name || "seller");
+  const phonePart = sanitizeIdPart(normalizeMoroccanPhone(form.buyer_phone) || "phone");
+  const cityPart = sanitizeIdPart(form.buyer_city || "city");
+  const addressPart = sanitizeIdPart(form.buyer_address || "address").slice(0, 24);
+
+  const itemsPart = group.items
+    .map((item) => `${sanitizeIdPart(item.product_id)}:${Number(item.quantity || 0)}`)
+    .sort()
+    .join("|")
+    .slice(0, 120);
+
+  const shippingPart = selectedShipping
+    ? `${sanitizeIdPart(selectedShipping.provider_id)}:${sanitizeIdPart(
+        selectedShipping.provider_method_id
+      )}:${Number(selectedShipping.shipping_price || 0)}`
+    : "shipping:none";
+
+  return [
+    "rahba",
+    "checkout",
+    sellerPart,
+    phonePart,
+    cityPart,
+    addressPart,
+    shippingPart,
+    itemsPart
+  ].join("::");
+}
+
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { cart, currency, language, currentUser, removeFromCart } = useApp();
@@ -157,6 +193,7 @@ export default function CheckoutPage() {
   const [shippingMessage, setShippingMessage] = useState("");
   const [shippingState, setShippingState] = useState({});
   const [cityTouched, setCityTouched] = useState(false);
+  const submitKeysRef = useRef({});
   const [form, setForm] = useState({
     buyer_name: "",
     buyer_phone: "",
@@ -414,6 +451,19 @@ export default function CheckoutPage() {
           continue;
         }
 
+        const stableGroupKey = `${group.seller_id}::${group.items
+          .map((item) => `${item.product_id}:${item.quantity}`)
+          .sort()
+          .join("|")}`;
+
+        if (!submitKeysRef.current[stableGroupKey]) {
+          submitKeysRef.current[stableGroupKey] = buildGroupIdempotencyKey(
+            group,
+            form,
+            selectedShipping
+          );
+        }
+
         const payload = {
           buyer_name: form.buyer_name.trim(),
           buyer_phone: normalizeMoroccanPhone(form.buyer_phone),
@@ -426,6 +476,7 @@ export default function CheckoutPage() {
           shipping_provider_id: selectedShipping.provider_id || null,
           shipping_method_id: selectedShipping.provider_method_id || null,
           shipping_method_label: `${selectedShipping.provider_name} - ${selectedShipping.method_name}`,
+          idempotency_key: submitKeysRef.current[stableGroupKey],
           items: group.items.map((item) => ({
             product_id: item.product_id,
             quantity: item.quantity
@@ -443,7 +494,8 @@ export default function CheckoutPage() {
             seller: group.seller_name,
             order_id: res.data?.id || null,
             order_number: orderNumber,
-            total_mad: totalMad
+            total_mad: totalMad,
+            reused: Boolean(res.data?.reused)
           });
 
           if (!currentUser) {
@@ -541,7 +593,11 @@ export default function CheckoutPage() {
                   <div style={s.resultMain}>
                     <div style={s.resultSeller}>{result.seller}</div>
                     <div style={s.resultMeta}>
-                      {result.ok ? "تم إنشاء الطلب" : "تعذر إنشاء الطلب"}
+                      {result.ok
+                        ? result.reused
+                          ? "تم استرجاع الطلب السابق"
+                          : "تم إنشاء الطلب"
+                        : "تعذر إنشاء الطلب"}
                     </div>
                   </div>
 
