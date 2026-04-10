@@ -1,3 +1,5 @@
+import { UI } from "./uiTokens";
+
 export default function SectionHead({
   chip = "SECTION",
   title,
@@ -17,8 +19,8 @@ export default function SectionHead({
       <h2
         style={{
           margin: 0,
-          color: "#16356b",
-          fontSize: "22px",
+          color: UI.colors.navy,
+          fontSize: UI.type.titleMd,
           fontWeight: 900,
           lineHeight: 1.3
         }}
@@ -30,8 +32,8 @@ export default function SectionHead({
         <p
           style={{
             margin: 0,
-            color: "#64748b",
-            fontSize: "14px",
+            color: UI.colors.muted,
+            fontSize: UI.type.body,
             lineHeight: 1.8
           }}
         >
