@@ -533,6 +533,8 @@ export default function CheckoutPage() {
 
   const successCount = results.filter((r) => r.ok).length;
   const failedCount = results.filter((r) => !r.ok).length;
+  const reusedCount = results.filter((r) => r.ok && r.reused).length;
+  const freshCount = results.filter((r) => r.ok && !r.reused).length;
 
   if (results.length > 0) {
     return (
@@ -558,6 +560,19 @@ export default function CheckoutPage() {
                 ? "توصلنا بجميع طلباتك، وسيتم التواصل معك لتأكيد التفاصيل."
                 : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."}
             </p>
+
+            {successCount > 0 ? (
+              <div className="ui-card-soft" style={s.guestSavedBox}>
+                <strong style={s.guestSavedTitle}>
+                  {reusedCount > 0
+                    ? `تم استرجاع ${reusedCount} طلب سابق وتأكيد ${freshCount} طلب جديد`
+                    : `تم إنشاء ${freshCount} طلب جديد`}
+                </strong>
+                <span style={s.guestSavedText}>
+                  إذا ضغطت على التأكيد أكثر من مرة، رحبة ستحاول منع تكرار نفس الطلب.
+                </span>
+              </div>
+            ) : null}
 
             {!currentUser && successCount > 0 ? (
               <div className="ui-card-soft" style={s.guestSavedBox}>
