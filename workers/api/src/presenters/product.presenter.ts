@@ -1,22 +1,13 @@
+import { ok, fail } from "../utils/response";
+
 export function presentProductFull(data: unknown) {
-  return {
-    ok: true,
-    data
-  };
+  return ok(data);
 }
 
 export function presentProductNotFound() {
-  return {
-    ok: false,
-    code: "NOT_FOUND",
-    message: "Product not found"
-  };
+  return fail("NOT_FOUND", "Product not found");
 }
 
 export function presentProductServerError() {
-  return {
-    ok: false,
-    code: "SERVER_ERROR",
-    message: "Failed to load full product page data"
-  };
+  return fail("SERVER_ERROR", "Failed to load full product page data");
 }
