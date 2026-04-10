@@ -83,3 +83,88 @@ adminRouter.patch("/sellers/:id/status", async (c) => {
     ok(updated)
   );
 });
+
+adminRouter.get("/system/health-summary", async (c) => {
+  try {
+    const [
+      usersRow,
+      sellersRow,
+      productsRow,
+      ordersRow,
+      sessionsRow,
+      expiredSessionsRow
+    ] = await Promise.all([
+      c.env.DB.prepare(`select count(*) as total from users`).first<{ total: number }>(),
+      c.env.DB.prepare(`select count(*) as total from sellers`).first<{ total: number }>(),
+      c.env.DB.prepare(`select count(*) as total from products`).first<{ total: number }>(),
+      c.env.DB.prepare(`select count(*) as total from orders`).first<{ total: number }>(),
+      c.env.DB.prepare(`select count(*) as total from sessions`).first<{ total: number }>(),
+      c.env.DB.prepare(`
+        select count(*) as total
+        from sessions
+        where expires_at is not null
+          and datetime(expires_at) <= datetime('now')
+      `).first<{ total: number }>()
+    ]);
+
+    return c.json(
+      ok({
+        users: Number(usersRow?.total || 0),
+        sellers: Number(sellersRow?.total || 0),
+        products: Number(productsRow?.total || 0),
+        orders: Number(ordersRow?.total || 0),
+        sessions: Number(sessionsRow?.total || 0),
+        expired_sessions: Number(expiredSessionsRow?.total || 0),
+        checked_at: new Date().toISOString()
+      })
+    );
+  } catch (error) {
+    console.error("GET /admin/system/health-summary failed", error);
+    return c.json(
+      fail("SYSTEM_HEALTH_FAILED", "Failed to load system health summary"),
+      500
+    );
+  }
+});
+
+adminRouter.post("/system/cleanup-sessions", async (c) => {
+  try {
+    const beforeRow = await c.env.DB.prepare(`
+      select count(*) as total
+      from sessions
+      where expires_at is not null
+        and datetime(expires_at) <= datetime('now')
+    `).first<{ total: number }>();
+
+    const before = Number(beforeRow?.total || 0);
+
+    await c.env.DB.prepare(`
+      delete from sessions
+      where expires_at is not null
+        and datetime(expires_at) <= datetime('now')
+    `).run();
+
+    const afterRow = await c.env.DB.prepare(`
+      select count(*) as total
+      from sessions
+      where expires_at is not null
+        and datetime(expires_at) <= datetime('now')
+    `).first<{ total: number }>();
+
+    const after = Number(afterRow?.total || 0);
+
+    return c.json(
+      ok({
+        deleted_sessions: Math.max(before - after, 0),
+        remaining_expired_sessions: after,
+        cleaned_at: new Date().toISOString()
+      })
+    );
+  } catch (error) {
+    console.error("POST /admin/system/cleanup-sessions failed", error);
+    return c.json(
+      fail("SESSION_CLEANUP_FAILED", "Failed to cleanup expired sessions"),
+      500
+    );
+  }
+});
