@@ -1,23 +1,6 @@
 import { Link } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-
-const T = {
-  navy: "#16356b",
-  ink: "#243041",
-  muted: "#64748b",
-  border: "#ddd5c2",
-  line: "#e8dfd0",
-  soft: "#f8f6f0",
-  white: "#ffffff",
-  gold: "#b08d3c",
-  successBg: "#ecfdf5",
-  successText: "#166534",
-  successBorder: "#a7f3d0",
-  dangerBg: "#fef2f2",
-  dangerText: "#b91c1c",
-  dangerBorder: "#fecaca",
-  shadow: "rgba(22,53,107,0.08)"
-};
+import { UI } from "./uiTokens";
 
 function normalizeProduct(p) {
   return {
@@ -50,16 +33,24 @@ function getStockLabel(stock) {
 function getStockStyle(stock) {
   if (Number(stock || 0) <= 0) {
     return {
-      background: T.dangerBg,
-      color: T.dangerText,
-      border: `1px solid ${T.dangerBorder}`
+      background: UI.colors.dangerBg,
+      color: UI.colors.dangerText,
+      border: `1px solid ${UI.colors.dangerBorder}`
+    };
+  }
+
+  if (Number(stock || 0) <= 3) {
+    return {
+      background: UI.colors.warningBg,
+      color: UI.colors.warningText,
+      border: `1px solid ${UI.colors.warningBorder}`
     };
   }
 
   return {
-    background: T.successBg,
-    color: T.successText,
-    border: `1px solid ${T.successBorder}`
+    background: UI.colors.successBg,
+    color: UI.colors.successText,
+    border: `1px solid ${UI.colors.successBorder}`
   };
 }
 
@@ -151,13 +142,13 @@ export default function ProductCard({ product }) {
 
 const s = {
   card: {
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    borderRadius: "20px",
+    background: UI.colors.white,
+    border: `1px solid ${UI.colors.line}`,
+    borderRadius: UI.radius.xxl,
     overflow: "hidden",
     display: "grid",
     gridTemplateRows: "auto 1fr auto",
-    boxShadow: `0 8px 24px ${T.shadow}`
+    boxShadow: UI.shadow.soft
   },
 
   imageLink: {
@@ -167,7 +158,7 @@ const s = {
   imgWrap: {
     position: "relative",
     height: "184px",
-    background: T.soft
+    background: UI.colors.softSurface
   },
 
   img: {
@@ -199,23 +190,23 @@ const s = {
 
   ratingBadge: {
     background: "rgba(255,255,255,0.94)",
-    border: `1px solid ${T.border}`,
-    borderRadius: "999px",
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.pill,
     padding: "4px 10px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800,
-    color: T.gold
+    color: UI.colors.gold
   },
 
   stockBadge: {
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     padding: "4px 10px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 900
   },
 
   body: {
-    padding: "14px",
+    padding: UI.spacing.cardPadding,
     display: "grid",
     gap: "8px"
   },
@@ -229,14 +220,14 @@ const s = {
   },
 
   seller: {
-    fontSize: "12px",
-    color: T.navy,
+    fontSize: UI.type.caption,
+    color: UI.colors.navy,
     fontWeight: 800
   },
 
   city: {
-    fontSize: "12px",
-    color: T.muted,
+    fontSize: UI.type.caption,
+    color: UI.colors.muted,
     fontWeight: 700
   },
 
@@ -248,16 +239,16 @@ const s = {
     margin: 0,
     fontSize: "15px",
     fontWeight: 900,
-    color: T.ink,
+    color: UI.colors.ink,
     lineHeight: 1.5,
     minHeight: "44px"
   },
 
   desc: {
     margin: 0,
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     lineHeight: 1.7,
-    color: T.muted,
+    color: UI.colors.muted,
     display: "-webkit-box",
     WebkitLineClamp: 2,
     WebkitBoxOrient: "vertical",
@@ -280,14 +271,14 @@ const s = {
   },
 
   currency: {
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 700,
-    color: T.muted
+    color: UI.colors.muted
   },
 
   reviewsMeta: {
-    fontSize: "12px",
-    color: T.muted,
+    fontSize: UI.type.caption,
+    color: UI.colors.muted,
     fontWeight: 700
   },
 
@@ -300,11 +291,11 @@ const s = {
 
   cartBtn: {
     height: "42px",
-    borderRadius: "12px",
-    border: `1px solid ${T.border}`,
-    background: "#f5f1e8",
-    color: T.navy,
-    fontSize: "13px",
+    borderRadius: UI.radius.md,
+    border: `1px solid ${UI.colors.border}`,
+    background: UI.colors.softSurface,
+    color: UI.colors.navy,
+    fontSize: UI.type.bodySm,
     fontWeight: 900,
     cursor: "pointer"
   },
@@ -313,10 +304,10 @@ const s = {
     textDecoration: "none",
     display: "grid",
     placeItems: "center",
-    borderRadius: "12px",
-    background: T.navy,
+    borderRadius: UI.radius.md,
+    background: UI.colors.navy,
     color: "#fff",
-    fontSize: "13px",
+    fontSize: UI.type.bodySm,
     fontWeight: 900,
     height: "42px",
     padding: "0 14px"

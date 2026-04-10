@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import SectionHead from "./SectionHead";
+import SectionShell from "./SectionShell";
+import { UI } from "./uiTokens";
 
 function normalizeCategory(category) {
   return {
@@ -16,13 +18,12 @@ function normalizeCategory(category) {
 
 export default function CategoryGrid({ categories = [] }) {
   const navigate = useNavigate();
-
   const items = categories.map(normalizeCategory);
 
   if (!items.length) return null;
 
   return (
-    <section className="ui-card" style={styles.wrapper}>
+    <SectionShell>
       <SectionHead
         chip="CATEGORIES"
         title="تصفح حسب الفئة"
@@ -51,30 +52,24 @@ export default function CategoryGrid({ categories = [] }) {
           </button>
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
 const styles = {
-  wrapper: {
-    padding: "18px",
-    display: "grid",
-    gap: "16px"
-  },
-
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-    gap: "12px"
+    gap: UI.spacing.cardGap
   },
 
   card: {
     display: "grid",
     gap: "10px",
-    padding: "14px",
-    borderRadius: "18px",
-    border: "1px solid #e7ddcf",
-    background: "#fff",
+    padding: UI.spacing.cardPadding,
+    borderRadius: UI.radius.xl,
+    border: `1px solid ${UI.colors.line}`,
+    background: UI.colors.white,
     textAlign: "right",
     cursor: "pointer",
     transition: "all 0.2s ease",
@@ -84,8 +79,8 @@ const styles = {
   iconWrap: {
     width: "42px",
     height: "42px",
-    borderRadius: "12px",
-    background: "#eef6ff",
+    borderRadius: UI.radius.md,
+    background: UI.colors.softBlue,
     display: "grid",
     placeItems: "center"
   },
@@ -101,13 +96,13 @@ const styles = {
 
   name: {
     fontWeight: 900,
-    color: "#1f2937",
+    color: UI.colors.ink,
     fontSize: "15px"
   },
 
   desc: {
-    fontSize: "12px",
-    color: "#64748b",
+    fontSize: UI.type.caption,
+    color: UI.colors.muted,
     lineHeight: 1.6
   },
 

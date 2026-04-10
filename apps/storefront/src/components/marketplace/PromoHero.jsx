@@ -1,15 +1,6 @@
 import { Link } from "react-router-dom";
 import { SELLER_PORTAL_URL } from "../../lib/config";
-
-const T = {
-  white: "#ffffff",
-  whiteSoft: "rgba(255,255,255,0.88)",
-  whiteMuted: "rgba(255,255,255,0.78)",
-  line: "rgba(255,255,255,0.18)",
-  glass: "rgba(255,255,255,0.12)",
-  shadow: "rgba(15, 23, 42, 0.18)",
-  primaryText: "#0B3D91"
-};
+import { UI } from "./uiTokens";
 
 const trustPoints = [
   "باعة داخل رحبة",
@@ -96,10 +87,10 @@ const s = {
   wrap: {
     position: "relative",
     overflow: "hidden",
-    borderRadius: "28px",
+    borderRadius: UI.radius.hero,
     padding: "24px 20px",
     background: "linear-gradient(135deg, #0B4DBA 0%, #119ED9 55%, #17B890 100%)",
-    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.16)",
+    boxShadow: UI.shadow.hero,
     display: "grid",
     alignItems: "center"
   },
@@ -118,7 +109,7 @@ const s = {
     left: "-40px",
     width: "180px",
     height: "180px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "rgba(255,255,255,0.10)",
     filter: "blur(28px)",
     pointerEvents: "none"
@@ -130,7 +121,7 @@ const s = {
     right: "-30px",
     width: "200px",
     height: "200px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "rgba(255,255,255,0.08)",
     filter: "blur(28px)",
     pointerEvents: "none"
@@ -140,7 +131,7 @@ const s = {
     position: "relative",
     zIndex: 1,
     display: "grid",
-    gap: "18px"
+    gap: UI.spacing.sectionGap
   },
 
   topRow: {
@@ -154,28 +145,28 @@ const s = {
   eyebrow: {
     width: "fit-content",
     padding: "8px 14px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "rgba(255,255,255,0.14)",
-    border: `1px solid ${T.line}`,
-    color: T.white,
-    fontSize: "13px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    color: UI.colors.white,
+    fontSize: UI.type.bodySm,
     fontWeight: 800,
     backdropFilter: "blur(8px)"
   },
 
   marketBadge: {
     padding: "8px 12px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "rgba(255,255,255,0.12)",
-    border: `1px solid ${T.line}`,
-    color: T.whiteSoft,
-    fontSize: "12px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    color: "rgba(255,255,255,0.88)",
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
 
   mainGrid: {
     display: "grid",
-    gap: "18px"
+    gap: UI.spacing.sectionGap
   },
 
   textCol: {
@@ -186,7 +177,7 @@ const s = {
 
   title: {
     margin: 0,
-    color: T.white,
+    color: UI.colors.white,
     fontSize: "clamp(28px, 5.8vw, 48px)",
     lineHeight: 1.16,
     fontWeight: 900,
@@ -195,7 +186,7 @@ const s = {
 
   sub: {
     margin: 0,
-    color: T.whiteSoft,
+    color: "rgba(255,255,255,0.88)",
     fontSize: "clamp(15px, 3vw, 18px)",
     lineHeight: 1.9,
     maxWidth: "680px"
@@ -211,21 +202,21 @@ const s = {
   primaryBtn: {
     textDecoration: "none",
     padding: "14px 20px",
-    borderRadius: "16px",
-    background: T.white,
-    color: T.primaryText,
+    borderRadius: UI.radius.lg,
+    background: UI.colors.white,
+    color: "#0B3D91",
     fontWeight: 900,
     fontSize: "15px",
-    boxShadow: `0 10px 24px ${T.shadow}`
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.18)"
   },
 
   secondaryBtn: {
     textDecoration: "none",
     padding: "14px 20px",
-    borderRadius: "16px",
-    background: T.glass,
-    color: T.white,
-    border: `1px solid ${T.line}`,
+    borderRadius: UI.radius.lg,
+    background: "rgba(255,255,255,0.12)",
+    color: UI.colors.white,
+    border: "1px solid rgba(255,255,255,0.18)",
     fontWeight: 900,
     fontSize: "15px",
     backdropFilter: "blur(8px)"
@@ -238,17 +229,17 @@ const s = {
 
   trustCard: {
     padding: "16px",
-    borderRadius: "20px",
+    borderRadius: UI.radius.xxl,
     background: "rgba(255,255,255,0.12)",
-    border: `1px solid ${T.line}`,
+    border: "1px solid rgba(255,255,255,0.18)",
     backdropFilter: "blur(10px)",
     display: "grid",
     gap: "12px"
   },
 
   trustTitle: {
-    color: T.white,
-    fontSize: "16px",
+    color: UI.colors.white,
+    fontSize: UI.type.titleSm,
     fontWeight: 900
   },
 
@@ -261,8 +252,8 @@ const s = {
     display: "flex",
     gap: "8px",
     alignItems: "center",
-    color: T.whiteSoft,
-    fontSize: "13px",
+    color: "rgba(255,255,255,0.88)",
+    fontSize: UI.type.bodySm,
     fontWeight: 700,
     lineHeight: 1.7
   },
@@ -270,12 +261,12 @@ const s = {
   trustCheck: {
     width: "20px",
     height: "20px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "rgba(255,255,255,0.16)",
     display: "grid",
     placeItems: "center",
-    color: T.white,
-    fontSize: "12px",
+    color: UI.colors.white,
+    fontSize: UI.type.caption,
     fontWeight: 900,
     flexShrink: 0
   },
@@ -288,23 +279,23 @@ const s = {
 
   statBox: {
     padding: "14px",
-    borderRadius: "18px",
+    borderRadius: UI.radius.xl,
     background: "rgba(255,255,255,0.10)",
-    border: `1px solid ${T.line}`,
+    border: "1px solid rgba(255,255,255,0.18)",
     backdropFilter: "blur(8px)",
     display: "grid",
     gap: "4px"
   },
 
   statValue: {
-    color: T.white,
+    color: UI.colors.white,
     fontSize: "18px",
     fontWeight: 900
   },
 
   statLabel: {
-    color: T.whiteMuted,
-    fontSize: "12px",
+    color: "rgba(255,255,255,0.78)",
+    fontSize: UI.type.caption,
     lineHeight: 1.7,
     fontWeight: 700
   }

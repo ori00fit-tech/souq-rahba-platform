@@ -6,6 +6,8 @@ import FeaturedProductsSection from "../components/marketplace/FeaturedProductsS
 import SellerSpotlightSection from "../components/marketplace/SellerSpotlightSection";
 import TrustSection from "../components/marketplace/TrustSection";
 import SellCTA from "../components/marketplace/SellCTA";
+import SectionShell from "../components/marketplace/SectionShell";
+import { UI } from "../components/marketplace/uiTokens";
 import { apiGet } from "../lib/api";
 
 function normalizeHomePayload(data) {
@@ -25,7 +27,7 @@ function TrustStrip() {
   ];
 
   return (
-    <section className="ui-card" style={styles.trustStripShell}>
+    <SectionShell>
       <div style={styles.sectionHeadingWrap}>
         <div className="ui-chip">RAHBA TRUST</div>
         <h2 style={styles.sectionHeading}>تجربة شراء مغربية واضحة وموثوقة</h2>
@@ -45,24 +47,24 @@ function TrustStrip() {
           </div>
         ))}
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
 function HomePageSkeleton() {
   return (
     <div style={styles.stack}>
-      <div className="ui-card" style={styles.heroSkeletonCard}>
+      <SectionShell>
         <div style={styles.heroSkeletonInner}>
           <div style={{ ...styles.skeletonLine, width: "110px", height: "14px" }} />
           <div style={{ ...styles.skeletonLine, width: "260px", height: "28px" }} />
           <div style={{ ...styles.skeletonLine, width: "80%", height: "14px" }} />
           <div style={styles.heroSkeletonButtons}>
-            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: "999px" }} />
-            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: "999px" }} />
+            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
+            <div style={{ ...styles.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
           </div>
         </div>
-      </div>
+      </SectionShell>
 
       <div style={styles.skeletonGrid}>
         {Array.from({ length: 4 }).map((_, idx) => (
@@ -97,7 +99,7 @@ function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref,
       : styles.statusCard;
 
   return (
-    <div className="ui-card" style={toneStyle}>
+    <SectionShell style={toneStyle}>
       <div style={styles.stateIcon}>
         {tone === "error" ? "⚠️" : tone === "empty" ? "📭" : "ℹ️"}
       </div>
@@ -118,13 +120,15 @@ function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref,
           </button>
         ) : null
       ) : null}
-    </div>
+    </SectionShell>
   );
 }
 
 function HomeHeroShell() {
   return (
-    <section className="ui-card" style={styles.heroShell}>
+    <SectionShell
+      style={styles.heroShell}
+    >
       <div style={styles.heroBadgeRow}>
         <span className="ui-chip">RAHBA MARKETPLACE</span>
         <span style={styles.heroCityPill}>🇲🇦 السوق المغربي أولاً</span>
@@ -170,7 +174,7 @@ function HomeHeroShell() {
           </div>
         </div>
       </div>
-    </section>
+    </SectionShell>
   );
 }
 
@@ -275,10 +279,6 @@ const styles = {
   },
 
   heroShell: {
-    padding: "18px",
-    display: "grid",
-    gap: "16px",
-    overflow: "hidden",
     background:
       "linear-gradient(135deg, rgba(23,59,116,0.08) 0%, rgba(20,184,166,0.08) 100%)",
     border: "1px solid #dfe7f3"
@@ -293,11 +293,11 @@ const styles = {
 
   heroCityPill: {
     padding: "7px 10px",
-    borderRadius: "999px",
-    background: "#fff",
-    border: "1px solid #dbe4ee",
-    color: "#475569",
-    fontSize: "12px",
+    borderRadius: UI.radius.pill,
+    background: UI.colors.white,
+    border: `1px solid ${UI.colors.line}`,
+    color: UI.colors.muted,
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
 
@@ -313,7 +313,7 @@ const styles = {
 
   heroTitle: {
     margin: 0,
-    color: "#16356b",
+    color: UI.colors.navy,
     fontSize: "32px",
     lineHeight: 1.2,
     fontWeight: 900
@@ -321,9 +321,9 @@ const styles = {
 
   heroText: {
     margin: 0,
-    color: "#475569",
+    color: UI.colors.muted,
     lineHeight: 1.9,
-    fontSize: "15px"
+    fontSize: UI.type.body
   },
 
   heroActionRow: {
@@ -344,22 +344,16 @@ const styles = {
   },
 
   heroStatValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontSize: "18px",
     fontWeight: 900
   },
 
   heroStatLabel: {
-    color: "#64748b",
+    color: UI.colors.muted,
     lineHeight: 1.7,
-    fontSize: "13px",
+    fontSize: UI.type.bodySm,
     fontWeight: 700
-  },
-
-  trustStripShell: {
-    padding: "16px",
-    display: "grid",
-    gap: "14px"
   },
 
   sectionHeadingWrap: {
@@ -369,26 +363,26 @@ const styles = {
 
   sectionHeading: {
     margin: 0,
-    color: "#16356b",
-    fontSize: "24px",
+    color: UI.colors.navy,
+    fontSize: UI.type.titleLg,
     lineHeight: 1.3,
     fontWeight: 900
   },
 
   sectionSubheading: {
     margin: 0,
-    color: "#64748b",
+    color: UI.colors.muted,
     lineHeight: 1.9,
-    fontSize: "14px"
+    fontSize: UI.type.body
   },
 
   trustGrid: {
     display: "grid",
-    gap: "10px"
+    gap: UI.spacing.cardGap
   },
 
   trustMiniCard: {
-    padding: "14px",
+    padding: UI.spacing.cardPadding,
     display: "flex",
     gap: "12px",
     alignItems: "flex-start"
@@ -397,9 +391,9 @@ const styles = {
   trustMiniIcon: {
     width: "36px",
     height: "36px",
-    borderRadius: "999px",
-    background: "#eef6ff",
-    color: "#173b74",
+    borderRadius: UI.radius.pill,
+    background: UI.colors.softBlue,
+    color: UI.colors.navy,
     display: "grid",
     placeItems: "center",
     fontSize: "16px",
@@ -412,20 +406,14 @@ const styles = {
   },
 
   trustMiniTitle: {
-    color: "#16356b",
+    color: UI.colors.navy,
     fontWeight: 900
   },
 
   trustMiniText: {
-    color: "#64748b",
+    color: UI.colors.muted,
     lineHeight: 1.8,
-    fontSize: "13px"
-  },
-
-  heroSkeletonCard: {
-    padding: "20px",
-    display: "grid",
-    gap: "14px"
+    fontSize: UI.type.bodySm
   },
 
   heroSkeletonInner: {
@@ -441,25 +429,16 @@ const styles = {
   },
 
   statusCard: {
-    padding: "22px",
-    display: "grid",
-    gap: "14px",
     textAlign: "center"
   },
 
   errorCard: {
-    padding: "22px",
-    display: "grid",
-    gap: "14px",
     textAlign: "center",
     border: "1.5px solid #fecaca",
     background: "#fff7f7"
   },
 
   emptyCard: {
-    padding: "22px",
-    display: "grid",
-    gap: "14px",
     textAlign: "center",
     border: "1.5px solid #e5dcc9",
     background: "#fffdfa"
@@ -475,30 +454,30 @@ const styles = {
     fontSize: "26px",
     lineHeight: 1.3,
     fontWeight: 900,
-    color: "#16356b"
+    color: UI.colors.navy
   },
 
   stateText: {
     margin: 0,
-    fontSize: "15px",
+    fontSize: UI.type.body,
     lineHeight: 1.9,
-    color: "#475569"
+    color: UI.colors.muted
   },
 
   skeletonGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: "14px"
+    gap: UI.spacing.cardGap
   },
 
   skeletonCard: {
-    padding: "18px",
+    padding: UI.spacing.cardPadding,
     display: "grid",
     gap: "12px"
   },
 
   skeletonProductCard: {
-    padding: "14px",
+    padding: UI.spacing.cardPadding,
     display: "grid",
     gap: "12px"
   },
