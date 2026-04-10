@@ -29,6 +29,17 @@ type UserRow = {
   password_hash: string | null;
 };
 
+type GoogleTokenResponse = {
+  access_token?: string;
+};
+
+type GoogleProfileResponse = {
+  id?: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+};
+
 authRouter.post(
   "/register",
   rateLimit({ keyPrefix: "register", limit: 3, windowSeconds: 1800 }),
@@ -40,12 +51,14 @@ authRouter.post(
         return c.json(AuthErrors.invalidBody(), 400);
       }
 
-      const email = normalizeEmail(body.email);
-      const password = String(body.password || "");
-      const fullName = String(body.full_name || "").trim();
-      const phone = String(body.phone || "").trim();
-      const locale = String(body.locale || "ar").trim() || "ar";
-      const requestedRole = String(body.role || "buyer").trim().toLowerCase();
+      const email = normalizeEmail((body as Record<string, unknown>).email);
+      const password = String((body as Record<string, unknown>).password || "");
+      const fullName = String((body as Record<string, unknown>).full_name || "").trim();
+      const phone = String((body as Record<string, unknown>).phone || "").trim();
+      const locale = String((body as Record<string, unknown>).locale || "ar").trim() || "ar";
+      const requestedRole = String((body as Record<string, unknown>).role || "buyer")
+        .trim()
+        .toLowerCase();
       const role = requestedRole === "seller" ? "seller" : "buyer";
 
       if (!email || !isValidEmail(email)) {
@@ -60,7 +73,7 @@ authRouter.post(
         `select id from users where email = ? limit 1`
       )
         .bind(email)
-        .first<{ id: string }>();
+        .first();
 
       if (existing) {
         return c.json(AuthErrors.emailAlreadyExists(), 409);
@@ -127,8 +140,8 @@ authRouter.post(
         return c.json(AuthErrors.invalidBody(), 400);
       }
 
-      const email = normalizeEmail(body.email);
-      const password = String(body.password || "");
+      const email = normalizeEmail((body as Record<string, unknown>).email);
+      const password = String((body as Record<string, unknown>).password || "");
 
       if (!email || !password) {
         return c.json(
@@ -141,14 +154,16 @@ authRouter.post(
         return c.json(AuthErrors.invalidEmail(), 400);
       }
 
-      const user = await c.env.DB.prepare(
+      const userRaw = await c.env.DB.prepare(
         `select id, email, full_name, phone, role, password_hash
          from users
          where email = ?
          limit 1`
       )
         .bind(email)
-        .first<UserRow>();
+        .first();
+
+      const user = userRaw as UserRow | null;
 
       if (!user || !user.password_hash) {
         return c.json(AuthErrors.invalidCredentials(), 401);
@@ -262,9 +277,9 @@ authRouter.get("/google/callback", async (c) => {
       })
     });
 
-    const tokenData = await tokenRes.json().catch(() => ({}));
+    const tokenData = (await tokenRes.json().catch(() => ({}))) as GoogleTokenResponse;
 
-    if (!tokenRes.ok || !tokenData?.access_token) {
+    if (!tokenRes.ok || !tokenData.access_token) {
       return c.json(
         fail(
           "GOOGLE_TOKEN_EXCHANGE_FAILED",
@@ -283,9 +298,9 @@ authRouter.get("/google/callback", async (c) => {
       }
     });
 
-    const profile = await profileRes.json().catch(() => ({}));
+    const profile = (await profileRes.json().catch(() => ({}))) as GoogleProfileResponse;
 
-    if (!profileRes.ok || !profile?.email || !profile?.id) {
+    if (!profileRes.ok || !profile.email || !profile.id) {
       return c.json(
         fail(
           "GOOGLE_PROFILE_FAILED",
@@ -298,38 +313,42 @@ authRouter.get("/google/callback", async (c) => {
 
     step = "lookup_user_by_google_id";
 
-    let user = await c.env.DB.prepare(
+    let userRaw = await c.env.DB.prepare(
       `select id, email, full_name, phone, role
        from users
        where google_id = ?
        limit 1`
     )
       .bind(profile.id)
-      .first<{
-        id: string;
-        email: string;
-        full_name: string | null;
-        phone: string | null;
-        role: "buyer" | "seller" | "admin";
-      }>();
+      .first();
+
+    let user = userRaw as {
+      id: string;
+      email: string;
+      full_name: string | null;
+      phone: string | null;
+      role: "buyer" | "seller" | "admin";
+    } | null;
 
     if (!user) {
       step = "lookup_user_by_email";
 
-      user = await c.env.DB.prepare(
+      const byEmailRaw = await c.env.DB.prepare(
         `select id, email, full_name, phone, role
          from users
          where email = ?
          limit 1`
       )
         .bind(profile.email)
-        .first<{
-          id: string;
-          email: string;
-          full_name: string | null;
-          phone: string | null;
-          role: "buyer" | "seller" | "admin";
-        }>();
+        .first();
+
+      user = byEmailRaw as {
+        id: string;
+        email: string;
+        full_name: string | null;
+        phone: string | null;
+        role: "buyer" | "seller" | "admin";
+      } | null;
     }
 
     if (!user) {

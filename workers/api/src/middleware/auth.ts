@@ -53,7 +53,7 @@ export async function authMiddleware(c: Context, next: Next) {
     );
   }
 
-  const session = await c.env.DB.prepare(
+  const sessionRaw = await c.env.DB.prepare(
     `select
       s.id,
       s.user_id,
@@ -68,7 +68,9 @@ export async function authMiddleware(c: Context, next: Next) {
     limit 1`
   )
     .bind(token)
-    .first<SessionRow>();
+    .first();
+
+  const session = sessionRaw as SessionRow | null;
 
   if (!session) {
     return c.json(
