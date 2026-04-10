@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import { UI } from "../components/marketplace/uiTokens";
 
 function getApiErrorMessage(result, fallback = "تعذر تحميل تفاصيل الطلب") {
   return result?.error?.message || result?.message || fallback;
@@ -266,13 +269,18 @@ export default function BuyerOrderDetailsPage() {
   if (loading) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.heroShell}>
             <div className="ui-chip">RAHBA ORDER</div>
-            <h1 className="page-title">تفاصيل الطلب</h1>
-            <p className="page-subtitle">جاري تحميل تفاصيل الطلب...</p>
-          </div>
-          <div className="loading-state">جاري تحميل تفاصيل الطلب...</div>
+            <SectionHead
+              title="تفاصيل الطلب"
+              subtitle="جاري تحميل تفاصيل الطلب..."
+            />
+          </SectionShell>
+
+          <SectionShell>
+            <div className="loading-state">جاري تحميل تفاصيل الطلب...</div>
+          </SectionShell>
         </div>
       </section>
     );
@@ -281,24 +289,28 @@ export default function BuyerOrderDetailsPage() {
   if (!currentUser) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.heroShell}>
             <div className="ui-chip">RAHBA ORDER</div>
-            <h1 className="page-title">تفاصيل الطلب</h1>
-            <p className="page-subtitle">قم بتسجيل الدخول أولاً للوصول إلى الطلب.</p>
-          </div>
+            <SectionHead
+              title="تفاصيل الطلب"
+              subtitle="قم بتسجيل الدخول أولاً للوصول إلى الطلب."
+            />
+          </SectionShell>
 
-          <div className="empty-state" style={s.emptyCard}>
-            <div style={s.emptyIcon}>🔐</div>
-            <h3 style={s.emptyTitle}>تسجيل الدخول مطلوب</h3>
-            <p style={s.emptyText}>
-              لا يمكن عرض تفاصيل الطلب في وضع الزائر حالياً.
-            </p>
+          <SectionShell>
+            <div style={s.emptyCard}>
+              <div style={s.emptyIcon}>🔐</div>
+              <h3 style={s.emptyTitle}>تسجيل الدخول مطلوب</h3>
+              <p style={s.emptyText}>
+                لا يمكن عرض تفاصيل الطلب في وضع الزائر حالياً.
+              </p>
 
-            <Link to="/auth" className="btn btn-primary full-width">
-              تسجيل الدخول
-            </Link>
-          </div>
+              <Link to="/auth" className="btn btn-primary full-width">
+                تسجيل الدخول
+              </Link>
+            </div>
+          </SectionShell>
         </div>
       </section>
     );
@@ -307,12 +319,14 @@ export default function BuyerOrderDetailsPage() {
   if (!order) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.heroCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.heroShell}>
             <div className="ui-chip">RAHBA ORDER</div>
-            <h1 className="page-title">تفاصيل الطلب</h1>
-            <p className="page-subtitle">تعذر العثور على الطلب المطلوب.</p>
-          </div>
+            <SectionHead
+              title="تفاصيل الطلب"
+              subtitle="تعذر العثور على الطلب المطلوب."
+            />
+          </SectionShell>
 
           {message ? <div className="message-box">{message}</div> : null}
 
@@ -340,15 +354,15 @@ export default function BuyerOrderDetailsPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={s.heroCard}>
+      <div style={s.stack}>
+        <SectionShell style={s.heroShell}>
           <div style={s.heroTop}>
             <div style={s.heroInfo}>
               <div className="ui-chip">RAHBA ORDER</div>
-              <h1 className="page-title" style={s.heroTitle}>تفاصيل الطلب</h1>
-              <p className="page-subtitle">
-                راجع حالة الطلب، المنتجات، ومعلومات التوصيل.
-              </p>
+              <SectionHead
+                title="تفاصيل الطلب"
+                subtitle="راجع حالة الطلب، المنتجات، ومعلومات التوصيل."
+              />
             </div>
 
             <div
@@ -392,12 +406,16 @@ export default function BuyerOrderDetailsPage() {
           >
             نسخ رقم الطلب
           </button>
-        </div>
+        </SectionShell>
 
         <div style={s.layout}>
           <div style={s.mainCol}>
-            <div className="ui-card" style={s.card}>
-              <h2 className="section-title">حالة الطلب</h2>
+            <SectionShell>
+              <SectionHead
+                chip="ORDER STATUS"
+                title="حالة الطلب"
+                subtitle="متابعة سريعة لحالة الطلب والدفع والشحن."
+              />
 
               <div style={s.statusGrid}>
                 <div className="ui-card-soft" style={s.statusItem}>
@@ -442,10 +460,14 @@ export default function BuyerOrderDetailsPage() {
                   </strong>
                 </div>
               </div>
-            </div>
+            </SectionShell>
 
-            <div className="ui-card" style={s.card}>
-              <h2 className="section-title">المنتجات</h2>
+            <SectionShell>
+              <SectionHead
+                chip="ORDER ITEMS"
+                title="المنتجات"
+                subtitle="العناصر المرتبطة بهذا الطلب مع الكمية والسعر."
+              />
 
               {items.length === 0 ? (
                 <div style={s.emptyInline}>لا توجد عناصر مرتبطة بهذا الطلب.</div>
@@ -502,12 +524,16 @@ export default function BuyerOrderDetailsPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </SectionShell>
 
             {shipping ? (
-              <div className="ui-card" style={s.card}>
+              <SectionShell>
                 <div style={s.shippingTitleRow}>
-                  <h2 className="section-title" style={{ margin: 0 }}>الشحن والتتبع</h2>
+                  <SectionHead
+                    chip="SHIPPING"
+                    title="الشحن والتتبع"
+                    subtitle="تابع تقدم الشحنة ومعلومات التوصيل."
+                  />
                   {(() => {
                     const meta = getShippingStatusMeta(shipping.shipping_status);
                     return (
@@ -620,13 +646,17 @@ export default function BuyerOrderDetailsPage() {
                     <strong style={s.shippingValue}>{formatDateTime(shipping.delivered_at, locale)}</strong>
                   </div>
                 </div>
-              </div>
+              </SectionShell>
             ) : null}
           </div>
 
           <aside style={s.sideCol}>
-            <div className="ui-card" style={s.card}>
-              <h2 className="section-title">معلومات الطلب</h2>
+            <SectionShell>
+              <SectionHead
+                chip="ORDER INFO"
+                title="معلومات الطلب"
+                subtitle="بيانات المستلم والدفع والبائع."
+              />
 
               <div style={s.sideInfoList}>
                 <div style={s.infoRow}>
@@ -674,7 +704,7 @@ export default function BuyerOrderDetailsPage() {
               >
                 الرجوع إلى طلباتي
               </button>
-            </div>
+            </SectionShell>
           </aside>
         </div>
       </div>
@@ -683,11 +713,17 @@ export default function BuyerOrderDetailsPage() {
 }
 
 const s = {
-  heroCard: {
-    padding: "18px",
+  stack: {
     display: "grid",
-    gap: "14px"
+    gap: "26px"
   },
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
+  },
+
   heroTop: {
     display: "flex",
     justifyContent: "space-between",
@@ -695,131 +731,145 @@ const s = {
     alignItems: "start",
     flexWrap: "wrap"
   },
+
   heroInfo: {
     display: "grid",
     gap: "8px"
   },
-  heroTitle: {
-    margin: 0
-  },
+
   statusPill: {
     minHeight: "36px",
     padding: "0 14px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     border: "1px solid transparent",
     fontWeight: 800,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   copyOrderBtn: {
     width: "fit-content"
   },
+
   topSummary: {
     display: "grid",
     gap: "10px",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
   },
+
   summaryBox: {
     padding: "14px",
     display: "grid",
     gap: "6px"
   },
+
   summaryLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   summaryValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   layout: {
     display: "grid",
     gap: "14px"
   },
+
   mainCol: {
     display: "grid",
     gap: "14px"
   },
+
   sideCol: {
     display: "grid",
     gap: "14px"
   },
-  card: {
-    padding: "16px",
-    display: "grid",
-    gap: "14px"
-  },
+
   statusGrid: {
     display: "grid",
     gap: "10px",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
   },
+
   statusItem: {
     padding: "14px",
     display: "grid",
     gap: "8px"
   },
+
   statusLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   statusBadgeInline: {
     minHeight: "34px",
     padding: "0 12px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     border: "1px solid transparent",
     width: "fit-content",
     fontWeight: 800,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   itemsList: {
     display: "grid",
     gap: "12px"
   },
+
   itemCard: {
     padding: "14px",
     display: "grid",
     gap: "12px"
   },
+
   itemRowTop: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "start"
   },
+
   itemInfo: {
     display: "grid",
     gap: "4px"
   },
+
   itemTitle: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900,
     lineHeight: 1.6
   },
+
   itemMeta: {
     color: "#7a6f63",
-    fontSize: "13px",
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   itemImage: {
     width: "84px",
     height: "84px",
     objectFit: "cover",
-    borderRadius: "16px",
+    borderRadius: UI.radius.lg,
     border: "1px solid #ece3d8",
     flexShrink: 0
   },
+
   itemImageFallback: {
     width: "84px",
     height: "84px",
-    borderRadius: "16px",
+    borderRadius: UI.radius.lg,
     border: "1px solid #ece3d8",
     background: "#f8f7f3",
     display: "grid",
@@ -827,10 +877,12 @@ const s = {
     fontSize: "30px",
     flexShrink: 0
   },
+
   itemStats: {
     display: "grid",
     gap: "8px"
   },
+
   shippingTitleRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -838,100 +890,120 @@ const s = {
     alignItems: "center",
     flexWrap: "wrap"
   },
+
   shippingStatusBadge: {
     minHeight: "34px",
     padding: "0 12px",
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     fontWeight: 800,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   trackingTimeline: {
     display: "grid",
     gap: "10px"
   },
+
   trackingStep: {
     display: "grid",
     gridTemplateColumns: "30px 1fr",
     gap: "12px"
   },
+
   trackingVisualCol: {
     display: "grid",
     justifyItems: "center"
   },
+
   trackingDot: {
     width: "28px",
     height: "28px",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     background: "#e5e7eb",
     color: "#475569",
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
-    fontSize: "13px"
+    fontSize: UI.type.bodySm
   },
+
   trackingDotDone: {
     background: "#16a34a",
     color: "#fff"
   },
+
   trackingDotActive: {
     background: "#1d4ed8",
     color: "#fff"
   },
+
   trackingLine: {
     width: "2px",
     minHeight: "26px",
     background: "#e5e7eb",
     marginTop: "4px"
   },
+
   trackingLineDone: {
     background: "#93c5fd"
   },
+
   trackingContent: {
     display: "grid",
     gap: "3px"
   },
+
   trackingStepLabel: {
     color: "#334155",
     fontWeight: 800
   },
+
   trackingStepLabelActive: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   trackingStepMeta: {
-    color: "#6b7280",
-    fontSize: "13px"
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm
   },
+
   shippingGrid: {
     display: "grid",
     gap: "10px",
     gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
   },
+
   shippingItem: {
     display: "grid",
     gap: "6px"
   },
+
   shippingLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   shippingValue: {
-    color: "#1f2937",
+    color: UI.colors.ink,
     fontWeight: 800
   },
+
   trackingLink: {
     color: "#1d4ed8",
     fontWeight: 800,
     textDecoration: "none",
     wordBreak: "break-word"
   },
+
   sideInfoList: {
     display: "grid",
     gap: "10px"
   },
+
   infoRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -939,47 +1011,59 @@ const s = {
     alignItems: "start",
     flexWrap: "wrap"
   },
+
   infoLabel: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     fontWeight: 700
   },
+
   infoValue: {
-    color: "#1f2937",
+    color: UI.colors.ink,
     fontWeight: 800
   },
+
   priceValue: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   notesCard: {
     padding: "14px",
     display: "grid",
     gap: "8px"
   },
+
   notesTitle: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   notesText: {
     margin: 0,
     color: "#4b5563",
     lineHeight: 1.9
   },
+
   emptyInline: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     lineHeight: 1.8
   },
+
   emptyCard: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    textAlign: "center"
   },
+
   emptyIcon: {
     fontSize: "40px"
   },
+
   emptyTitle: {
     margin: 0,
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   emptyText: {
     margin: 0,
     color: "#7a6f63",
