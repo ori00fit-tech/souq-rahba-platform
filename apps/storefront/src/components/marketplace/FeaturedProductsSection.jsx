@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import ProductCard from "./ProductCard";
-import { SectionHead } from "./CategoryGrid";
+import SectionHead from "./SectionHead";
 
 const T = { navy: "#16356b" };
 
@@ -20,15 +20,18 @@ export default function FeaturedProductsSection({ products = [] }) {
     reviews: Number(p.reviews_count || 0),
     stock: Number(p.stock || 0),
     description: p.description_ar || "",
-    href: `/products/${p.slug}`,
+    href: `/products/${p.slug}`
   }));
+
+  if (!items.length) return null;
 
   return (
     <section style={s.section} dir="rtl">
       <div style={s.headRow}>
         <SectionHead
+          chip="FEATURED"
           title="منتجات مميزة"
-          sub="اختيارات شائعة من باعة مختلفين داخل السوق"
+          subtitle="اختيارات شائعة من باعة مختلفين داخل السوق"
         />
         <Link to="/products" style={s.seeAll}>عرض الكل ←</Link>
       </div>
@@ -45,14 +48,14 @@ export default function FeaturedProductsSection({ products = [] }) {
 const s = {
   section: {
     display: "grid",
-    gap: "18px",
+    gap: "18px"
   },
 
   headRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: "12px",
+    gap: "12px"
   },
 
   seeAll: {
@@ -65,12 +68,12 @@ const s = {
     padding: "8px 14px",
     borderRadius: "10px",
     border: "1.5px solid #ddd5c2",
-    background: "#fff",
+    background: "#fff"
   },
 
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
-    gap: "14px",
-  },
+    gap: "14px"
+  }
 };

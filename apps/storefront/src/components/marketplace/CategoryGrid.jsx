@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import SectionHead from "./SectionHead";
 
 function normalizeCategory(category) {
   return {
@@ -22,13 +23,11 @@ export default function CategoryGrid({ categories = [] }) {
 
   return (
     <section className="ui-card" style={styles.wrapper}>
-      <div style={styles.header}>
-        <div className="ui-chip">CATEGORIES</div>
-        <h2 style={styles.title}>تصفح حسب الفئة</h2>
-        <p style={styles.subtitle}>
-          اختار الفئة المناسبة وابدأ رحلة البحث بسرعة
-        </p>
-      </div>
+      <SectionHead
+        chip="CATEGORIES"
+        title="تصفح حسب الفئة"
+        subtitle="اختار الفئة المناسبة وابدأ رحلة البحث بسرعة"
+      />
 
       <div style={styles.grid}>
         {items.map((cat) => (
@@ -61,25 +60,6 @@ const styles = {
     padding: "18px",
     display: "grid",
     gap: "16px"
-  },
-
-  header: {
-    display: "grid",
-    gap: "8px"
-  },
-
-  title: {
-    margin: 0,
-    color: "#16356b",
-    fontSize: "22px",
-    fontWeight: 900
-  },
-
-  subtitle: {
-    margin: 0,
-    color: "#64748b",
-    fontSize: "14px",
-    lineHeight: 1.8
   },
 
   grid: {
