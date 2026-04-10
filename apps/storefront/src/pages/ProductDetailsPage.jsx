@@ -129,6 +129,8 @@ export default function ProductDetailsPage() {
   const [message, setMessage] = useState("");
   const [reviewMessage, setReviewMessage] = useState("");
   const [selectedImage, setSelectedImage] = useState("");
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
@@ -296,7 +298,10 @@ export default function ProductDetailsPage() {
     ];
   }, [product]);
 
-  const previewReviews = useMemo(() => reviews.slice(0, 3), [reviews]);
+  const previewReviews = useMemo(
+    () => (showAllReviews ? reviews : reviews.slice(0, 3)),
+    [reviews, showAllReviews]
+  );
 
   function normalizeProductForCart(p) {
     const mediaImage =
@@ -643,6 +648,26 @@ export default function ProductDetailsPage() {
                 </div>
                 <div style={styles.reviewCount}>{ratingSummary.count || 0} تقييم</div>
               </div>
+
+              <div style={styles.reviewActions}>
+                {reviews.length > 3 ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowAllReviews((prev) => !prev)}
+                  >
+                    {showAllReviews ? "عرض أقل" : "عرض كل المراجعات"}
+                  </button>
+                ) : null}
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowReviewForm((prev) => !prev)}
+                >
+                  {showReviewForm ? "إخفاء نموذج التقييم" : "إضافة تقييم"}
+                </button>
+              </div>
             </div>
 
             <div style={styles.reviewsList}>
@@ -678,70 +703,72 @@ export default function ProductDetailsPage() {
               )}
             </div>
 
-            <form onSubmit={handleSubmitReview} style={styles.reviewForm}>
-              <label className="ui-label">
-                <span>التقييم</span>
-                <select
-                  value={reviewForm.rating}
-                  onChange={(e) =>
-                    setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
-                  }
-                  className="ui-select"
-                >
-                  <option value={5}>5 - ممتاز</option>
-                  <option value={4}>4 - جيد جدًا</option>
-                  <option value={3}>3 - جيد</option>
-                  <option value={2}>2 - مقبول</option>
-                  <option value={1}>1 - ضعيف</option>
-                </select>
-              </label>
+            {showReviewForm ? (
+              <form onSubmit={handleSubmitReview} style={styles.reviewForm}>
+                <label className="ui-label">
+                  <span>التقييم</span>
+                  <select
+                    value={reviewForm.rating}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))
+                    }
+                    className="ui-select"
+                  >
+                    <option value={5}>5 - ممتاز</option>
+                    <option value={4}>4 - جيد جدًا</option>
+                    <option value={3}>3 - جيد</option>
+                    <option value={2}>2 - مقبول</option>
+                    <option value={1}>1 - ضعيف</option>
+                  </select>
+                </label>
 
-              <label className="ui-label">
-                <span>عنوان المراجعة</span>
-                <input
-                  type="text"
-                  value={reviewForm.title}
-                  onChange={(e) =>
-                    setReviewForm((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  placeholder="مثلاً: منتج ممتاز"
-                  className="ui-input"
-                />
-              </label>
+                <label className="ui-label">
+                  <span>عنوان المراجعة</span>
+                  <input
+                    type="text"
+                    value={reviewForm.title}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    placeholder="مثلاً: منتج ممتاز"
+                    className="ui-input"
+                  />
+                </label>
 
-              <label className="ui-label">
-                <span>التعليق</span>
-                <textarea
-                  value={reviewForm.comment}
-                  onChange={(e) =>
-                    setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
-                  }
-                  placeholder="اكتب تجربتك بعد الشراء"
-                  className="ui-textarea"
-                />
-              </label>
+                <label className="ui-label">
+                  <span>التعليق</span>
+                  <textarea
+                    value={reviewForm.comment}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({ ...prev, comment: e.target.value }))
+                    }
+                    placeholder="اكتب تجربتك بعد الشراء"
+                    className="ui-textarea"
+                  />
+                </label>
 
-              <label className="ui-label">
-                <span>رابط صورة المراجعة</span>
-                <input
-                  type="url"
-                  value={reviewForm.review_image_url}
-                  onChange={(e) =>
-                    setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
-                  }
-                  placeholder="https://..."
-                  className="ui-input"
-                />
-              </label>
+                <label className="ui-label">
+                  <span>رابط صورة المراجعة</span>
+                  <input
+                    type="url"
+                    value={reviewForm.review_image_url}
+                    onChange={(e) =>
+                      setReviewForm((prev) => ({ ...prev, review_image_url: e.target.value }))
+                    }
+                    placeholder="https://..."
+                    className="ui-input"
+                  />
+                </label>
 
-              <div className="ui-chip">التقييم متاح بعد شراء المنتج</div>
+                <div className="ui-chip">التقييم متاح بعد شراء المنتج</div>
 
-              {reviewMessage ? <div className="message-box">{reviewMessage}</div> : null}
+                {reviewMessage ? <div className="message-box">{reviewMessage}</div> : null}
 
-              <button type="submit" disabled={submittingReview} className="btn btn-secondary full-width">
-                {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
-              </button>
-            </form>
+                <button type="submit" disabled={submittingReview} className="btn btn-secondary full-width">
+                  {submittingReview ? "جاري إرسال المراجعة..." : "إرسال المراجعة"}
+                </button>
+              </form>
+            ) : null}
           </section>
 
           {similar.length > 0 ? (
@@ -1131,6 +1158,11 @@ const styles = {
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "center",
+    flexWrap: "wrap"
+  },
+  reviewActions: {
+    display: "flex",
+    gap: "8px",
     flexWrap: "wrap"
   },
   reviewSummary: {
