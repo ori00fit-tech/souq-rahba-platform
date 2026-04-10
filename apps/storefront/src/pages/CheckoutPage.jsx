@@ -3,6 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiPost } from "../lib/api";
 import { useApp } from "../context/AppContext";
 import { formatMoney } from "../lib/utils";
+import SectionShell from "../components/marketplace/SectionShell";
+import SectionHead from "../components/marketplace/SectionHead";
+import { UI } from "../components/marketplace/uiTokens";
 
 function saveGuestOrder(entry) {
   try {
@@ -539,8 +542,8 @@ export default function CheckoutPage() {
   if (results.length > 0) {
     return (
       <section className="container section-space" dir="rtl">
-        <div className="page-stack">
-          <div className="ui-card" style={s.successCard}>
+        <div style={s.stack}>
+          <SectionShell style={s.successShell}>
             <div style={s.successIcon}>{successCount > 0 ? "✅" : "⚠️"}</div>
 
             <div className="ui-chip">
@@ -549,17 +552,19 @@ export default function CheckoutPage() {
                 : `تم إرسال ${successCount} من أصل ${validSellerGroups.length}`}
             </div>
 
-            <h1 className="page-title">
-              {successCount === validSellerGroups.length
-                ? "تم تأكيد طلباتك بنجاح"
-                : "تم تنفيذ الطلبات بشكل جزئي"}
-            </h1>
-
-            <p className="page-subtitle">
-              {successCount === validSellerGroups.length
-                ? "توصلنا بجميع طلباتك، وسيتم التواصل معك لتأكيد التفاصيل."
-                : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."}
-            </p>
+            <SectionHead
+              title={
+                successCount === validSellerGroups.length
+                  ? "تم تأكيد طلباتك بنجاح"
+                  : "تم تنفيذ الطلبات بشكل جزئي"
+              }
+              subtitle={
+                successCount === validSellerGroups.length
+                  ? "توصلنا بجميع طلباتك، وسيتم التواصل معك لتأكيد التفاصيل."
+                  : "بعض الطلبات تم إنشاؤها بنجاح، وبعضها الآخر لم يكتمل. راجع النتيجة أسفله."
+              }
+              align="center"
+            />
 
             {successCount > 0 ? (
               <div className="ui-card-soft" style={s.guestSavedBox}>
@@ -658,7 +663,7 @@ export default function CheckoutPage() {
                 متابعة التسوق
               </button>
             </div>
-          </div>
+          </SectionShell>
         </div>
       </section>
     );
@@ -666,13 +671,13 @@ export default function CheckoutPage() {
 
   return (
     <section className="container section-space" dir="rtl">
-      <div className="page-stack">
-        <div className="ui-card" style={s.heroCard}>
+      <div style={s.stack}>
+        <SectionShell style={s.heroShell}>
           <div className="ui-chip">RAHBA CHECKOUT</div>
-          <h1 className="page-title">إتمام الطلب</h1>
-          <p className="page-subtitle">
-            أدخل بيانات التوصيل مرة واحدة، وسنقسم السلة حسب البائعين تلقائياً.
-          </p>
+          <SectionHead
+            title="إتمام الطلب"
+            subtitle="أدخل بيانات التوصيل مرة واحدة، وسنقسم السلة حسب البائعين تلقائياً."
+          />
 
           {numSellers > 1 ? (
             <div className="ui-card-soft" style={s.splitNotice}>
@@ -687,114 +692,128 @@ export default function CheckoutPage() {
               <div style={s.splitText}>كل المنتجات الحالية من نفس البائع.</div>
             </div>
           )}
-        </div>
+        </SectionShell>
 
         {!currentUser ? (
-          <div className="ui-card-soft" style={s.guestInfo}>
-            <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
-            <span style={s.guestText}>
-              لست بحاجة إلى حساب لإتمام الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
-            </span>
-          </div>
+          <SectionShell>
+            <div className="ui-card-soft" style={s.guestInfo}>
+              <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
+              <span style={s.guestText}>
+                لست بحاجة إلى حساب لإتمام الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
+              </span>
+            </div>
+          </SectionShell>
         ) : null}
 
         {message ? <div className="message-box">{message}</div> : null}
         {shippingMessage ? <div className="message-box">{shippingMessage}</div> : null}
 
         {invalidSellerGroups.length > 0 ? (
-          <div className="ui-card-soft" style={s.invalidSellerBox}>
-            <strong style={s.invalidSellerTitle}>منتجات غير صالحة للإتمام</strong>
-            <div style={s.invalidSellerText}>
-              توجد منتجات داخل السلة بدون بائع صالح. ارجع إلى السلة واحذفها أو أعد إضافتها من صفحاتها الرسمية.
+          <SectionShell>
+            <div className="ui-card-soft" style={s.invalidSellerBox}>
+              <strong style={s.invalidSellerTitle}>منتجات غير صالحة للإتمام</strong>
+              <div style={s.invalidSellerText}>
+                توجد منتجات داخل السلة بدون بائع صالح. ارجع إلى السلة واحذفها أو أعد إضافتها من صفحاتها الرسمية.
+              </div>
             </div>
-          </div>
+          </SectionShell>
         ) : null}
 
         <div style={s.layout}>
-          <form className="ui-card" style={s.formCard} onSubmit={handleSubmit}>
-            <h2 className="section-title">بيانات التوصيل</h2>
+          <SectionShell style={s.formCard}>
+            <SectionHead
+              chip="DELIVERY"
+              title="بيانات التوصيل"
+              subtitle="أدخل معلوماتك بدقة لاختيار الشحن وإنشاء الطلب بشكل صحيح."
+            />
 
-            <label className="ui-label">
-              <span>الاسم الكامل</span>
-              <input
-                className="ui-input"
-                value={form.buyer_name}
-                onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
-                placeholder="الاسم الكامل"
-              />
-            </label>
-
-            <label className="ui-label">
-              <span>رقم الهاتف</span>
-              <input
-                className="ui-input"
-                value={form.buyer_phone}
-                onChange={(e) => setForm({ ...form, buyer_phone: e.target.value })}
-                placeholder="06xxxxxxxx"
-                inputMode="tel"
-              />
-            </label>
-
-            <label className="ui-label">
-              <span>المدينة</span>
-              <input
-                className="ui-input"
-                value={form.buyer_city}
-                onChange={(e) => {
-                  setCityTouched(true);
-                  setForm({ ...form, buyer_city: e.target.value });
-                }}
-                placeholder="مثلاً: الدار البيضاء"
-              />
-            </label>
-
-            <label className="ui-label">
-              <span>العنوان</span>
-              <textarea
-                className="ui-textarea"
-                value={form.buyer_address}
-                onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
-                placeholder="الحي، الزنقة، رقم المنزل..."
-              />
-            </label>
-
-            <label className="ui-label">
-              <span>ملاحظات إضافية</span>
-              <textarea
-                className="ui-textarea"
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="ملاحظات اختيارية حول الطلب أو التوصيل"
-              />
-            </label>
-
-            <div className="ui-card-soft" style={s.paymentCard}>
-              <div style={s.paymentTitle}>طريقة الدفع</div>
-              <label style={s.paymentMethod}>
-                <input type="radio" checked readOnly />
-                <span>الدفع عند الاستلام (Cash on Delivery)</span>
+            <form style={s.formGrid} onSubmit={handleSubmit}>
+              <label className="ui-label">
+                <span>الاسم الكامل</span>
+                <input
+                  className="ui-input"
+                  value={form.buyer_name}
+                  onChange={(e) => setForm({ ...form, buyer_name: e.target.value })}
+                  placeholder="الاسم الكامل"
+                />
               </label>
-            </div>
 
-            <button
-              type="submit"
-              className="btn btn-primary full-width"
-              disabled={
-                submitting ||
-                !ordersGrouped.length ||
-                shippingLoading ||
-                invalidSellerGroups.length > 0 ||
-                !allShippingResolved
-              }
-            >
-              {submitting
-                ? "جاري إنشاء الطلبات..."
-                : `تأكيد الطلب (${formatMoney(grandTotal, currency, locale)})`}
-            </button>
-          </form>
+              <label className="ui-label">
+                <span>رقم الهاتف</span>
+                <input
+                  className="ui-input"
+                  value={form.buyer_phone}
+                  onChange={(e) => setForm({ ...form, buyer_phone: e.target.value })}
+                  placeholder="06xxxxxxxx"
+                  inputMode="tel"
+                />
+              </label>
 
-          <aside className="ui-card" style={s.summaryCard}>
-            <h2 className="section-title">ملخص السلة</h2>
+              <label className="ui-label">
+                <span>المدينة</span>
+                <input
+                  className="ui-input"
+                  value={form.buyer_city}
+                  onChange={(e) => {
+                    setCityTouched(true);
+                    setForm({ ...form, buyer_city: e.target.value });
+                  }}
+                  placeholder="مثلاً: الدار البيضاء"
+                />
+              </label>
+
+              <label className="ui-label">
+                <span>العنوان</span>
+                <textarea
+                  className="ui-textarea"
+                  value={form.buyer_address}
+                  onChange={(e) => setForm({ ...form, buyer_address: e.target.value })}
+                  placeholder="الحي، الزنقة، رقم المنزل..."
+                />
+              </label>
+
+              <label className="ui-label">
+                <span>ملاحظات إضافية</span>
+                <textarea
+                  className="ui-textarea"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  placeholder="ملاحظات اختيارية حول الطلب أو التوصيل"
+                />
+              </label>
+
+              <div className="ui-card-soft" style={s.paymentCard}>
+                <div style={s.paymentTitle}>طريقة الدفع</div>
+                <label style={s.paymentMethod}>
+                  <input type="radio" checked readOnly />
+                  <span>الدفع عند الاستلام (Cash on Delivery)</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary full-width"
+                disabled={
+                  submitting ||
+                  !ordersGrouped.length ||
+                  shippingLoading ||
+                  invalidSellerGroups.length > 0 ||
+                  !allShippingResolved
+                }
+              >
+                {submitting
+                  ? "جاري إنشاء الطلبات..."
+                  : `تأكيد الطلب (${formatMoney(grandTotal, currency, locale)})`}
+              </button>
+            </form>
+          </SectionShell>
+
+          <SectionShell style={s.summaryCard}>
+            <SectionHead
+              chip="SUMMARY"
+              title="ملخص السلة"
+              subtitle="راجع كل بائع، اختر الشحن المناسب، وتأكد من الإجمالي قبل الإرسال."
+            />
 
             <div style={s.groupList}>
               {ordersGrouped.map((group) => {
@@ -946,7 +965,7 @@ export default function CheckoutPage() {
             <Link to="/cart" className="btn btn-secondary full-width" style={s.backBtn}>
               الرجوع إلى السلة
             </Link>
-          </aside>
+          </SectionShell>
         </div>
       </div>
     </section>
@@ -954,44 +973,59 @@ export default function CheckoutPage() {
 }
 
 const s = {
-  heroCard: {
-    padding: "18px",
+  stack: {
     display: "grid",
-    gap: "12px"
+    gap: "26px"
   },
+
+  heroShell: {
+    background:
+      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
+    border: "1px solid #dfe7f3"
+  },
+
   splitNotice: {
     padding: "14px",
     display: "grid",
     gap: "6px",
     background: "#fff7e6",
-    border: "1px solid #f3d7a4"
+    border: "1px solid #f3d7a4",
+    borderRadius: UI.radius.xl
   },
+
   singleNotice: {
     padding: "14px",
     display: "grid",
     gap: "6px",
-    background: "#eef6ff",
-    border: "1px solid #d3e4f8"
+    background: UI.colors.softBlue,
+    border: "1px solid #d3e4f8",
+    borderRadius: UI.radius.xl
   },
+
   splitTitle: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   splitText: {
     color: "#5b6470",
     lineHeight: 1.8
   },
+
   guestInfo: {
     padding: "14px",
     display: "grid",
     gap: "6px"
   },
+
   guestTitle: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   guestText: {
-    color: "#6b7280",
+    color: UI.colors.muted,
     lineHeight: 1.8
   },
+
   guestSavedBox: {
     padding: "14px",
     display: "grid",
@@ -999,45 +1033,58 @@ const s = {
     background: "#eefbf3",
     border: "1px solid #b7ebc6"
   },
+
   guestSavedTitle: {
-    color: "#166534"
+    color: UI.colors.successText
   },
+
   guestSavedText: {
     color: "#4b5563",
     lineHeight: 1.8
   },
+
   invalidSellerBox: {
     padding: "14px",
     display: "grid",
     gap: "6px",
-    background: "#fef2f2",
-    border: "1px solid #fecaca"
+    background: UI.colors.dangerBg,
+    border: `1px solid ${UI.colors.dangerBorder}`
   },
+
   invalidSellerTitle: {
-    color: "#b91c1c"
+    color: UI.colors.dangerText
   },
+
   invalidSellerText: {
     color: "#7f1d1d",
     lineHeight: 1.8
   },
+
   layout: {
     display: "grid",
     gap: "14px"
   },
+
   formCard: {
-    padding: "16px",
+    gap: "14px"
+  },
+
+  formGrid: {
     display: "grid",
     gap: "14px"
   },
+
   paymentCard: {
     padding: "14px",
     display: "grid",
     gap: "10px"
   },
+
   paymentTitle: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   paymentMethod: {
     display: "flex",
     alignItems: "center",
@@ -1045,149 +1092,173 @@ const s = {
     color: "#374151",
     fontWeight: 700
   },
+
   summaryCard: {
-    padding: "16px",
-    display: "grid",
     gap: "14px"
   },
+
   groupList: {
     display: "grid",
     gap: "10px"
   },
+
   groupCard: {
     padding: "12px",
     display: "grid",
     gap: "10px"
   },
+
   groupHead: {
     display: "flex",
     justifyContent: "space-between",
     gap: "10px",
     alignItems: "center"
   },
+
   groupSeller: {
-    color: "#173b74"
+    color: UI.colors.navy
   },
+
   groupSubtotal: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   groupItems: {
     display: "grid",
     gap: "8px"
   },
+
   itemRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "10px",
     alignItems: "start"
   },
+
   itemName: {
     color: "#4b5563",
     lineHeight: 1.6
   },
+
   itemPrice: {
     color: "#1f2937",
     whiteSpace: "nowrap"
   },
+
   shippingBox: {
     display: "grid",
     gap: "10px",
     padding: "12px",
-    borderRadius: "14px",
+    borderRadius: UI.radius.lg,
     border: "1px solid #dbeafe",
     background: "#f8fbff"
   },
+
   shippingBoxTitle: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   shippingOptionsList: {
     display: "grid",
     gap: "8px"
   },
+
   shippingOptionCard: {
     border: "1px solid #dbe4ee",
-    background: "#fff",
-    borderRadius: "14px",
+    background: UI.colors.white,
+    borderRadius: UI.radius.lg,
     padding: "12px",
     textAlign: "right",
     cursor: "pointer"
   },
+
   shippingOptionSelected: {
     border: "1px solid #60a5fa",
     boxShadow: "0 0 0 3px rgba(96,165,250,0.15)"
   },
+
   shippingOptionHead: {
     display: "flex",
     justifyContent: "space-between",
     gap: "10px",
     alignItems: "start"
   },
+
   shippingOptionTitle: {
     color: "#0f172a",
     fontWeight: 900
   },
+
   shippingOptionMeta: {
-    color: "#64748b",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     marginTop: "4px",
     lineHeight: 1.7
   },
+
   shippingOptionPrice: {
-    color: "#173b74",
+    color: UI.colors.navy,
     whiteSpace: "nowrap"
   },
+
   shippingBadgesRow: {
     display: "flex",
     gap: "6px",
     flexWrap: "wrap",
     marginTop: "10px"
   },
+
   bestBadge: {
     background: "#dbeafe",
     color: "#1d4ed8",
     border: "1px solid #93c5fd",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     padding: "4px 8px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
+
   cheapestBadge: {
     background: "#dcfce7",
     color: "#166534",
     border: "1px solid #86efac",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     padding: "4px 8px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
+
   fastestBadge: {
     background: "#fef3c7",
     color: "#92400e",
     border: "1px solid #fcd34d",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     padding: "4px 8px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
+
   codBadge: {
     background: "#ede9fe",
     color: "#6d28d9",
     border: "1px solid #c4b5fd",
-    borderRadius: "999px",
+    borderRadius: UI.radius.pill,
     padding: "4px 8px",
-    fontSize: "12px",
+    fontSize: UI.type.caption,
     fontWeight: 800
   },
+
   shippingEmptyBox: {
     padding: "12px",
-    borderRadius: "14px",
+    borderRadius: UI.radius.lg,
     border: "1px dashed #d6d3d1",
     background: "#fafaf9",
-    color: "#6b7280",
+    color: UI.colors.muted,
     lineHeight: 1.8
   },
+
   groupShippingRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -1195,10 +1266,12 @@ const s = {
     color: "#4b5563",
     fontWeight: 700
   },
+
   totals: {
     display: "grid",
     gap: "12px"
   },
+
   totalRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -1206,62 +1279,71 @@ const s = {
     color: "#4b5563",
     fontWeight: 700
   },
+
   totalRowGrand: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900,
     fontSize: "18px"
   },
+
   divider: {
     height: "1px",
     background: "#e9dfd2"
   },
+
   backBtn: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center"
   },
-  successCard: {
-    padding: "20px",
-    display: "grid",
-    gap: "14px",
+
+  successShell: {
     textAlign: "center"
   },
+
   successIcon: {
     fontSize: "42px"
   },
+
   resultsStats: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "10px"
   },
+
   statCard: {
     padding: "14px",
     display: "grid",
     gap: "6px"
   },
+
   statLabel: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
     fontWeight: 700
   },
+
   statSuccess: {
-    color: "#166534",
+    color: UI.colors.successText,
     fontSize: "24px",
     fontWeight: 900
   },
+
   statDanger: {
-    color: "#b91c1c",
+    color: UI.colors.dangerText,
     fontSize: "24px",
     fontWeight: 900
   },
+
   resultsList: {
     display: "grid",
     gap: "10px",
     textAlign: "right"
   },
+
   resultRow: {
     padding: "14px",
     display: "flex",
@@ -1269,39 +1351,48 @@ const s = {
     gap: "12px",
     alignItems: "start"
   },
+
   resultMain: {
     display: "grid",
     gap: "4px"
   },
+
   resultSeller: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   resultMeta: {
-    color: "#6b7280",
-    fontSize: "13px"
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm
   },
+
   resultSide: {
     display: "grid",
     gap: "4px",
     textAlign: "left"
   },
+
   trackBtn: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: "36px"
   },
+
   orderNumber: {
     color: "#111827"
   },
+
   orderAmount: {
-    color: "#173b74",
+    color: UI.colors.navy,
     fontWeight: 900
   },
+
   errorText: {
-    color: "#b91c1c"
+    color: UI.colors.dangerText
   },
+
   successActions: {
     display: "grid",
     gap: "10px"
