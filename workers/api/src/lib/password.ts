@@ -28,6 +28,10 @@ function timingSafeEqual(a: string, b: string): boolean {
   return out === 0;
 }
 
+function toArrayBuffer(view: Uint8Array): ArrayBuffer {
+  return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength) as ArrayBuffer;
+}
+
 async function derive(password: string, salt: Uint8Array): Promise<string> {
   const enc = new TextEncoder();
 
@@ -42,7 +46,7 @@ async function derive(password: string, salt: Uint8Array): Promise<string> {
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
-      salt: salt.buffer,
+      salt: toArrayBuffer(salt),
       iterations: PBKDF2_ITERATIONS,
       hash: HASH_ALGO
     },
