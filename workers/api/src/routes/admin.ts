@@ -289,10 +289,20 @@ adminRouter.get("/system/recent-sessions", async (c) => {
       .bind(limit)
       .all();
 
+    const items = Array.isArray(rows.results)
+      ? rows.results.map((row: any) => ({
+          ...row,
+          token_preview: row?.token
+            ? `${String(row.token).slice(0, 8)}...${String(row.token).slice(-4)}`
+            : null,
+          token: undefined
+        }))
+      : [];
+
     return c.json(
       ok({
         limit,
-        items: rows.results || []
+        items
       })
     );
   } catch (error) {
