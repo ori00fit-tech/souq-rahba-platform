@@ -266,7 +266,10 @@ orderRouter.get("/stats", authMiddleware, requireRole("seller", "admin"), async 
   }
 });
 
-orderRouter.post("/orders", async (c) => {
+orderRouter.post(
+  "/orders",
+  rateLimit({ keyPrefix: "order-create", limit: 8, windowSeconds: 600 }),
+  async (c) => {
   try {
     const authUser = await getOptionalAuthUser(c);
     const body = await c.req.json().catch(() => null);
