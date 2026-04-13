@@ -1,24 +1,16 @@
+import { useMemo } from "react";
 import SectionHead from "./SectionHead";
 import SectionShell from "./SectionShell";
 import SectionActionLink from "./SectionActionLink";
 import { UI } from "./uiTokens";
 import { Link } from "react-router-dom";
-
-function normalizeSeller(seller) {
-  return {
-    id: seller?.id || "",
-    slug: seller?.slug || "",
-    name: seller?.display_name || seller?.name || "متجر",
-    city: seller?.city || "المغرب",
-    rating: Number(seller?.rating || 0),
-    verified: Boolean(seller?.verified),
-    kyc_status: seller?.kyc_status || "",
-    products_count: Number(seller?.products_count || 0)
-  };
-}
+import { normalizeMarketplaceSellers } from "../../utils/marketplaceSellerMapper";
 
 export default function SellerSpotlightSection({ sellers = [] }) {
-  const items = sellers.map(normalizeSeller);
+  const items = useMemo(
+    () => normalizeMarketplaceSellers(sellers),
+    [sellers]
+  );
 
   if (!items.length) return null;
 
@@ -35,7 +27,11 @@ export default function SellerSpotlightSection({ sellers = [] }) {
 
       <div style={s.grid}>
         {items.map((seller) => (
-          <div key={seller.id || seller.slug || seller.name} className="ui-card-soft" style={s.card}>
+          <div
+            key={seller.id || seller.slug || seller.name}
+            className="ui-card-soft"
+            style={s.card}
+          >
             <div style={s.cardTop}>
               <div style={s.avatar}>{seller.name.slice(0, 1)}</div>
 
@@ -61,14 +57,14 @@ export default function SellerSpotlightSection({ sellers = [] }) {
 
               <div style={s.statBox}>
                 <strong style={s.statValue}>
-                  {seller.kyc_status === "approved" ? "نعم" : "—"}
+                  {seller.kyc_status === "approved" || seller.verified ? "نعم" : "—"}
                 </strong>
                 <span style={s.statLabel}>توثيق</span>
               </div>
             </div>
 
             <Link
-              to={seller.slug ? `/seller/${seller.slug}` : "#"}
+              to={seller.slug ? `/sellers/${seller.slug}` : "#"}
               style={{
                 ...s.storeBtn,
                 opacity: seller.slug ? 1 : 0.5,
@@ -89,12 +85,13 @@ const s = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    gap: "12px"
+    gap: "12px",
+    flexWrap: "wrap"
   },
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
     gap: UI.spacing.cardGap
   },
 
@@ -114,8 +111,8 @@ const s = {
   },
 
   avatar: {
-    width: "46px",
-    height: "46px",
+    width: "48px",
+    height: "48px",
     borderRadius: "14px",
     background: UI.colors.softBlue,
     color: UI.colors.navy,
