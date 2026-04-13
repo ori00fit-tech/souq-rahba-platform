@@ -13,6 +13,7 @@ import HomeHero from "../components/marketplace/home/HomeHero";
 import HomeSearchBand from "../components/marketplace/home/HomeSearchBand";
 import HomePromoBanners from "../components/marketplace/home/HomePromoBanners";
 import HomeTrustBar from "../components/marketplace/home/HomeTrustBar";
+import HomeCommerceStrip from "../components/marketplace/home/HomeCommerceStrip";
 
 function normalizeHomePayload(data) {
   return {
@@ -20,28 +21,6 @@ function normalizeHomePayload(data) {
     featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
     featured_sellers: Array.isArray(data?.featured_sellers) ? data.featured_sellers : []
   };
-}
-
-function CommerceStrip() {
-  const items = [
-    "شحن مجاني للطلبات فوق 200 درهم",
-    "الدفع عند الاستلام متوفر",
-    "بائعون موثوقون من مختلف المدن",
-    "متابعة الطلبات بسهولة"
-  ];
-
-  return (
-    <section style={s.strip}>
-      <div style={s.stripTrack}>
-        {[...items, ...items].map((item, index) => (
-          <div key={`${item}-${index}`} style={s.stripItem}>
-            <span style={s.stripDot}>✦</span>
-            <span>{item}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
 }
 
 function HomePageSkeleton() {
@@ -155,7 +134,7 @@ export default function HomePage() {
       <div style={s.stack}>
         <HomeHero />
         <HomeSearchBand />
-        <CommerceStrip />
+        <HomeCommerceStrip />
 
         {loading ? (
           <HomePageSkeleton />
@@ -197,35 +176,6 @@ const s = {
   stack: {
     display: "grid",
     gap: UI.spacing.pageGap
-  },
-
-  strip: {
-    background: UI.colors.ink,
-    borderRadius: UI.radius.xl,
-    overflow: "hidden",
-    padding: "12px 0"
-  },
-
-  stripTrack: {
-    display: "flex",
-    gap: "24px",
-    overflowX: "auto",
-    padding: "0 16px"
-  },
-
-  stripItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    color: "rgba(255,255,255,.84)",
-    whiteSpace: "nowrap",
-    fontSize: UI.type.bodySm,
-    fontWeight: 700
-  },
-
-  stripDot: {
-    color: UI.colors.gold,
-    fontSize: UI.type.caption
   },
 
   heroSkeletonInner: {
