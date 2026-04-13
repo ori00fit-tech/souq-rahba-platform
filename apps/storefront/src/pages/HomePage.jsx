@@ -11,6 +11,8 @@ import { UI } from "../components/marketplace/uiTokens";
 import { apiGet } from "../lib/api";
 import HomeHero from "../components/marketplace/home/HomeHero";
 import HomeSearchBand from "../components/marketplace/home/HomeSearchBand";
+import HomePromoBanners from "../components/marketplace/home/HomePromoBanners";
+import HomeTrustBar from "../components/marketplace/home/HomeTrustBar";
 
 function normalizeHomePayload(data) {
   return {
@@ -38,54 +40,6 @@ function CommerceStrip() {
           </div>
         ))}
       </div>
-    </section>
-  );
-}
-
-function PromoBanners() {
-  return (
-    <section style={s.promoGrid}>
-      <div style={{ ...s.promoCard, ...s.promoOne }}>
-        <div style={s.promoEmoji}>🏷️</div>
-        <div style={s.promoSub}>عروض حصرية</div>
-        <div style={s.promoTitle}>خصومات قوية على المنتجات الأكثر طلبًا</div>
-        <Link to="/products?sort=featured" style={s.promoBtn}>اكتشف الآن →</Link>
-      </div>
-
-      <div style={{ ...s.promoCard, ...s.promoTwo }}>
-        <div style={s.promoEmoji}>🚀</div>
-        <div style={s.promoSub}>للبائعين</div>
-        <div style={s.promoTitle}>ابدأ البيع في رحبة اليوم</div>
-        <Link to="/auth" style={s.promoBtn}>سجل الآن →</Link>
-      </div>
-
-      <div style={{ ...s.promoCard, ...s.promoThree }}>
-        <div style={s.promoEmoji}>📦</div>
-        <div style={s.promoSub}>توصيل</div>
-        <div style={s.promoTitle}>تجربة شحن أوضح لمختلف المدن</div>
-        <Link to="/help" style={s.promoBtn}>اعرف المزيد →</Link>
-      </div>
-    </section>
-  );
-}
-
-function TrustBarV2() {
-  const items = [
-    { icon: "🚚", title: "شحن سريع", text: "توصيل لمدن متعددة داخل المغرب" },
-    { icon: "🔒", title: "دفع آمن", text: "خيارات دفع أوضح للمستخدم" },
-    { icon: "↩️", title: "متابعة الطلب", text: "تتبع وحالة الطلب بشكل أفضل" },
-    { icon: "🤝", title: "باعة موثوقون", text: "صفحات متاجر تساعد على بناء الثقة" }
-  ];
-
-  return (
-    <section style={s.trustBar}>
-      {items.map((item) => (
-        <div key={item.title} style={s.trustBarItem}>
-          <span style={s.trustBarIcon}>{item.icon}</span>
-          <div style={s.trustBarTitle}>{item.title}</div>
-          <div style={s.trustBarDesc}>{item.text}</div>
-        </div>
-      ))}
     </section>
   );
 }
@@ -225,12 +179,12 @@ export default function HomePage() {
           <>
             <CategoryGrid categories={homeData.categories} />
             <FeaturedProductsSection products={homeData.featured_products} />
-            <PromoBanners />
+            <HomePromoBanners />
             <SellerSpotlightSection sellers={homeData.featured_sellers} />
           </>
         )}
 
-        <TrustBarV2 />
+        <HomeTrustBar />
         <PromoHero />
         <TrustSection />
         <SellCTA />
@@ -272,99 +226,6 @@ const s = {
   stripDot: {
     color: UI.colors.gold,
     fontSize: UI.type.caption
-  },
-
-  promoGrid: {
-    display: "grid",
-    gap: "14px"
-  },
-
-  promoCard: {
-    borderRadius: UI.radius.xxl,
-    padding: "24px",
-    minHeight: "220px",
-    position: "relative",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "flex-end"
-  },
-
-  promoOne: {
-    background: "linear-gradient(135deg, #0D2C54, #0ABFB8)"
-  },
-
-  promoTwo: {
-    background: "linear-gradient(135deg, #E8A020, #F05A28)"
-  },
-
-  promoThree: {
-    background: "linear-gradient(135deg, #6C3FE8, #3BA5F5)"
-  },
-
-  promoEmoji: {
-    position: "absolute",
-    top: "16px",
-    left: "16px",
-    fontSize: "52px",
-    opacity: 0.24
-  },
-
-  promoSub: {
-    color: "rgba(255,255,255,.72)",
-    fontSize: UI.type.caption,
-    fontWeight: 800,
-    letterSpacing: "1px",
-    marginBottom: "6px"
-  },
-
-  promoTitle: {
-    color: UI.colors.white,
-    fontSize: "24px",
-    fontWeight: 900,
-    lineHeight: 1.35,
-    marginBottom: "12px"
-  },
-
-  promoBtn: {
-    width: "fit-content",
-    background: "rgba(255,255,255,.18)",
-    border: "1.5px solid rgba(255,255,255,.30)",
-    color: UI.colors.white,
-    padding: "8px 14px",
-    borderRadius: UI.radius.pill,
-    textDecoration: "none",
-    fontWeight: 800
-  },
-
-  trustBar: {
-    background: UI.colors.ink,
-    borderRadius: UI.radius.hero,
-    padding: "26px 18px",
-    display: "grid",
-    gap: "18px"
-  },
-
-  trustBarItem: {
-    textAlign: "center",
-    display: "grid",
-    gap: "6px"
-  },
-
-  trustBarIcon: {
-    fontSize: "34px"
-  },
-
-  trustBarTitle: {
-    color: UI.colors.white,
-    fontSize: "16px",
-    fontWeight: 900
-  },
-
-  trustBarDesc: {
-    color: "rgba(255,255,255,.56)",
-    fontSize: UI.type.bodySm,
-    lineHeight: 1.7
   },
 
   heroSkeletonInner: {
