@@ -1,24 +1,17 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import SectionHead from "./SectionHead";
 import SectionShell from "./SectionShell";
 import { UI } from "./uiTokens";
-
-function normalizeCategory(category) {
-  return {
-    id: category?.id || "",
-    slug: category?.slug || "",
-    name: category?.name || category?.name_ar || "فئة",
-    description:
-      category?.description ||
-      category?.description_ar ||
-      "تصفح المنتجات داخل هذه الفئة",
-    icon: category?.icon || "📦"
-  };
-}
+import { normalizeMarketplaceCategories } from "../../utils/marketplaceCategoryMapper";
 
 export default function CategoryGrid({ categories = [] }) {
   const navigate = useNavigate();
-  const items = categories.map(normalizeCategory);
+
+  const items = useMemo(
+    () => normalizeMarketplaceCategories(categories),
+    [categories]
+  );
 
   if (!items.length) return null;
 
@@ -33,7 +26,7 @@ export default function CategoryGrid({ categories = [] }) {
       <div style={styles.grid}>
         {items.map((cat) => (
           <button
-            key={cat.id || cat.slug}
+            key={cat.id || cat.slug || cat.name}
             onClick={() =>
               navigate(`/products?category=${encodeURIComponent(cat.slug)}`)
             }
@@ -59,7 +52,7 @@ export default function CategoryGrid({ categories = [] }) {
 const styles = {
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
     gap: UI.spacing.cardGap
   },
 
@@ -77,8 +70,8 @@ const styles = {
   },
 
   iconWrap: {
-    width: "42px",
-    height: "42px",
+    width: "44px",
+    height: "44px",
     borderRadius: UI.radius.md,
     background: UI.colors.softBlue,
     display: "grid",
