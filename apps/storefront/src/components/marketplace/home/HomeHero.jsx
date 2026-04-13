@@ -4,75 +4,97 @@ import { UI } from "../uiTokens";
 export default function HomeHero() {
   return (
     <section style={s.heroWrap} dir="rtl">
-      <div style={s.heroBlobOne} />
-      <div style={s.heroBlobTwo} />
+      <div style={s.bgGlowOne} />
+      <div style={s.bgGlowTwo} />
+      <div style={s.gridOverlay} />
 
       <div style={s.heroGrid}>
         <div style={s.heroTextCol}>
-          <div style={s.heroBadge}>سوق مغربي رقمي متكامل</div>
+          <div style={s.heroBadge}>RAHBA MARKETPLACE</div>
 
           <h1 style={s.heroTitle}>
-            اشتري وبع
+            تسوق من باعة موثوقين
             <br />
-            <span style={s.heroUnderline}>بكل سهولة</span>
-            <br />
-            في <span style={s.heroAccent}>رحبة</span>
+            <span style={s.heroAccent}>في تجربة أوضح وأجمل</span>
           </h1>
 
           <p style={s.heroSub}>
-            منصة مغربية حديثة تجمع البائعين والمشترين في تجربة أوضح، أسرع، وأجمل —
-            مع متاجر موثوقة ومنتجات متنوعة من مدن المغرب.
+            رحبة منصة مغربية حديثة للتجارة الرقمية، تجمع بين الباعة والمشترين
+            داخل تجربة أكثر ثقة، أسرع في التصفح، وأسهل في الوصول إلى المنتج المناسب.
           </p>
 
           <div style={s.heroActions}>
             <Link to="/products" className="btn btn-primary">
-              تسوق الآن
+              ابدأ التسوق
             </Link>
             <Link to="/sellers" className="btn btn-secondary">
-              اكتشف البائعين
+              تصفح البائعين
             </Link>
           </div>
 
           <div style={s.heroStats}>
-            <div style={s.heroStat}>
-              <strong style={s.heroStatValue}>+24k</strong>
-              <span style={s.heroStatLabel}>منتج متوفر</span>
+            <div style={s.statCard}>
+              <strong style={s.statValue}>+24k</strong>
+              <span style={s.statLabel}>منتج متوفر</span>
             </div>
-            <div style={s.heroStat}>
-              <strong style={s.heroStatValue}>+1.2k</strong>
-              <span style={s.heroStatLabel}>بائع نشط</span>
+            <div style={s.statCard}>
+              <strong style={s.statValue}>+1.2k</strong>
+              <span style={s.statLabel}>بائع نشط</span>
             </div>
-            <div style={s.heroStat}>
-              <strong style={s.heroStatValue}>+15</strong>
-              <span style={s.heroStatLabel}>مدينة مغربية</span>
+            <div style={s.statCard}>
+              <strong style={s.statValue}>+15</strong>
+              <span style={s.statLabel}>مدينة مغربية</span>
             </div>
           </div>
         </div>
 
         <div style={s.heroVisualCol}>
-          <div style={s.floatCardTop}>
-            <span style={s.floatEmoji}>🎉</span>
-            <div style={s.floatTextWrap}>
-              <strong style={s.floatStrong}>طلب جديد!</strong>
-              <span style={s.floatSmall}>قبل دقيقتين</span>
+          <div style={s.floatingTopCard}>
+            <div style={s.miniIcon}>⚡</div>
+            <div style={s.miniTextWrap}>
+              <strong style={s.miniStrong}>بحث أسرع</strong>
+              <span style={s.miniSmall}>نتائج أوضح وتجربة أفضل</span>
             </div>
           </div>
 
-          <div style={s.mainProductCard}>
-            <div style={s.mainProductMedia}>🛍️</div>
-            <div style={s.mainProductBody}>
-              <div style={s.mainProductTag}>رحبة ✦</div>
-              <div style={s.mainProductName}>منتجات مختارة من باعة موثوقين</div>
-              <div style={s.mainProductRow}>
-                <div style={s.mainProductPrice}>Marketplace</div>
-                <div style={s.plusBtn}>+</div>
+          <div style={s.mainCard}>
+            <div style={s.mainCardHeader}>
+              <div style={s.mainCardPill}>رحبة ✦ مختارات</div>
+              <div style={s.mainCardStatus}>موثوق</div>
+            </div>
+
+            <div style={s.mainCardBody}>
+              <div style={s.productMediaBox}>
+                <div style={s.productMediaInner}>🛍️</div>
+              </div>
+
+              <div style={s.productInfo}>
+                <h3 style={s.productTitle}>منتجات مختارة من متاجر موثوقة</h3>
+                <p style={s.productText}>
+                  اكتشف منتجات متنوعة من باعة نشطين داخل المغرب، مع واجهة أبسط
+                  وتجربة شراء أوضح.
+                </p>
+
+                <div style={s.productMetaRow}>
+                  <span style={s.metaChip}>شحن أسرع</span>
+                  <span style={s.metaChip}>دفع آمن</span>
+                  <span style={s.metaChip}>متابعة الطلب</span>
+                </div>
               </div>
             </div>
+
+            <div style={s.mainCardFooter}>
+              <div style={s.footerPriceWrap}>
+                <span style={s.footerPriceLabel}>Marketplace</span>
+                <strong style={s.footerPrice}>رحبة</strong>
+              </div>
+              <div style={s.footerAction}>+</div>
+            </div>
           </div>
 
-          <div style={s.floatCardBottom}>
+          <div style={s.floatingBottomCard}>
             <div style={s.stars}>★★★★★</div>
-            <div style={s.floatSmall}>تجربة شراء أوضح وأسهل</div>
+            <div style={s.miniSmall}>تجربة شراء أوضح وأسهل للمستخدم</div>
           </div>
         </div>
       </div>
@@ -84,73 +106,78 @@ const s = {
   heroWrap: {
     position: "relative",
     overflow: "hidden",
-    background: UI.colors.cream,
+    background: "linear-gradient(135deg, #f8fbff 0%, #f4f7fc 45%, #fffaf5 100%)",
     borderRadius: UI.radius.hero,
-    minHeight: "620px",
+    minHeight: "640px",
     display: "grid",
     alignItems: "center",
-    padding: "28px 22px",
-    boxShadow: UI.shadow.soft
+    padding: "30px 22px",
+    boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08)",
+    border: "1px solid rgba(148, 163, 184, 0.14)"
   },
 
-  heroBlobOne: {
+  bgGlowOne: {
     position: "absolute",
-    top: "-100px",
-    left: "-140px",
-    width: "420px",
-    height: "420px",
-    borderRadius: "58% 42% 70% 30% / 40% 60% 30% 70%",
-    background: "conic-gradient(from 180deg, #0ABFB8, #3BA5F5, #6C3FE8, #0ABFB8)",
-    opacity: 0.08
+    top: "-120px",
+    left: "-100px",
+    width: "360px",
+    height: "360px",
+    borderRadius: "999px",
+    background: "radial-gradient(circle, rgba(10,191,184,0.18), rgba(10,191,184,0))"
   },
 
-  heroBlobTwo: {
+  bgGlowTwo: {
     position: "absolute",
-    bottom: "-100px",
+    bottom: "-120px",
     right: "-80px",
     width: "320px",
     height: "320px",
-    borderRadius: "40% 60% 30% 70% / 60% 40% 70% 30%",
-    background: "radial-gradient(circle, #E8A020, #F05A28)",
-    opacity: 0.08
+    borderRadius: "999px",
+    background: "radial-gradient(circle, rgba(240,90,40,0.16), rgba(240,90,40,0))"
+  },
+
+  gridOverlay: {
+    position: "absolute",
+    inset: 0,
+    opacity: 0.18,
+    backgroundImage:
+      "linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)",
+    backgroundSize: "28px 28px",
+    maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.55), transparent 85%)"
   },
 
   heroGrid: {
     position: "relative",
     zIndex: 1,
     display: "grid",
-    gap: "26px"
+    gap: "28px"
   },
 
   heroTextCol: {
     display: "grid",
-    gap: "16px"
+    gap: "18px"
   },
 
   heroBadge: {
     width: "fit-content",
     padding: "8px 14px",
     borderRadius: UI.radius.pill,
-    background: UI.colors.softMint,
+    background: "rgba(10,191,184,0.10)",
     color: UI.colors.tealDark,
-    border: "1.5px solid rgba(10,191,184,.24)",
+    border: "1px solid rgba(10,191,184,0.22)",
     fontSize: UI.type.bodySm,
-    fontWeight: 800
+    fontWeight: 800,
+    letterSpacing: "0.04em"
   },
 
   heroTitle: {
     margin: 0,
     fontSize: UI.type.hero,
-    lineHeight: 1.12,
+    lineHeight: 1.08,
     letterSpacing: "-0.03em",
     color: UI.colors.ink,
-    fontWeight: 900
-  },
-
-  heroUnderline: {
-    position: "relative",
-    display: "inline-block",
-    boxShadow: "inset 0 -10px 0 rgba(232,160,32,.34)"
+    fontWeight: 900,
+    maxWidth: "650px"
   },
 
   heroAccent: {
@@ -160,9 +187,9 @@ const s = {
   heroSub: {
     margin: 0,
     fontSize: "16px",
-    lineHeight: 1.9,
-    color: "#555",
-    maxWidth: "580px"
+    lineHeight: 1.95,
+    color: "#556070",
+    maxWidth: "620px"
   },
 
   heroActions: {
@@ -173,78 +200,94 @@ const s = {
 
   heroStats: {
     display: "flex",
-    gap: "18px",
+    gap: "12px",
     flexWrap: "wrap"
   },
 
-  heroStat: {
+  statCard: {
+    minWidth: "110px",
+    padding: "12px 14px",
+    borderRadius: UI.radius.lg,
+    background: "rgba(255,255,255,0.72)",
+    border: "1px solid rgba(148,163,184,0.14)",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)",
     display: "grid",
-    gap: "4px",
-    minWidth: "88px"
+    gap: "4px"
   },
 
-  heroStatValue: {
+  statValue: {
     color: UI.colors.ink,
     fontSize: "24px",
     fontWeight: 900
   },
 
-  heroStatLabel: {
-    color: "#7a7a7a",
+  statLabel: {
+    color: "#6b7280",
     fontSize: UI.type.caption,
     fontWeight: 700
   },
 
   heroVisualCol: {
     position: "relative",
-    minHeight: "360px",
+    minHeight: "390px",
     display: "grid",
     placeItems: "center"
   },
 
-  floatCardTop: {
+  floatingTopCard: {
     position: "absolute",
-    top: "10px",
+    top: "8px",
     right: "0",
-    background: UI.colors.white,
+    background: "rgba(255,255,255,0.86)",
+    backdropFilter: "blur(14px)",
     borderRadius: UI.radius.lg,
     padding: "12px 14px",
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    boxShadow: UI.shadow.medium
+    boxShadow: "0 16px 36px rgba(15, 23, 42, 0.10)",
+    border: "1px solid rgba(148,163,184,0.16)"
   },
 
-  floatCardBottom: {
+  floatingBottomCard: {
     position: "absolute",
-    bottom: "8px",
+    bottom: "6px",
     left: "0",
-    background: UI.colors.white,
+    background: "rgba(255,255,255,0.86)",
+    backdropFilter: "blur(14px)",
     borderRadius: UI.radius.lg,
     padding: "12px 14px",
     display: "grid",
     gap: "4px",
-    boxShadow: UI.shadow.medium
+    boxShadow: "0 16px 36px rgba(15, 23, 42, 0.10)",
+    border: "1px solid rgba(148,163,184,0.16)"
   },
 
-  floatEmoji: {
-    fontSize: "24px"
+  miniIcon: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #0ABFB8, #3BA5F5)",
+    display: "grid",
+    placeItems: "center",
+    color: "#fff",
+    fontSize: "18px"
   },
 
-  floatTextWrap: {
+  miniTextWrap: {
     display: "grid",
     gap: "2px"
   },
 
-  floatStrong: {
+  miniStrong: {
     fontSize: UI.type.bodySm,
     fontWeight: 800,
     color: UI.colors.ink
   },
 
-  floatSmall: {
+  miniSmall: {
     fontSize: UI.type.caption,
-    color: "#888"
+    color: "#7b8190"
   },
 
   stars: {
@@ -253,67 +296,140 @@ const s = {
     fontSize: UI.type.bodySm
   },
 
-  mainProductCard: {
-    width: "320px",
-    background: UI.colors.white,
+  mainCard: {
+    width: "100%",
+    maxWidth: "360px",
+    background: "rgba(255,255,255,0.88)",
+    backdropFilter: "blur(16px)",
     borderRadius: UI.radius.xxl,
     overflow: "hidden",
-    boxShadow: UI.shadow.hero
-  },
-
-  mainProductMedia: {
-    width: "100%",
-    height: "220px",
-    background: "linear-gradient(135deg, #FDE3D4, #EDE8FF)",
+    boxShadow: "0 28px 70px rgba(15, 23, 42, 0.14)",
+    border: "1px solid rgba(148,163,184,0.16)",
     display: "grid",
-    placeItems: "center",
-    fontSize: "72px"
+    gap: "0"
   },
 
-  mainProductBody: {
-    padding: "18px",
-    display: "grid",
-    gap: "8px"
+  mainCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px",
+    padding: "16px 18px 0"
   },
 
-  mainProductTag: {
+  mainCardPill: {
     width: "fit-content",
-    padding: "4px 10px",
-    borderRadius: "8px",
-    background: UI.colors.softMint,
+    padding: "5px 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(10,191,184,0.10)",
     color: UI.colors.tealDark,
     fontSize: UI.type.caption,
     fontWeight: 800
   },
 
-  mainProductName: {
-    color: UI.colors.ink,
-    fontWeight: 800,
-    fontSize: "16px",
-    lineHeight: 1.5
+  mainCardStatus: {
+    padding: "5px 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(16,185,129,0.12)",
+    color: "#047857",
+    fontSize: UI.type.caption,
+    fontWeight: 800
   },
 
-  mainProductRow: {
+  mainCardBody: {
+    padding: "18px",
+    display: "grid",
+    gap: "14px"
+  },
+
+  productMediaBox: {
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(135deg, #eef7ff 0%, #fef3e8 100%)",
+    padding: "18px",
+    display: "grid",
+    placeItems: "center"
+  },
+
+  productMediaInner: {
+    width: "100%",
+    minHeight: "180px",
+    borderRadius: UI.radius.lg,
+    background: "rgba(255,255,255,0.62)",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "64px",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.5)"
+  },
+
+  productInfo: {
+    display: "grid",
+    gap: "10px"
+  },
+
+  productTitle: {
+    margin: 0,
+    color: UI.colors.ink,
+    fontWeight: 900,
+    fontSize: "18px",
+    lineHeight: 1.45
+  },
+
+  productText: {
+    margin: 0,
+    color: "#667085",
+    fontSize: UI.type.bodySm,
+    lineHeight: 1.8
+  },
+
+  productMetaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  metaChip: {
+    padding: "6px 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(15,23,42,0.05)",
+    color: UI.colors.navy,
+    fontSize: UI.type.caption,
+    fontWeight: 700
+  },
+
+  mainCardFooter: {
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    padding: "0 18px 18px"
   },
 
-  mainProductPrice: {
+  footerPriceWrap: {
+    display: "grid",
+    gap: "4px"
+  },
+
+  footerPriceLabel: {
+    color: "#8b93a3",
+    fontSize: UI.type.caption,
+    fontWeight: 700
+  },
+
+  footerPrice: {
     color: UI.colors.coral,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "20px"
   },
 
-  plusBtn: {
-    width: "38px",
-    height: "38px",
+  footerAction: {
+    width: "42px",
+    height: "42px",
     borderRadius: UI.radius.md,
     background: UI.colors.ink,
     color: UI.colors.white,
     display: "grid",
     placeItems: "center",
     fontSize: "22px",
-    fontWeight: 900
+    fontWeight: 900,
+    boxShadow: "0 14px 28px rgba(15, 23, 42, 0.16)"
   }
 };
