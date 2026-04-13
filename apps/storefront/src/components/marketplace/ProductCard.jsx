@@ -1,37 +1,32 @@
 import { Link } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
 import { UI } from "./uiTokens";
+import { normalizeMarketplaceProduct } from "../../utils/marketplaceProductMapper";
 
-function normalizeProduct(p) {
-  return {
-    id: p?.id,
-    slug: p?.slug || "",
-    name: p?.name || p?.title || "",
-    title_ar: p?.name || p?.title || "",
-    price: Number(p?.price_mad ?? p?.price ?? 0),
-    price_mad: Number(p?.price_mad ?? p?.price ?? 0),
-    seller_id: p?.seller_id || null,
-    seller: p?.seller || "RAHBA",
-    city: p?.city || "",
-    rating: Number(p?.rating || 0),
-    reviews: Number(p?.reviews || 0),
-    stock: Number(p?.stock || 0),
-    badge: p?.badge || "",
-    description: p?.description || "",
-    image_url: p?.image_url || p?.image || "",
-    qty: Number(p?.qty || p?.quantity || 1),
-    quantity: Number(p?.quantity || p?.qty || 1)
-  };
+function formatPriceMAD(value) {
+  const amount = Number(value || 0);
+  return new Intl.NumberFormat("fr-MA", {
+    style: "currency",
+    currency: "MAD",
+    maximumFractionDigits: 0
+  }).format(amount);
 }
 
-function getStockLabel(stock) {
-  if (Number(stock || 0) <= 0) return "غير متوفر";
-  if (Number(stock || 0) <= 3) return "كمية محدودة";
+function getDiscountPercent(price, compareAtPrice) {
+  const p = Number(price || 0);
+  const c = Number(compareAtPrice || 0);
+  if (!c || c <= p) return 0;
+  return Math.round(((c - p) / c) * 100);
+}
+
+function getStockLabel(stockStatus, stock) {
+  if (stockStatus === "out_of_stock" || Number(stock || 0) <= 0) return "غير متوفر";
+  if (stockStatus === "low_stock" || Number(stock || 0) <= 3) return "كمية محدودة";
   return "متوفر";
 }
 
-function getStockStyle(stock) {
-  if (Number(stock || 0) <= 0) {
+function getStockStyle(stockStatus, stock) {
+  if (stockStatus === "out_of_stock" || Number(stock || 0) <= 0) {
     return {
       background: UI.colors.dangerBg,
       color: UI.colors.dangerText,
@@ -39,7 +34,7 @@ function getStockStyle(stock) {
     };
   }
 
-  if (Number(stock || 0) <= 3) {
+  if (stockStatus === "low_stock" || Number(stock || 0) <= 3) {
     return {
       background: UI.colors.warningBg,
       color: UI.colors.warningText,
@@ -56,12 +51,23 @@ function getStockStyle(stock) {
 
 export default function ProductCard({ product }) {
   const { addToCart } = useApp?.() ?? {};
-  const normalized = normalizeProduct(product);
+  const normalized = normalizeMarketplaceProduct(product);
+
+  const discount = getDiscountPercent(
+    normalized.price,
+    normalized.compare_at_price
+  );
+
+  const stockLabel = getStockLabel(normalized.stock_status, normalized.stock);
+  const stockStyle = getStockStyle(normalized.stock_status, normalized.stock);
+  const productHref = normalized.slug
+    ? `/products/${normalized.slug}`
+    : "/products";
 
   return (
     <article style={s.card}>
       <Link
-        to={normalized.slug ? `/products/${normalized.slug}` : "/products"}
+        to={productHref}
         style={s.imageLink}
         aria-label={normalized.name || "عرض المنتج"}
       >
@@ -78,9 +84,16 @@ export default function ProductCard({ product }) {
           )}
 
           <div style={s.topBadges}>
-            <div style={s.ratingBadge}>★ {normalized.rating || 0}</div>
-            <div style={{ ...s.stockBadge, ...getStockStyle(normalized.stock) }}>
-              {getStockLabel(normalized.stock)}
+            <div style={s.leftBadges}>
+              {discount > 0 ? (
+                <div style={s.discountBadge}>-{discount}%</div>
+              ) : normalized.badge ? (
+                <div style={s.featureBadge}>{normalized.badge}</div>
+              ) : null}
+            </div>
+
+            <div style={{ ...s.stockBadge, ...stockStyle }}>
+              {stockLabel}
             </div>
           </div>
         </div>
@@ -88,25 +101,25 @@ export default function ProductCard({ product }) {
 
       <div style={s.body}>
         <div style={s.metaTop}>
-          <div style={s.seller}>{normalized.seller}</div>
-          {normalized.city ? <div style={s.city}>📍 {normalized.city}</div> : null}
+          <div style={s.sellerRow}>
+            <span style={s.seller}>{normalized.seller}</span>
+            {normalized.seller_verified ? (
+              <span style={s.verifiedDot}>✔</span>
+            ) : null}
+          </div>
+
+          {normalized.city ? (
+            <div style={s.city}>📍 {normalized.city}</div>
+          ) : null}
         </div>
 
-        <Link
-          to={normalized.slug ? `/products/${normalized.slug}` : "/products"}
-          style={s.titleLink}
-        >
+        <Link to={productHref} style={s.titleLink}>
           <h3 style={s.title}>{normalized.name}</h3>
         </Link>
 
-        {normalized.description ? (
-          <p style={s.desc}>{normalized.description}</p>
-        ) : null}
-
-        <div style={s.priceRow}>
-          <div style={s.price}>
-            {normalized.price}
-            <span style={s.currency}> MAD</span>
+        <div style={s.ratingRow}>
+          <div style={s.ratingBadge}>
+            ★ {normalized.rating ? normalized.rating.toFixed(1) : "0.0"}
           </div>
 
           {normalized.reviews > 0 ? (
@@ -114,6 +127,25 @@ export default function ProductCard({ product }) {
           ) : (
             <div style={s.reviewsMeta}>بدون تقييمات</div>
           )}
+
+          {normalized.shipping_label ? (
+            <div style={s.shippingMeta}>🚚 {normalized.shipping_label}</div>
+          ) : null}
+        </div>
+
+        {normalized.description ? (
+          <p style={s.desc}>{normalized.description}</p>
+        ) : null}
+
+        <div style={s.priceRow}>
+          <div style={s.priceWrap}>
+            <div style={s.price}>{formatPriceMAD(normalized.price)}</div>
+            {normalized.compare_at_price ? (
+              <div style={s.oldPrice}>
+                {formatPriceMAD(normalized.compare_at_price)}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -121,18 +153,18 @@ export default function ProductCard({ product }) {
         {addToCart ? (
           <button
             onClick={() => addToCart(normalized)}
-            style={s.cartBtn}
+            style={{
+              ...s.cartBtn,
+              ...(normalized.stock <= 0 ? s.cartBtnDisabled : {})
+            }}
             aria-label="أضف إلى السلة"
             disabled={normalized.stock <= 0}
           >
-            أضف للسلة
+            {normalized.stock <= 0 ? "غير متوفر" : "أضف للسلة"}
           </button>
         ) : null}
 
-        <Link
-          to={normalized.slug ? `/products/${normalized.slug}` : "/products"}
-          style={s.viewBtn}
-        >
+        <Link to={productHref} style={s.viewBtn}>
           عرض المنتج
         </Link>
       </div>
@@ -148,7 +180,8 @@ const s = {
     overflow: "hidden",
     display: "grid",
     gridTemplateRows: "auto 1fr auto",
-    boxShadow: UI.shadow.soft
+    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease"
   },
 
   imageLink: {
@@ -157,8 +190,8 @@ const s = {
 
   imgWrap: {
     position: "relative",
-    height: "184px",
-    background: UI.colors.softSurface
+    height: "220px",
+    background: "#f8fafc"
   },
 
   img: {
@@ -179,36 +212,54 @@ const s = {
 
   topBadges: {
     position: "absolute",
-    top: "10px",
-    right: "10px",
-    left: "10px",
+    top: "12px",
+    right: "12px",
+    left: "12px",
     display: "flex",
     justifyContent: "space-between",
     gap: "8px",
     alignItems: "flex-start"
   },
 
-  ratingBadge: {
+  leftBadges: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+
+  discountBadge: {
+    background: "#dc2626",
+    color: "#fff",
+    borderRadius: UI.radius.pill,
+    padding: "5px 10px",
+    fontSize: UI.type.caption,
+    fontWeight: 900,
+    boxShadow: "0 8px 20px rgba(220, 38, 38, 0.18)"
+  },
+
+  featureBadge: {
     background: "rgba(255,255,255,0.94)",
     border: `1px solid ${UI.colors.border}`,
     borderRadius: UI.radius.pill,
-    padding: "4px 10px",
+    padding: "5px 10px",
     fontSize: UI.type.caption,
-    fontWeight: 800,
-    color: UI.colors.gold
+    fontWeight: 900,
+    color: UI.colors.navy
   },
 
   stockBadge: {
     borderRadius: UI.radius.pill,
-    padding: "4px 10px",
+    padding: "5px 10px",
     fontSize: UI.type.caption,
-    fontWeight: 900
+    fontWeight: 900,
+    backdropFilter: "blur(8px)"
   },
 
   body: {
     padding: UI.spacing.cardPadding,
     display: "grid",
-    gap: "8px"
+    gap: "10px"
   },
 
   metaTop: {
@@ -219,10 +270,22 @@ const s = {
     alignItems: "center"
   },
 
+  sellerRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px"
+  },
+
   seller: {
     fontSize: UI.type.caption,
     color: UI.colors.navy,
-    fontWeight: 800
+    fontWeight: 900
+  },
+
+  verifiedDot: {
+    color: "#059669",
+    fontSize: UI.type.caption,
+    fontWeight: 900
   },
 
   city: {
@@ -240,8 +303,31 @@ const s = {
     fontSize: "15px",
     fontWeight: 900,
     color: UI.colors.ink,
-    lineHeight: 1.5,
-    minHeight: "44px"
+    lineHeight: 1.6,
+    minHeight: "48px"
+  },
+
+  ratingRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  ratingBadge: {
+    background: "rgba(255,255,255,0.94)",
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.pill,
+    padding: "4px 10px",
+    fontSize: UI.type.caption,
+    fontWeight: 900,
+    color: UI.colors.gold
+  },
+
+  shippingMeta: {
+    fontSize: UI.type.caption,
+    color: UI.colors.muted,
+    fontWeight: 700
   },
 
   desc: {
@@ -252,7 +338,8 @@ const s = {
     display: "-webkit-box",
     WebkitLineClamp: 2,
     WebkitBoxOrient: "vertical",
-    overflow: "hidden"
+    overflow: "hidden",
+    minHeight: "38px"
   },
 
   priceRow: {
@@ -263,17 +350,23 @@ const s = {
     flexWrap: "wrap"
   },
 
+  priceWrap: {
+    display: "grid",
+    gap: "4px"
+  },
+
   price: {
-    fontSize: "21px",
+    fontSize: "22px",
     fontWeight: 900,
     color: "#111827",
     lineHeight: 1.2
   },
 
-  currency: {
+  oldPrice: {
     fontSize: UI.type.caption,
+    color: UI.colors.muted,
     fontWeight: 700,
-    color: UI.colors.muted
+    textDecoration: "line-through"
   },
 
   reviewsMeta: {
@@ -290,14 +383,20 @@ const s = {
   },
 
   cartBtn: {
-    height: "42px",
+    height: "44px",
     borderRadius: UI.radius.md,
-    border: `1px solid ${UI.colors.border}`,
-    background: UI.colors.softSurface,
+    border: "1px solid #dbe3f0",
+    background: "#eef4ff",
     color: UI.colors.navy,
     fontSize: UI.type.bodySm,
     fontWeight: 900,
     cursor: "pointer"
+  },
+
+  cartBtnDisabled: {
+    background: "#f3f4f6",
+    color: "#9ca3af",
+    cursor: "not-allowed"
   },
 
   viewBtn: {
@@ -309,7 +408,7 @@ const s = {
     color: "#fff",
     fontSize: UI.type.bodySm,
     fontWeight: 900,
-    height: "42px",
+    height: "44px",
     padding: "0 14px"
   }
 };

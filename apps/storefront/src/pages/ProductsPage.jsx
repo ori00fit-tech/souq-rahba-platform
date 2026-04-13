@@ -5,6 +5,7 @@ import SectionShell from "../components/marketplace/SectionShell";
 import SectionHead from "../components/marketplace/SectionHead";
 import ProductCard from "../components/marketplace/ProductCard";
 import { UI } from "../components/marketplace/uiTokens";
+import { normalizeMarketplaceProducts } from "../utils/marketplaceProductMapper";
 
 const PAGE_LIMIT = 10;
 
@@ -14,34 +15,6 @@ const SORT_OPTIONS = [
   { value: "price_asc", label: "السعر: من الأقل" },
   { value: "price_desc", label: "السعر: من الأعلى" }
 ];
-
-function resolveImageUrl(url) {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/media/")) return `https://api.rahba.site${url}`;
-  if (url.startsWith("media/")) return `https://api.rahba.site/${url}`;
-  return url;
-}
-
-function normalizeProduct(product) {
-  return {
-    id: product.id,
-    slug: product.slug,
-    name: product.title_ar || product.name || "",
-    title: product.title_ar || product.name || "",
-    price: Number(product.price_mad || product.price || 0),
-    price_mad: Number(product.price_mad || product.price || 0),
-    seller_id: product.seller_id || null,
-    seller: product.seller_name || product.seller || product.brand || "RAHBA",
-    city: product.city || "",
-    rating: Number(product.rating_avg || product.rating || 0),
-    reviews: Number(product.reviews_count || product.reviews || 0),
-    stock: Number(product.stock || 0),
-    badge: product.featured ? "مميز" : product.status || "",
-    description: product.description_ar || product.description || "",
-    image_url: resolveImageUrl(product.image_url || "")
-  };
-}
 
 export default function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -209,7 +182,7 @@ export default function ProductsPage() {
   }, [q, category, sort, categoryOptions]);
 
   const normalizedProducts = useMemo(
-    () => products.map(normalizeProduct),
+    () => normalizeMarketplaceProducts(products),
     [products]
   );
 
@@ -327,7 +300,10 @@ export default function ProductsPage() {
 
             <div style={styles.productsGrid}>
               {normalizedProducts.map((product) => (
-                <ProductCard key={product.id || product.slug || product.name} product={product} />
+                <ProductCard
+                  key={product.id || product.slug || product.name}
+                  product={product}
+                />
               ))}
             </div>
           </SectionShell>
@@ -436,7 +412,7 @@ const styles = {
 
   productsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
     gap: UI.spacing.cardGap
   },
 
