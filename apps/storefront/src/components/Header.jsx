@@ -1,28 +1,14 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useApp } from "../context/AppContext";
 import { SELLER_PORTAL_URL, ADMIN_PORTAL_URL } from "../lib/config";
-
-const T = {
-  navy: "#173b74",
-  blue: "#1d5fa8",
-  teal: "#0f8b84",
-  tealSoft: "#eaf8f6",
-  sand: "#f5f1e8",
-  cream: "#fcfaf6",
-  white: "#ffffff",
-  border: "#ddd2c2",
-  borderSoft: "#ebe2d7",
-  text: "#1f2937",
-  muted: "#7b6f63",
-  shadow: "0 12px 30px rgba(23,59,116,0.08)"
-};
+import { UI } from "./marketplace/uiTokens";
 
 const publicNavItems = [
-  { path: "/", label: "الرئيسية", icon: "⌂" },
-  { path: "/products", label: "المنتجات", icon: "◫" },
-  { path: "/sellers", label: "الباعة", icon: "▣" },
-  { path: "/help", label: "المساعدة", icon: "?" }
+  { path: "/", label: "الرئيسية", icon: HomeIcon },
+  { path: "/products", label: "المنتجات", icon: GridIcon },
+  { path: "/sellers", label: "الباعة", icon: StoreIcon },
+  { path: "/help", label: "المساعدة", icon: HelpIcon }
 ];
 
 function sanitizeRedirectPath(pathname, search = "") {
@@ -74,11 +60,9 @@ export default function Header() {
 
   const navItems = useMemo(() => {
     const items = [...publicNavItems];
-
     if (isAuthenticated) {
-      items.splice(3, 0, { path: "/my-orders", label: "طلباتي", icon: "◌" });
+      items.splice(3, 0, { path: "/my-orders", label: "طلباتي", icon: OrdersIcon });
     }
-
     return items;
   }, [isAuthenticated]);
 
@@ -87,9 +71,8 @@ export default function Header() {
     return currentUser.full_name || currentUser.email || "حسابي";
   }, [currentUser]);
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     if (loggingOut) return;
-
     try {
       setLoggingOut(true);
       await logoutUser();
@@ -102,14 +85,18 @@ export default function Header() {
     } finally {
       setLoggingOut(false);
     }
-  }
+  }, [loggingOut, logoutUser, navigate]);
+
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   return (
     <>
-      <header style={s.header} className="sticky-top-mobile">
-        <div style={s.topGradient} />
+      <header style={s.header}>
+        {/* Premium accent line */}
+        <div style={s.accentLine} />
 
         <div className="container" style={s.container}>
+          {/* Top row: Menu, Logo, Actions */}
           <div style={s.topRow}>
             <button
               type="button"
@@ -117,22 +104,21 @@ export default function Header() {
               style={s.iconBtn}
               aria-label="فتح القائمة"
             >
-              <HamburgerIcon />
+              <MenuIcon />
             </button>
 
             <Link to="/" style={s.logo}>
               <div style={s.logoMark}>
-                <img src="/brand/logo-icon.png" alt="RAHBA" style={s.logoImg} />
+                <span style={s.logoLetter}>R</span>
               </div>
-
-              <div style={s.logoTextWrap}>
+              <div style={s.logoText}>
                 <span style={s.logoName}>RAHBA</span>
-                <span style={s.logoSub}>Marketplace</span>
+                <span style={s.logoTag}>السوق الموثوق</span>
               </div>
             </Link>
 
-            <div style={s.topActions}>
-              {!authLoading ? (
+            <div style={s.actions}>
+              {!authLoading && (
                 isAuthenticated ? (
                   <button
                     type="button"
@@ -141,97 +127,93 @@ export default function Header() {
                     aria-label="حسابي"
                     title={accountLabel}
                   >
-                    <span style={s.accountIcon}>◎</span>
+                    <UserIcon />
                   </button>
                 ) : (
                   <NavLink to={authPath} style={s.accountBtn} aria-label="تسجيل الدخول">
-                    <span style={s.accountIcon}>◎</span>
+                    <UserIcon />
                   </NavLink>
                 )
-              ) : null}
+              )}
 
               <NavLink to="/cart" style={s.cartBtn} aria-label="السلة">
-                <span style={s.cartIcon}>🛒</span>
-                <span style={s.cartText}>السلة</span>
-                {count > 0 ? <span style={s.cartBadge}>{count}</span> : null}
+                <CartIcon />
+                <span style={s.cartLabel}>السلة</span>
+                {count > 0 && <span style={s.cartBadge}>{count}</span>}
               </NavLink>
             </div>
           </div>
 
-          <div
-            style={{
-              ...s.searchWrap,
-              ...(searchFocused ? s.searchWrapFocused : {})
-            }}
-          >
-            <SearchIcon color={searchFocused ? T.navy : "#9b8f82"} />
-
+          {/* Search bar */}
+          <div style={{ ...s.searchWrap, ...(searchFocused ? s.searchFocused : {}) }}>
+            <SearchIcon color={searchFocused ? UI.colors.accent : UI.colors.textMuted} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
-              placeholder={
-                isProductsPage
-                  ? "ابحث داخل المنتجات..."
-                  : "ابحث عن منتج، فئة، أو بائع..."
-              }
+              placeholder={isProductsPage ? "ابحث في المنتجات..." : "ابحث عن منتج، فئة، أو بائع..."}
               style={s.searchInput}
             />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                style={s.searchClear}
+                aria-label="مسح البحث"
+              >
+                <CloseIcon size={14} />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {menuOpen ? (
+      {/* Mobile Drawer */}
+      {menuOpen && (
         <>
-          <div style={s.overlay} onClick={() => setMenuOpen(false)} />
-
+          <div style={s.overlay} onClick={closeMenu} />
           <aside style={s.drawer}>
             <div style={s.drawerHeader}>
               <div style={s.drawerBrand}>
-                <div style={s.drawerLogoWrap}>
-                  <img src="/brand/logo-icon.png" alt="RAHBA" style={s.drawerLogo} />
+                <div style={s.drawerLogoMark}>
+                  <span style={s.drawerLogoLetter}>R</span>
                 </div>
-
                 <div>
-                  <div style={s.drawerTitle}>RAHBA</div>
-                  <div style={s.drawerSubtitle}>Marketplace</div>
+                  <div style={s.drawerLogoName}>RAHBA</div>
+                  <div style={s.drawerLogoTag}>السوق الموثوق</div>
                 </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                style={s.closeBtn}
-                aria-label="إغلاق القائمة"
-              >
-                ✕
+              <button type="button" onClick={closeMenu} style={s.closeBtn} aria-label="إغلاق">
+                <CloseIcon size={18} />
               </button>
             </div>
 
+            {/* Account Panel */}
             <div style={s.accountPanel}>
               {authLoading ? (
-                <div style={s.accountLoading}>جاري التحقق من الجلسة...</div>
+                <div style={s.accountLoading}>جاري التحقق...</div>
               ) : isAuthenticated ? (
                 <>
-                  <div style={s.accountName}>{accountLabel}</div>
-                  <div style={s.accountRole}>
-                    {isAdmin ? "مدير" : isSeller ? "بائع" : "مشتري"}
+                  <div style={s.accountInfo}>
+                    <div style={s.accountAvatar}>
+                      {accountLabel.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={s.accountName}>{accountLabel}</div>
+                      <div style={s.accountRole}>
+                        {isAdmin ? "مدير النظام" : isSeller ? "بائع معتمد" : "مشتري"}
+                      </div>
+                    </div>
                   </div>
-
                   <div style={s.accountActions}>
-                    <NavLink
-                      to="/my-orders"
-                      onClick={() => setMenuOpen(false)}
-                      style={s.accountActionLink}
-                    >
-                      طلباتي
+                    <NavLink to="/my-orders" onClick={closeMenu} style={s.accountActionLink}>
+                      <OrdersIcon /> طلباتي
                     </NavLink>
-
                     <button
                       type="button"
                       onClick={handleLogout}
-                      style={s.accountActionBtn}
+                      style={s.logoutBtn}
                       disabled={loggingOut}
                     >
                       {loggingOut ? "جاري الخروج..." : "تسجيل الخروج"}
@@ -240,257 +222,327 @@ export default function Header() {
                 </>
               ) : (
                 <>
-                  <div style={s.accountName}>مرحباً بك في رحبة</div>
-                  <div style={s.accountRole}>سجل الدخول لمتابعة طلباتك بسهولة</div>
-
-                  <NavLink
-                    to={authPath}
-                    onClick={() => setMenuOpen(false)}
-                    style={s.accountLoginBtn}
-                  >
+                  <div style={s.welcomeText}>مرحباً بك في رحبة</div>
+                  <div style={s.welcomeSub}>سجل الدخول لمتابعة طلباتك</div>
+                  <NavLink to={authPath} onClick={closeMenu} style={s.loginBtn}>
                     تسجيل الدخول
                   </NavLink>
                 </>
               )}
             </div>
 
+            {/* Navigation */}
             <nav style={s.drawerNav}>
-              {navItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMenuOpen(false)}
-                  style={({ isActive }) => ({
-                    ...s.drawerLink,
-                    ...(isActive ? s.drawerLinkActive : {})
-                  })}
-                >
-                  <span style={s.drawerIcon}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </NavLink>
-              ))}
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={closeMenu}
+                    style={({ isActive }) => ({
+                      ...s.navLink,
+                      ...(isActive ? s.navLinkActive : {})
+                    })}
+                  >
+                    <Icon />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+
+              <div style={s.navDivider} />
 
               {isSeller || isAdmin ? (
-                <a
-                  href={SELLER_PORTAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={s.sellerPortalLink}
-                >
-                  <span style={s.drawerIcon}>↗</span>
-                  <span>بوابة البائع</span>
+                <a href={SELLER_PORTAL_URL} target="_blank" rel="noopener noreferrer" style={s.portalLink}>
+                  <ExternalIcon /> بوابة البائع
                 </a>
               ) : (
-                <a
-                  href={SELLER_PORTAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={s.sellerPortalLink}
-                >
-                  <span style={s.drawerIcon}>↗</span>
-                  <span>ابدأ البيع</span>
+                <a href={SELLER_PORTAL_URL} target="_blank" rel="noopener noreferrer" style={s.sellLink}>
+                  <StoreIcon /> ابدأ البيع على رحبة
                 </a>
               )}
 
-              {isAdmin ? (
-                <a
-                  href={ADMIN_PORTAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={s.adminPortalLink}
-                >
-                  <span style={s.drawerIcon}>↗</span>
-                  <span>لوحة الإدارة</span>
+              {isAdmin && (
+                <a href={ADMIN_PORTAL_URL} target="_blank" rel="noopener noreferrer" style={s.adminLink}>
+                  <SettingsIcon /> لوحة الإدارة
                 </a>
-              ) : null}
+              )}
             </nav>
 
+            {/* Drawer Footer */}
             <div style={s.drawerFooter}>
-              <NavLink
-                to="/cart"
-                onClick={() => setMenuOpen(false)}
-                style={s.drawerCart}
-              >
-                <span>الانتقال إلى السلة</span>
+              <NavLink to="/cart" onClick={closeMenu} style={s.drawerCartBtn}>
+                <span style={s.drawerCartText}>
+                  <CartIcon /> السلة
+                </span>
                 <span style={s.drawerCartBadge}>{count}</span>
               </NavLink>
             </div>
           </aside>
         </>
-      ) : null}
+      )}
     </>
   );
 }
 
-function HamburgerIcon() {
+// Icons
+function MenuIcon() {
   return (
-    <svg width="20" height="16" viewBox="0 0 20 16" fill="none" aria-hidden="true">
-      <rect width="20" height="2.5" rx="1.25" fill="#173b74" />
-      <rect y="6.75" width="14" height="2.5" rx="1.25" fill="#173b74" />
-      <rect y="13.5" width="20" height="2.5" rx="1.25" fill="#173b74" />
+    <svg width="20" height="14" viewBox="0 0 20 14" fill="none">
+      <path d="M0 1h20M0 7h14M0 13h20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
 
 function SearchIcon({ color }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
       <circle cx="7.5" cy="7.5" r="5.5" stroke={color} strokeWidth="1.8" />
-      <path d="M12 12L16 16" stroke={color} strokeWidth="1.8" />
+      <path d="M12 12L16 16" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 
+function CloseIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M4 4L16 16M16 4L4 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <path d="M6 6h12l-1.5 7H7.5L6 6zM6 6L5 2H2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="17" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="17" r="1.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function UserIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+      <circle cx="10" cy="6" r="4" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 18c0-3.5 3-6 7-6s7 2.5 7 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function HomeIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M2 7l7-5 7 5v9a1 1 0 01-1 1H3a1 1 0 01-1-1V7z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M7 17V10h4v7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function GridIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="11" y="2" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="2" y="11" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="11" y="11" width="5" height="5" rx="1" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function StoreIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M2 6l1-4h12l1 4M2 6v10a1 1 0 001 1h12a1 1 0 001-1V6M2 6h14" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M7 17v-6h4v6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function HelpIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M6.5 6.5a2.5 2.5 0 013.5 2.3c0 1.2-1.5 1.7-1.5 2.7M9 14v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function OrdersIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <rect x="3" y="2" width="12" height="14" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M6 6h6M6 9h4M6 12h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ExternalIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <path d="M10 2h6v6M16 2L8 10M14 10v5a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 1v2M9 15v2M1 9h2M15 9h2M3.3 3.3l1.4 1.4M13.3 13.3l1.4 1.4M3.3 14.7l1.4-1.4M13.3 4.7l1.4-1.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// Styles
 const s = {
   header: {
     position: "sticky",
     top: 0,
     zIndex: 60,
-    background: "rgba(245,241,232,0.92)",
-    backdropFilter: "blur(14px)",
-    borderBottom: `1px solid ${T.borderSoft}`,
-    boxShadow: T.shadow
+    background: UI.colors.bgElevated,
+    borderBottom: `1px solid ${UI.colors.border}`
   },
-  topGradient: {
-    height: "4px",
-    background: "linear-gradient(90deg, #173b74 0%, #1d5fa8 38%, #0f8b84 72%, #22c5a5 100%)"
+  accentLine: {
+    height: "2px",
+    background: `linear-gradient(90deg, ${UI.colors.accent} 0%, ${UI.colors.teal} 50%, ${UI.colors.primary} 100%)`
   },
   container: {
-    display: "grid",
+    display: "flex",
+    flexDirection: "column",
     gap: "12px",
-    paddingTop: "12px",
-    paddingBottom: "12px"
+    padding: "12px 16px"
   },
   topRow: {
-    display: "grid",
-    gridTemplateColumns: "48px 1fr auto",
-    gap: "12px",
-    alignItems: "center"
-  },
-  topActions: {
     display: "flex",
     alignItems: "center",
-    gap: "8px"
+    gap: "12px"
   },
   iconBtn: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "16px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    display: "grid",
-    placeItems: "center",
+    width: "44px",
+    height: "44px",
+    borderRadius: UI.radius.md,
+    border: `1px solid ${UI.colors.border}`,
+    background: UI.colors.surface,
+    color: UI.colors.text,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     cursor: "pointer",
-    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
+    transition: "all 0.2s ease",
+    flexShrink: 0
   },
   logo: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    minWidth: 0
-  },
-  logoMark: {
-    width: "42px",
-    height: "42px",
-    borderRadius: "14px",
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0
-  },
-  logoImg: {
-    width: "28px",
-    height: "28px",
-    objectFit: "contain"
-  },
-  logoTextWrap: {
-    display: "grid",
-    lineHeight: 1,
-    minWidth: 0
-  },
-  logoName: {
-    color: T.navy,
-    fontSize: "22px",
-    fontWeight: 900,
-    letterSpacing: "0.02em"
-  },
-  logoSub: {
-    marginTop: "4px",
-    color: T.teal,
-    fontSize: "11px",
-    fontWeight: 700
-  },
-  accountBtn: {
-    position: "relative",
-    width: "48px",
-    height: "48px",
-    borderRadius: "16px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    display: "grid",
-    placeItems: "center",
-    color: T.navy,
-    boxShadow: "0 6px 16px rgba(23,59,116,0.04)",
+    flex: 1,
+    minWidth: 0,
     textDecoration: "none"
   },
-  accountIcon: {
-    fontSize: "18px",
-    fontWeight: 900
-  },
-  cartBtn: {
-    position: "relative",
-    minWidth: "84px",
-    height: "48px",
-    borderRadius: "16px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
+  logoMark: {
+    width: "40px",
+    height: "40px",
+    borderRadius: UI.radius.md,
+    background: `linear-gradient(135deg, ${UI.colors.accent} 0%, ${UI.colors.accentHover} 100%)`,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: "6px",
-    padding: "0 12px",
-    fontWeight: 900,
-    color: T.navy,
-    boxShadow: "0 6px 16px rgba(23,59,116,0.04)",
-    textDecoration: "none"
+    flexShrink: 0
   },
-  cartIcon: {
-    fontSize: "16px"
+  logoLetter: {
+    color: UI.colors.bgDeep,
+    fontSize: "20px",
+    fontWeight: 800
   },
-  cartText: {
-    fontSize: "13px"
+  logoText: {
+    display: "flex",
+    flexDirection: "column",
+    minWidth: 0
+  },
+  logoName: {
+    color: UI.colors.text,
+    fontSize: "20px",
+    fontWeight: 700,
+    letterSpacing: "0.02em",
+    lineHeight: 1
+  },
+  logoTag: {
+    color: UI.colors.accent,
+    fontSize: "11px",
+    fontWeight: 600,
+    marginTop: "2px"
+  },
+  actions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px"
+  },
+  accountBtn: {
+    width: "44px",
+    height: "44px",
+    borderRadius: UI.radius.md,
+    border: `1px solid ${UI.colors.border}`,
+    background: UI.colors.surface,
+    color: UI.colors.textSecondary,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    textDecoration: "none",
+    transition: "all 0.2s ease"
+  },
+  cartBtn: {
+    position: "relative",
+    height: "44px",
+    padding: "0 14px",
+    borderRadius: UI.radius.md,
+    border: `1px solid ${UI.colors.border}`,
+    background: UI.colors.surface,
+    color: UI.colors.text,
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontWeight: 600,
+    fontSize: "13px",
+    textDecoration: "none",
+    transition: "all 0.2s ease"
+  },
+  cartLabel: {
+    display: "none",
+    "@media (min-width: 400px)": { display: "block" }
   },
   cartBadge: {
     position: "absolute",
     top: "-6px",
-    left: "-4px",
-    minWidth: "22px",
-    height: "22px",
+    left: "-6px",
+    minWidth: "20px",
+    height: "20px",
     padding: "0 6px",
-    borderRadius: "999px",
-    background: T.navy,
-    color: "#fff",
-    display: "grid",
-    placeItems: "center",
+    borderRadius: UI.radius.pill,
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
     fontSize: "11px",
-    fontWeight: 900,
-    border: "2px solid #fff"
+    fontWeight: 700,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
   searchWrap: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    borderRadius: "18px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
     padding: "0 14px",
-    minHeight: "52px",
-    boxShadow: "0 8px 18px rgba(23,59,116,0.04)"
+    minHeight: "48px",
+    transition: "all 0.2s ease"
   },
-  searchWrapFocused: {
-    border: "1px solid #8fb1d7",
-    boxShadow: "0 0 0 4px rgba(30,95,168,0.10)"
+  searchFocused: {
+    borderColor: UI.colors.accent,
+    boxShadow: `0 0 0 3px ${UI.colors.accentMuted}`
   },
   searchInput: {
     flex: 1,
@@ -498,222 +550,289 @@ const s = {
     border: "none",
     outline: "none",
     background: "transparent",
-    color: T.text,
-    fontSize: "15px"
+    color: UI.colors.text,
+    fontSize: "14px",
+    "::placeholder": { color: UI.colors.textMuted }
+  },
+  searchClear: {
+    width: "28px",
+    height: "28px",
+    borderRadius: UI.radius.sm,
+    border: "none",
+    background: UI.colors.surfaceHover,
+    color: UI.colors.textMuted,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer"
   },
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(15,23,42,0.36)",
-    zIndex: 69
+    background: UI.colors.overlay,
+    zIndex: 69,
+    backdropFilter: "blur(4px)"
   },
   drawer: {
     position: "fixed",
     top: 0,
     right: 0,
     bottom: 0,
-    width: "min(88vw, 360px)",
-    background: T.cream,
+    width: "min(85vw, 340px)",
+    background: UI.colors.bg,
     zIndex: 70,
-    boxShadow: "-18px 0 48px rgba(15,23,42,0.16)",
-    display: "grid",
-    gridTemplateRows: "auto auto 1fr auto",
-    padding: "18px 16px 16px"
+    display: "flex",
+    flexDirection: "column",
+    borderLeft: `1px solid ${UI.colors.border}`
   },
   drawerHeader: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: "12px",
-    marginBottom: "14px"
+    padding: "16px",
+    borderBottom: `1px solid ${UI.colors.border}`
   },
   drawerBrand: {
     display: "flex",
     alignItems: "center",
     gap: "10px"
   },
-  drawerLogoWrap: {
-    width: "44px",
-    height: "44px",
-    borderRadius: "14px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    display: "grid",
-    placeItems: "center"
+  drawerLogoMark: {
+    width: "40px",
+    height: "40px",
+    borderRadius: UI.radius.md,
+    background: `linear-gradient(135deg, ${UI.colors.accent} 0%, ${UI.colors.accentHover} 100%)`,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
-  drawerLogo: {
-    width: "28px",
-    height: "28px",
-    objectFit: "contain"
-  },
-  drawerTitle: {
-    color: T.navy,
-    fontWeight: 900,
-    fontSize: "20px",
-    lineHeight: 1
-  },
-  drawerSubtitle: {
-    color: T.teal,
-    fontWeight: 700,
-    fontSize: "11px",
-    marginTop: "4px"
-  },
-  closeBtn: {
-    width: "42px",
-    height: "42px",
-    borderRadius: "14px",
-    border: `1px solid ${T.border}`,
-    background: T.white,
-    color: T.navy,
-    cursor: "pointer",
+  drawerLogoLetter: {
+    color: UI.colors.bgDeep,
     fontSize: "18px",
-    fontWeight: 900
-  },
-  accountPanel: {
-    background: T.white,
-    border: `1px solid ${T.border}`,
-    borderRadius: "18px",
-    padding: "14px",
-    display: "grid",
-    gap: "8px",
-    marginBottom: "14px",
-    boxShadow: "0 6px 16px rgba(23,59,116,0.04)"
-  },
-  accountLoading: {
-    color: T.muted,
-    fontWeight: 700,
-    fontSize: "14px"
-  },
-  accountName: {
-    color: T.navy,
-    fontWeight: 900,
-    fontSize: "16px",
-    lineHeight: 1.5
-  },
-  accountRole: {
-    color: T.muted,
-    fontWeight: 700,
-    fontSize: "13px",
-    lineHeight: 1.7
-  },
-  accountActions: {
-    display: "grid",
-    gap: "8px",
-    marginTop: "4px"
-  },
-  accountActionLink: {
-    minHeight: "42px",
-    borderRadius: "14px",
-    background: T.tealSoft,
-    color: T.navy,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    textDecoration: "none",
-    border: "1px solid #cfece8"
-  },
-  accountActionBtn: {
-    minHeight: "42px",
-    borderRadius: "14px",
-    background: "#fef2f2",
-    color: "#b91c1c",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    border: "1px solid #fecaca",
-    cursor: "pointer"
-  },
-  accountLoginBtn: {
-    minHeight: "42px",
-    borderRadius: "14px",
-    background: T.navy,
-    color: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-    textDecoration: "none",
-    marginTop: "4px"
-  },
-  drawerNav: {
-    display: "grid",
-    gap: "8px",
-    alignContent: "start"
-  },
-  drawerLink: {
-    minHeight: "48px",
-    borderRadius: "16px",
-    padding: "0 14px",
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    color: T.text,
-    textDecoration: "none",
-    border: `1px solid ${T.borderSoft}`,
-    background: T.white,
     fontWeight: 800
   },
-  drawerLinkActive: {
-    background: "#eef5ff",
-    color: T.navy,
-    border: "1px solid #cfe0f6"
+  drawerLogoName: {
+    color: UI.colors.text,
+    fontSize: "18px",
+    fontWeight: 700,
+    lineHeight: 1
   },
-  drawerIcon: {
-    width: "22px",
-    textAlign: "center",
-    color: T.blue,
-    fontWeight: 900
+  drawerLogoTag: {
+    color: UI.colors.accent,
+    fontSize: "11px",
+    fontWeight: 600,
+    marginTop: "2px"
   },
-  sellerPortalLink: {
-    minHeight: "48px",
-    borderRadius: "16px",
+  closeBtn: {
+    width: "40px",
+    height: "40px",
+    borderRadius: UI.radius.md,
+    border: `1px solid ${UI.colors.border}`,
+    background: UI.colors.surface,
+    color: UI.colors.textSecondary,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer"
+  },
+  accountPanel: {
+    margin: "16px",
+    padding: "16px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.lg,
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px"
+  },
+  accountLoading: {
+    color: UI.colors.textMuted,
+    fontSize: "14px"
+  },
+  accountInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  accountAvatar: {
+    width: "44px",
+    height: "44px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.accentMuted,
+    color: UI.colors.accent,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px",
+    fontWeight: 700
+  },
+  accountName: {
+    color: UI.colors.text,
+    fontSize: "15px",
+    fontWeight: 600
+  },
+  accountRole: {
+    color: UI.colors.teal,
+    fontSize: "12px",
+    fontWeight: 500,
+    marginTop: "2px"
+  },
+  accountActions: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px"
+  },
+  accountActionLink: {
+    height: "40px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.tealMuted,
+    border: `1px solid ${UI.colors.teal}30`,
+    color: UI.colors.teal,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none"
+  },
+  logoutBtn: {
+    height: "40px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.errorBg,
+    border: `1px solid ${UI.colors.errorBorder}`,
+    color: UI.colors.error,
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer"
+  },
+  welcomeText: {
+    color: UI.colors.text,
+    fontSize: "16px",
+    fontWeight: 600
+  },
+  welcomeSub: {
+    color: UI.colors.textMuted,
+    fontSize: "13px"
+  },
+  loginBtn: {
+    height: "44px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none"
+  },
+  drawerNav: {
+    flex: 1,
+    padding: "16px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+    overflowY: "auto"
+  },
+  navLink: {
+    height: "48px",
     padding: "0 14px",
+    borderRadius: UI.radius.md,
+    background: "transparent",
+    border: `1px solid transparent`,
+    color: UI.colors.textSecondary,
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    color: T.navy,
+    fontSize: "14px",
+    fontWeight: 500,
     textDecoration: "none",
-    border: "1px solid #cfece8",
-    background: T.tealSoft,
-    fontWeight: 900
+    transition: "all 0.2s ease"
   },
-  adminPortalLink: {
-    minHeight: "48px",
-    borderRadius: "16px",
+  navLinkActive: {
+    background: UI.colors.surface,
+    borderColor: UI.colors.border,
+    color: UI.colors.text
+  },
+  navDivider: {
+    height: "1px",
+    background: UI.colors.border,
+    margin: "8px 0"
+  },
+  portalLink: {
+    height: "48px",
     padding: "0 14px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.primaryMuted,
+    border: `1px solid ${UI.colors.primary}30`,
+    color: UI.colors.primaryHover,
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    color: "#7c2d12",
-    textDecoration: "none",
-    border: "1px solid #fed7aa",
-    background: "#fff7ed",
-    fontWeight: 900
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none"
+  },
+  sellLink: {
+    height: "48px",
+    padding: "0 14px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.accentMuted,
+    border: `1px solid ${UI.colors.borderAccent}`,
+    color: UI.colors.accent,
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none"
+  },
+  adminLink: {
+    height: "48px",
+    padding: "0 14px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.warningBg,
+    border: `1px solid ${UI.colors.warningBorder}`,
+    color: UI.colors.warning,
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none"
   },
   drawerFooter: {
-    marginTop: "14px"
+    padding: "16px",
+    borderTop: `1px solid ${UI.colors.border}`
   },
-  drawerCart: {
-    minHeight: "50px",
-    borderRadius: "16px",
-    background: T.navy,
-    color: "#fff",
+  drawerCartBtn: {
+    height: "52px",
+    borderRadius: UI.radius.md,
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "0 14px",
-    textDecoration: "none",
-    fontWeight: 900
+    padding: "0 16px",
+    fontSize: "15px",
+    fontWeight: 600,
+    textDecoration: "none"
+  },
+  drawerCartText: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px"
   },
   drawerCartBadge: {
     minWidth: "28px",
     height: "28px",
-    borderRadius: "999px",
-    background: "rgba(255,255,255,0.18)",
-    display: "grid",
-    placeItems: "center",
-    fontSize: "12px"
+    borderRadius: UI.radius.pill,
+    background: "rgba(0,0,0,0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: 700
   }
 };

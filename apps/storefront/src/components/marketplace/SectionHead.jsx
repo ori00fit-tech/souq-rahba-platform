@@ -9,37 +9,46 @@ export default function SectionHead({
   return (
     <div
       style={{
-        display: "grid",
+        display: "flex",
+        flexDirection: "column",
         gap: "8px",
         textAlign: align
       }}
     >
-      <div className="ui-chip">{chip}</div>
+      <div style={s.chip}>{chip}</div>
 
-      <h2
-        style={{
-          margin: 0,
-          color: UI.colors.navy,
-          fontSize: UI.type.titleMd,
-          fontWeight: 900,
-          lineHeight: 1.3
-        }}
-      >
-        {title}
-      </h2>
+      <h2 style={s.title}>{title}</h2>
 
-      {subtitle ? (
-        <p
-          style={{
-            margin: 0,
-            color: UI.colors.muted,
-            fontSize: UI.type.body,
-            lineHeight: 1.8
-          }}
-        >
-          {subtitle}
-        </p>
-      ) : null}
+      {subtitle && <p style={s.subtitle}>{subtitle}</p>}
     </div>
   );
 }
+
+const s = {
+  chip: {
+    display: "inline-flex",
+    alignItems: "center",
+    width: "fit-content",
+    height: "26px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: UI.colors.accentMuted,
+    color: UI.colors.accent,
+    fontSize: "11px",
+    fontWeight: 600,
+    letterSpacing: "0.04em"
+  },
+  title: {
+    margin: 0,
+    color: UI.colors.text,
+    fontSize: UI.type.titleMd,
+    fontWeight: 600,
+    lineHeight: 1.3
+  },
+  subtitle: {
+    margin: 0,
+    color: UI.colors.textMuted,
+    fontSize: UI.type.body,
+    lineHeight: 1.7
+  }
+};

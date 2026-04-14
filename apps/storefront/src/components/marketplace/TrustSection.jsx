@@ -4,174 +4,136 @@ import { UI } from "./uiTokens";
 
 const items = [
   {
-    icon: "💵",
+    icon: CashIcon,
     title: "الدفع عند الاستلام",
-    text: "اطلب بسهولة وخلّص عند الاستلام حسب توفر الخدمة عند البائع.",
-    accent: "#166534",
-    bg: "#ecfdf5",
-    bdr: "#a7f3d0"
+    text: "اطلب بسهولة وادفع عند استلام طلبك حسب توفر الخدمة."
   },
   {
-    icon: "🚚",
-    title: "توصيل حسب المدينة",
-    text: "خيارات شحن أوضح وتجربة شراء أقرب لطريقة السوق المغربي الحقيقية.",
-    accent: "#1d4ed8",
-    bg: "#eff6ff",
-    bdr: "#bfdbfe"
+    icon: TruckIcon,
+    title: "توصيل سريع",
+    text: "شحن لجميع المدن المغربية مع تتبع واضح للطلب."
   },
   {
-    icon: "🔒",
-    title: "تجربة طلب أوضح",
-    text: "تتبع أسهل للطلبات، ومعطيات أوضح للمشتري قبل اتخاذ قرار الشراء.",
-    accent: "#0f766e",
-    bg: "#f0fdfa",
-    bdr: "#99f6e4"
+    icon: ShieldIcon,
+    title: "تجربة آمنة",
+    text: "معلومات واضحة عن المنتج والبائع قبل الشراء."
   },
   {
-    icon: "✅",
-    title: "باعة داخل رحبة",
-    text: "عرض أوضح للبائعين والمتاجر مع صفحات تساعد على بناء الثقة داخل المنصة.",
-    accent: "#92400e",
-    bg: "#fffbeb",
-    bdr: "#fde68a"
+    icon: StoreIcon,
+    title: "باعة موثوقون",
+    text: "متاجر مغربية حقيقية مع صفحات وتقييمات واضحة."
   }
 ];
 
 export default function TrustSection() {
   return (
     <SectionShell>
-      <div style={s.headWrap}>
-        <SectionHead
-          chip="WHY RAHBA"
-          title="لماذا رحبة؟"
-          subtitle="رحبة تبني تجربة شراء مغربية أكثر وضوحًا: السعر، البائع، التوصيل، والثقة في مكان واحد."
-        />
-      </div>
+      <SectionHead
+        chip="WHY RAHBA"
+        title="لماذا رحبة؟"
+        subtitle="تجربة شراء مغربية أكثر وضوحاً وثقة"
+      />
 
       <div style={s.grid}>
-        {items.map((item) => (
-          <article key={item.title} className="ui-card-soft" style={s.card}>
-            <div style={s.cardTop}>
-              <div
-                style={{
-                  ...s.iconWrap,
-                  background: item.bg,
-                  border: `1px solid ${item.bdr}`
-                }}
-              >
-                <span style={s.icon}>{item.icon}</span>
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <article key={item.title} style={s.card}>
+              <div style={s.iconWrap}>
+                <Icon />
               </div>
-
-              <div style={s.topAccent} />
-            </div>
-
-            <div style={s.content}>
-              <h3 style={{ ...s.title, color: item.accent }}>{item.title}</h3>
-              <p style={s.text}>{item.text}</p>
-            </div>
-          </article>
-        ))}
-      </div>
-
-      <div className="ui-card-soft" style={s.bottomStrip}>
-        <div style={s.bottomStripTitle}>الثقة ليست رسالة تسويقية فقط</div>
-        <div style={s.bottomStripText}>
-          لهذا نركز في رحبة على إظهار البائع، توضيح حالة المنتج، وتسهيل الشراء والمتابعة
-          بطريقة مفهومة للمستخدم المغربي.
-        </div>
+              <div style={s.content}>
+                <h3 style={s.title}>{item.title}</h3>
+                <p style={s.text}>{item.text}</p>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </SectionShell>
   );
 }
 
-const s = {
-  headWrap: {
-    display: "grid",
-    gap: "10px"
-  },
+// Icons
+function CashIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="2" y="5" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="11" cy="11" r="3" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="5" cy="11" r="1" fill="currentColor" />
+      <circle cx="17" cy="11" r="1" fill="currentColor" />
+    </svg>
+  );
+}
 
+function TruckIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M2 5h11v10H2zM13 8h4l3 3v4h-7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="6" cy="16" r="2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="17" cy="16" r="2" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M11 2L3 5.5v5.5c0 4.5 3.5 7.5 8 9 4.5-1.5 8-4.5 8-9V5.5L11 2z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M8 11l2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StoreIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M3 8l1.5-5h13L19 8M3 8v10a1 1 0 001 1h14a1 1 0 001-1V8M3 8h16" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9 19v-6h4v6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const s = {
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: UI.spacing.cardGap
+    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+    gap: UI.spacing.md
   },
-
   card: {
-    padding: UI.spacing.cardPadding,
-    display: "grid",
-    gap: UI.spacing.cardGap,
-    border: `1px solid ${UI.colors.line}`,
-    background: UI.colors.softBg,
-    textAlign: "right",
-    borderRadius: UI.radius.xl
-  },
-
-  cardTop: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "12px"
+    flexDirection: "column",
+    gap: "12px",
+    padding: "16px",
+    background: UI.colors.bgElevated,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md
   },
-
   iconWrap: {
-    width: "50px",
-    height: "50px",
-    borderRadius: "14px",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0
-  },
-
-  icon: {
-    fontSize: "22px",
-    lineHeight: 1
-  },
-
-  topAccent: {
     width: "44px",
-    height: "6px",
-    borderRadius: UI.radius.pill,
-    background: "#eef2f7",
-    marginTop: "8px"
+    height: "44px",
+    borderRadius: UI.radius.sm,
+    background: UI.colors.tealMuted,
+    color: UI.colors.teal,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
   },
-
   content: {
-    display: "grid",
+    display: "flex",
+    flexDirection: "column",
     gap: "6px"
   },
-
   title: {
     margin: 0,
-    fontSize: UI.type.titleSm,
-    fontWeight: 900,
-    lineHeight: 1.4
+    fontSize: "15px",
+    fontWeight: 600,
+    color: UI.colors.text
   },
-
   text: {
     margin: 0,
-    color: UI.colors.muted,
-    fontSize: UI.type.bodySm,
-    lineHeight: 1.9
-  },
-
-  bottomStrip: {
-    padding: "16px",
-    display: "grid",
-    gap: "6px",
-    borderRadius: UI.radius.lg,
-    border: `1px solid ${UI.colors.line}`,
-    background: "#f8fafc"
-  },
-
-  bottomStripTitle: {
-    color: UI.colors.navy,
-    fontWeight: 900,
-    fontSize: "15px"
-  },
-
-  bottomStripText: {
-    color: UI.colors.muted,
-    lineHeight: 1.9,
-    fontSize: UI.type.bodySm
+    fontSize: "13px",
+    lineHeight: 1.6,
+    color: UI.colors.textMuted
   }
 };

@@ -1,74 +1,187 @@
+/**
+ * RAHBA MARKETPLACE — Design Tokens
+ * Dark Premium Theme with Gold/Teal Accents
+ * Mobile-first, RTL Arabic-first
+ */
+
 export const UI = {
   colors: {
-    ink: "#0B0F1A",
-    cream: "#FAF6EE",
-    white: "#ffffff",
-    navy: "#0D2C54",
-    coral: "#F05A28",
-    coralDark: "#D94A1A",
-    teal: "#0ABFB8",
-    tealDark: "#079490",
-    gold: "#E8A020",
-    goldLight: "#F5C855",
-    sky: "#3BA5F5",
-    violet: "#6C3FE8",
+    // Base Surfaces
+    bgDeep: "#0a0d14",
+    bg: "#0f1219",
+    bgElevated: "#151a24",
+    surface: "#1a202e",
+    surfaceHover: "#212938",
+    surfaceActive: "#2a3344",
 
-    muted: "#64748b",
-    border: "#E8DDCE",
-    line: "#EDE4D7",
+    // Text Hierarchy
+    text: "#f4f4f5",
+    textSecondary: "#a1a1aa",
+    textMuted: "#71717a",
+    textSoft: "#52525b",
 
-    softBg: "#FFFDF8",
-    softSurface: "#F8F3EA",
-    softBlue: "#EEF6FF",
-    softMint: "#EAFBF7",
-    softPeach: "#FDEDE4",
-    softLavender: "#F3EEFF",
+    // Borders
+    border: "rgba(255, 255, 255, 0.08)",
+    borderStrong: "rgba(255, 255, 255, 0.14)",
+    borderAccent: "rgba(212, 175, 55, 0.3)",
 
-    successBg: "#ECFDF5",
-    successText: "#166534",
-    successBorder: "#A7F3D0",
+    // Primary — Deep Blue
+    primary: "#2563eb",
+    primaryHover: "#3b82f6",
+    primaryMuted: "rgba(37, 99, 235, 0.15)",
 
-    dangerBg: "#FEF2F2",
-    dangerText: "#B91C1C",
-    dangerBorder: "#FECACA",
+    // Accent — Premium Gold
+    accent: "#d4af37",
+    accentHover: "#e5c158",
+    accentMuted: "rgba(212, 175, 55, 0.12)",
 
-    warningBg: "#FFF7ED",
-    warningText: "#9A3412",
-    warningBorder: "#FED7AA"
+    // Secondary — Teal
+    teal: "#14b8a6",
+    tealHover: "#2dd4bf",
+    tealMuted: "rgba(20, 184, 166, 0.12)",
+
+    // Status
+    success: "#22c55e",
+    successBg: "rgba(34, 197, 94, 0.1)",
+    successBorder: "rgba(34, 197, 94, 0.25)",
+
+    warning: "#f59e0b",
+    warningBg: "rgba(245, 158, 11, 0.1)",
+    warningBorder: "rgba(245, 158, 11, 0.25)",
+
+    error: "#ef4444",
+    errorBg: "rgba(239, 68, 68, 0.1)",
+    errorBorder: "rgba(239, 68, 68, 0.25)",
+
+    // Overlays
+    overlay: "rgba(10, 13, 20, 0.8)",
+    overlayLight: "rgba(10, 13, 20, 0.6)",
   },
 
   radius: {
-    sm: "10px",
+    xs: "6px",
+    sm: "8px",
     md: "12px",
     lg: "16px",
     xl: "20px",
-    xxl: "24px",
-    hero: "30px",
-    pill: "999px"
+    pill: "999px",
   },
 
   shadow: {
-    soft: "0 10px 28px rgba(11,15,26,0.08)",
-    medium: "0 18px 42px rgba(11,15,26,0.10)",
-    hero: "0 24px 60px rgba(11,15,26,0.14)"
+    sm: "0 2px 8px rgba(0, 0, 0, 0.25)",
+    md: "0 4px 16px rgba(0, 0, 0, 0.3)",
+    lg: "0 8px 32px rgba(0, 0, 0, 0.4)",
+    glow: "0 0 20px rgba(212, 175, 55, 0.15)",
+    glowTeal: "0 0 20px rgba(20, 184, 166, 0.15)",
   },
 
   spacing: {
-    sectionGap: "18px",
-    cardGap: "14px",
-    shellPadding: "18px",
-    cardPadding: "14px",
-    densePadding: "12px",
-    pageGap: "26px"
+    xs: "4px",
+    sm: "8px",
+    md: "12px",
+    lg: "16px",
+    xl: "24px",
+    xxl: "32px",
+    section: "24px",
+    cardGap: "12px",
+    pagePadding: "16px",
   },
 
   type: {
-    hero: "clamp(2.3rem, 5vw, 4.2rem)",
-    titleLg: "28px",
-    titleMd: "22px",
+    hero: "clamp(1.75rem, 4vw, 2.5rem)",
+    titleLg: "24px",
+    titleMd: "20px",
     titleSm: "16px",
     body: "14px",
     bodySm: "13px",
-    caption: "12px"
-  }
+    caption: "12px",
+    micro: "11px",
+  },
+
+  breakpoints: {
+    sm: "640px",
+    md: "768px",
+    lg: "1024px",
+    xl: "1200px",
+  },
+
+  transitions: {
+    fast: "0.15s ease",
+    normal: "0.2s ease",
+    slow: "0.3s ease",
+  },
+};
+
+// Semantic color mappings for common use cases
+export const semanticColors = {
+  // Prices
+  price: UI.colors.accent,
+  priceOld: UI.colors.textMuted,
+  priceSale: UI.colors.error,
+
+  // Trust indicators
+  verified: UI.colors.teal,
+  rating: UI.colors.accent,
+  inStock: UI.colors.success,
+  lowStock: UI.colors.warning,
+  outOfStock: UI.colors.error,
+
+  // Interactive
+  link: UI.colors.primary,
+  linkHover: UI.colors.primaryHover,
+
+  // Seller trust levels
+  sellerNew: UI.colors.textMuted,
+  sellerTrusted: UI.colors.teal,
+  sellerPremium: UI.colors.accent,
+};
+
+// Common component styles
+export const componentStyles = {
+  card: {
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.lg,
+  },
+
+  cardHover: {
+    borderColor: UI.colors.borderStrong,
+    transform: "translateY(-2px)",
+  },
+
+  input: {
+    background: UI.colors.bgElevated,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    color: UI.colors.text,
+    minHeight: "48px",
+    padding: "12px 16px",
+  },
+
+  inputFocus: {
+    borderColor: UI.colors.primary,
+    boxShadow: `0 0 0 3px ${UI.colors.primaryMuted}`,
+  },
+
+  buttonPrimary: {
+    background: UI.colors.primary,
+    color: "#fff",
+    borderRadius: UI.radius.md,
+    minHeight: "44px",
+  },
+
+  buttonAccent: {
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    borderRadius: UI.radius.md,
+    minHeight: "44px",
+  },
+
+  buttonSecondary: {
+    background: UI.colors.surfaceHover,
+    color: UI.colors.text,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    minHeight: "44px",
+  },
 };

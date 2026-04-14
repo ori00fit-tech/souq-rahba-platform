@@ -7,13 +7,13 @@ import ProductCard from "../components/marketplace/ProductCard";
 import { UI } from "../components/marketplace/uiTokens";
 import { normalizeMarketplaceProducts } from "../utils/marketplaceProductMapper";
 
-const PAGE_LIMIT = 10;
+const PAGE_LIMIT = 12;
 
 const SORT_OPTIONS = [
   { value: "newest", label: "الأحدث" },
   { value: "featured", label: "مميزة" },
-  { value: "price_asc", label: "السعر: من الأقل" },
-  { value: "price_desc", label: "السعر: من الأعلى" }
+  { value: "price_asc", label: "السعر: الأقل" },
+  { value: "price_desc", label: "السعر: الأعلى" }
 ];
 
 export default function ProductsPage() {
@@ -24,7 +24,6 @@ export default function ProductsPage() {
   const [draftQuery, setDraftQuery] = useState(searchParams.get("q") || "");
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const q = searchParams.get("q") || "";
@@ -47,14 +46,8 @@ export default function ProductsPage() {
     async function loadCategories() {
       try {
         setCategoriesLoading(true);
-
         const result = await apiGet("/catalog/categories");
-        const items = Array.isArray(result?.data)
-          ? result.data
-          : Array.isArray(result)
-          ? result
-          : [];
-
+        const items = Array.isArray(result?.data) ? result.data : Array.isArray(result) ? result : [];
         setCategories(items);
       } catch (err) {
         console.error(err);
@@ -63,7 +56,6 @@ export default function ProductsPage() {
         setCategoriesLoading(false);
       }
     }
-
     loadCategories();
   }, []);
 
@@ -72,7 +64,6 @@ export default function ProductsPage() {
       try {
         setLoading(true);
         setErrorMessage("");
-        setMessage("");
 
         const params = new URLSearchParams();
         if (q) params.set("q", q);
@@ -82,7 +73,6 @@ export default function ProductsPage() {
         params.set("limit", String(PAGE_LIMIT));
 
         const result = await apiGet(`/catalog/products?${params.toString()}`);
-
         const items = Array.isArray(result?.data?.items)
           ? result.data.items
           : Array.isArray(result?.data)
@@ -101,18 +91,12 @@ export default function ProductsPage() {
       } catch (err) {
         console.error(err);
         setProducts([]);
-        setPagination({
-          page: 1,
-          limit: PAGE_LIMIT,
-          total: 0,
-          pages: 1
-        });
+        setPagination({ page: 1, limit: PAGE_LIMIT, total: 0, pages: 1 });
         setErrorMessage("تعذر تحميل المنتجات");
       } finally {
         setLoading(false);
       }
     }
-
     loadProducts();
   }, [q, category, sort, page]);
 
@@ -121,13 +105,11 @@ export default function ProductsPage() {
       value: cat.slug || "",
       label: cat.name_ar || cat.name || cat.slug || "فئة"
     }));
-
     return [{ value: "", label: "كل الفئات" }, ...dynamic];
   }, [categories]);
 
   function updateFilters(next) {
     const params = new URLSearchParams(searchParams);
-
     Object.entries(next).forEach(([key, value]) => {
       if (value === "" || value === null || value === undefined) {
         params.delete(key);
@@ -135,170 +117,128 @@ export default function ProductsPage() {
         params.set(key, String(value));
       }
     });
-
     if (!("page" in next)) {
       params.set("page", "1");
     }
-
     setSearchParams(params);
   }
 
   function clearFilters() {
     setDraftQuery("");
-    setMessage("");
     setErrorMessage("");
-    setSearchParams({
-      sort: "newest",
-      page: "1"
-    });
+    setSearchParams({ sort: "newest", page: "1" });
   }
 
   function applySearch() {
     updateFilters({ q: draftQuery.trim(), page: 1 });
   }
 
-  const activeFilters = useMemo(() => {
-    const items = [];
-
-    if (q) {
-      items.push(`بحث: ${q}`);
-    }
-
-    if (category) {
-      const cat = categoryOptions.find((x) => x.value === category);
-      if (cat) {
-        items.push(cat.label);
-      }
-    }
-
-    if (sort && sort !== "newest") {
-      const s = SORT_OPTIONS.find((x) => x.value === sort);
-      if (s) {
-        items.push(`ترتيب: ${s.label}`);
-      }
-    }
-
-    return items;
-  }, [q, category, sort, categoryOptions]);
-
   const normalizedProducts = useMemo(
     () => normalizeMarketplaceProducts(products),
     [products]
   );
 
+  const hasActiveFilters = q || category || (sort && sort !== "newest");
+
   return (
-    <section className="container section-space" dir="rtl">
-      <div style={styles.stack}>
-        <SectionShell style={styles.heroShell}>
-          <div className="ui-chip">RAHBA PRODUCTS</div>
-          <SectionHead
-            title="تصفح المنتجات"
-            subtitle="ابحث، صفِّ، قارن بسرعة، ثم انتقل إلى المنتج المناسب داخل رحبة."
-          />
+    <main className="container section-space" dir="rtl">
+      <div style={s.stack}>
+        {/* Page Header */}
+        <div style={s.header}>
+          <h1 style={s.pageTitle}>المنتجات</h1>
+          <p style={s.pageSubtitle}>تصفح {pagination.total} منتج من باعة موثوقين</p>
+        </div>
 
-          <div style={styles.heroMetaRow}>
-            <div className="ui-chip">{pagination.total} منتج</div>
-            {categoriesLoading ? <div className="ui-chip">جاري تحميل الفئات...</div> : null}
-          </div>
-        </SectionShell>
-
-        <SectionShell>
-          <div style={styles.filtersGrid}>
-            <div style={styles.searchBlock}>
-              <label style={styles.fieldLabel}>ابحث عن منتج</label>
-              <div style={styles.searchRow}>
-                <input
-                  value={draftQuery}
-                  onChange={(e) => setDraftQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      applySearch();
-                    }
-                  }}
-                  placeholder="مثلاً: هاتف، خلاط، أدوات..."
-                  className="ui-input"
-                />
-                <button onClick={applySearch} className="btn btn-primary">
-                  بحث
-                </button>
-              </div>
+        {/* Filters Section */}
+        <SectionShell variant="elevated">
+          <div style={s.filtersGrid}>
+            {/* Search */}
+            <div style={s.searchWrap}>
+              <SearchIcon />
+              <input
+                value={draftQuery}
+                onChange={(e) => setDraftQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applySearch()}
+                placeholder="ابحث عن منتج..."
+                style={s.searchInput}
+              />
+              <button onClick={applySearch} style={s.searchBtn}>
+                بحث
+              </button>
             </div>
 
-            <div style={styles.filterCols}>
-              <div style={styles.selectBlock}>
-                <label style={styles.fieldLabel}>الفئة</label>
+            {/* Filter Row */}
+            <div style={s.filterRow}>
+              <div style={s.selectWrap}>
                 <select
                   value={category}
                   onChange={(e) => updateFilters({ category: e.target.value, page: 1 })}
-                  className="ui-select"
+                  style={s.select}
                   disabled={categoriesLoading}
                 >
-                  {categoryOptions.map((option) => (
-                    <option key={`${option.value}-${option.label}`} value={option.value}>
-                      {option.label}
+                  {categoryOptions.map((opt) => (
+                    <option key={`${opt.value}-${opt.label}`} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
+                <ChevronIcon />
               </div>
 
-              <div style={styles.selectBlock}>
-                <label style={styles.fieldLabel}>الترتيب</label>
+              <div style={s.selectWrap}>
                 <select
                   value={sort}
                   onChange={(e) => updateFilters({ sort: e.target.value, page: 1 })}
-                  className="ui-select"
+                  style={s.select}
                 >
-                  {SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
+                  {SORT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
+                <ChevronIcon />
               </div>
-            </div>
-          </div>
 
-          <div style={styles.filtersFooter}>
-            <div style={styles.chipsWrap}>
-              {activeFilters.length > 0 ? (
-                activeFilters.map((item, index) => (
-                  <span key={`${item}-${index}`} className="ui-chip">
-                    {item}
-                  </span>
-                ))
-              ) : (
-                <span className="ui-chip">بدون فلاتر إضافية</span>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} style={s.clearBtn}>
+                  مسح الفلاتر
+                </button>
               )}
             </div>
-
-            <button onClick={clearFilters} className="btn btn-soft">
-              مسح الفلاتر
-            </button>
           </div>
         </SectionShell>
 
-        {message ? <div className="message-box">{message}</div> : null}
-        {errorMessage ? <div className="message-box">{errorMessage}</div> : null}
+        {/* Error Message */}
+        {errorMessage && (
+          <div style={s.errorBox}>
+            <AlertIcon />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
+        {/* Products Grid */}
         {loading ? (
-          <SectionShell>
-            <div className="loading-state">جاري تحميل المنتجات...</div>
-          </SectionShell>
+          <div style={s.loadingWrap}>
+            <div style={s.spinner} />
+            <span style={s.loadingText}>جاري التحميل...</span>
+          </div>
         ) : normalizedProducts.length === 0 ? (
-          <SectionShell>
-            <div className="empty-state">لا توجد نتائج حالياً</div>
+          <SectionShell style={s.emptyState}>
+            <EmptyIcon />
+            <h2 style={s.emptyTitle}>لا توجد نتائج</h2>
+            <p style={s.emptyText}>جرب تعديل الفلاتر أو البحث بكلمات مختلفة</p>
+            <button onClick={clearFilters} style={s.emptyBtn}>
+              مسح الفلاتر
+            </button>
           </SectionShell>
         ) : (
-          <SectionShell>
-            <div style={styles.resultsHead}>
-              <SectionHead
-                chip="RESULTS"
-                title="نتائج التصفح"
-                subtitle="اختر المنتج المناسب وادخل إلى التفاصيل لمزيد من المعلومات."
-              />
+          <>
+            <div style={s.resultsHeader}>
+              <span style={s.resultsCount}>{pagination.total} نتيجة</span>
             </div>
 
-            <div style={styles.productsGrid}>
+            <div style={s.productsGrid}>
               {normalizedProducts.map((product) => (
                 <ProductCard
                   key={product.id || product.slug || product.name}
@@ -306,121 +246,259 @@ export default function ProductsPage() {
                 />
               ))}
             </div>
-          </SectionShell>
+          </>
         )}
 
-        {pagination.pages > 1 ? (
-          <div style={styles.pagination}>
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div style={s.pagination}>
             <button
               onClick={() => updateFilters({ page: Math.max(page - 1, 1) })}
               disabled={page <= 1}
-              className="btn btn-soft"
+              style={{ ...s.pageBtn, ...(page <= 1 ? s.pageBtnDisabled : {}) }}
             >
               السابق
             </button>
 
-            <div className="ui-chip">
-              {pagination.page} / {pagination.pages}
-            </div>
+            <span style={s.pageInfo}>
+              {pagination.page} من {pagination.pages}
+            </span>
 
             <button
-              onClick={() =>
-                updateFilters({ page: Math.min(page + 1, pagination.pages) })
-              }
+              onClick={() => updateFilters({ page: Math.min(page + 1, pagination.pages) })}
               disabled={page >= pagination.pages}
-              className="btn btn-soft"
+              style={{ ...s.pageBtn, ...(page >= pagination.pages ? s.pageBtnDisabled : {}) }}
             >
               التالي
             </button>
           </div>
-        ) : null}
+        )}
       </div>
-    </section>
+    </main>
   );
 }
 
-const styles = {
+// Icons
+function SearchIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 12l4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+      <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 5v4M9 11.5v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <rect x="10" y="8" width="28" height="32" rx="4" stroke="currentColor" strokeWidth="2" />
+      <path d="M18 18h12M18 26h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const s = {
   stack: {
-    display: "grid",
-    gap: "26px"
-  },
-
-  heroShell: {
-    background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
-  },
-
-  heroMetaRow: {
     display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-    alignItems: "center"
+    flexDirection: "column",
+    gap: UI.spacing.xl
   },
-
+  header: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  pageTitle: {
+    margin: 0,
+    fontSize: "clamp(1.5rem, 4vw, 2rem)",
+    fontWeight: 700,
+    color: UI.colors.text
+  },
+  pageSubtitle: {
+    margin: 0,
+    fontSize: "14px",
+    color: UI.colors.textMuted
+  },
   filtersGrid: {
-    display: "grid",
-    gap: UI.spacing.sectionGap
-  },
-
-  searchBlock: {
-    display: "grid",
-    gap: "8px"
-  },
-
-  fieldLabel: {
-    color: UI.colors.navy,
-    fontSize: UI.type.bodySm,
-    fontWeight: 800
-  },
-
-  searchRow: {
-    display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: "8px"
-  },
-
-  filterCols: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "8px"
-  },
-
-  selectBlock: {
-    display: "grid",
-    gap: "8px"
-  },
-
-  filtersFooter: {
     display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    alignItems: "center",
-    flexWrap: "wrap"
+    flexDirection: "column",
+    gap: UI.spacing.md
   },
-
-  chipsWrap: {
+  searchWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    padding: "6px 6px 6px 14px",
+    color: UI.colors.textMuted
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    border: "none",
+    outline: "none",
+    background: "transparent",
+    color: UI.colors.text,
+    fontSize: "14px",
+    padding: "10px 0"
+  },
+  searchBtn: {
+    height: "40px",
+    padding: "0 16px",
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    border: "none",
+    borderRadius: UI.radius.sm,
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer"
+  },
+  filterRow: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap"
   },
-
-  resultsHead: {
-    display: "grid",
-    gap: "8px"
+  selectWrap: {
+    position: "relative",
+    flex: "1 1 140px"
   },
-
+  select: {
+    width: "100%",
+    height: "44px",
+    padding: "0 36px 0 14px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    color: UI.colors.text,
+    fontSize: "14px",
+    appearance: "none",
+    cursor: "pointer"
+  },
+  clearBtn: {
+    height: "44px",
+    padding: "0 16px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    color: UI.colors.textSecondary,
+    fontSize: "13px",
+    fontWeight: 500,
+    cursor: "pointer"
+  },
+  errorBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "14px 16px",
+    background: UI.colors.errorBg,
+    border: `1px solid ${UI.colors.errorBorder}`,
+    borderRadius: UI.radius.md,
+    color: UI.colors.error,
+    fontSize: "14px"
+  },
+  loadingWrap: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+    padding: "64px 24px"
+  },
+  spinner: {
+    width: "32px",
+    height: "32px",
+    border: `3px solid ${UI.colors.border}`,
+    borderTopColor: UI.colors.accent,
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite"
+  },
+  loadingText: {
+    fontSize: "14px",
+    color: UI.colors.textMuted
+  },
+  emptyState: {
+    alignItems: "center",
+    textAlign: "center",
+    color: UI.colors.textMuted
+  },
+  emptyTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: 600,
+    color: UI.colors.text
+  },
+  emptyText: {
+    margin: 0,
+    fontSize: "14px",
+    color: UI.colors.textMuted
+  },
+  emptyBtn: {
+    height: "44px",
+    padding: "0 20px",
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    border: "none",
+    borderRadius: UI.radius.md,
+    fontSize: "14px",
+    fontWeight: 600,
+    cursor: "pointer"
+  },
+  resultsHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  resultsCount: {
+    fontSize: "14px",
+    color: UI.colors.textSecondary
+  },
   productsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-    gap: UI.spacing.cardGap
+    gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+    gap: UI.spacing.md
   },
-
   pagination: {
     display: "flex",
-    justifyContent: "center",
     alignItems: "center",
-    gap: "10px",
-    paddingBottom: "6px"
+    justifyContent: "center",
+    gap: "12px"
+  },
+  pageBtn: {
+    height: "40px",
+    padding: "0 16px",
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.md,
+    color: UI.colors.text,
+    fontSize: "14px",
+    fontWeight: 500,
+    cursor: "pointer"
+  },
+  pageBtnDisabled: {
+    opacity: 0.5,
+    cursor: "not-allowed"
+  },
+  pageInfo: {
+    fontSize: "14px",
+    color: UI.colors.textSecondary
   }
 };

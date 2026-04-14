@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useApp } from "../../context/AppContext";
-import { UI } from "./uiTokens";
+import { UI, semanticColors } from "./uiTokens";
 import { normalizeMarketplaceProduct } from "../../utils/marketplaceProductMapper";
 
 function formatPriceMAD(value) {
@@ -19,58 +19,30 @@ function getDiscountPercent(price, compareAtPrice) {
   return Math.round(((c - p) / c) * 100);
 }
 
-function getStockLabel(stockStatus, stock) {
-  if (stockStatus === "out_of_stock" || Number(stock || 0) <= 0) return "غير متوفر";
-  if (stockStatus === "low_stock" || Number(stock || 0) <= 3) return "كمية محدودة";
-  return "متوفر";
+function getStockInfo(stockStatus, stock) {
+  const qty = Number(stock || 0);
+  if (stockStatus === "out_of_stock" || qty <= 0) {
+    return { label: "غير متوفر", color: semanticColors.outOfStock, bg: UI.colors.errorBg };
+  }
+  if (stockStatus === "low_stock" || qty <= 3) {
+    return { label: "كمية محدودة", color: semanticColors.lowStock, bg: UI.colors.warningBg };
+  }
+  return { label: "متوفر", color: semanticColors.inStock, bg: UI.colors.successBg };
 }
 
-function getStockStyle(stockStatus, stock) {
-  if (stockStatus === "out_of_stock" || Number(stock || 0) <= 0) {
-    return {
-      background: UI.colors.dangerBg,
-      color: UI.colors.dangerText,
-      border: `1px solid ${UI.colors.dangerBorder}`
-    };
-  }
-
-  if (stockStatus === "low_stock" || Number(stock || 0) <= 3) {
-    return {
-      background: UI.colors.warningBg,
-      color: UI.colors.warningText,
-      border: `1px solid ${UI.colors.warningBorder}`
-    };
-  }
-
-  return {
-    background: UI.colors.successBg,
-    color: UI.colors.successText,
-    border: `1px solid ${UI.colors.successBorder}`
-  };
-}
-
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, compact = false }) {
   const { addToCart } = useApp?.() ?? {};
   const normalized = normalizeMarketplaceProduct(product);
 
-  const discount = getDiscountPercent(
-    normalized.price,
-    normalized.compare_at_price
-  );
-
-  const stockLabel = getStockLabel(normalized.stock_status, normalized.stock);
-  const stockStyle = getStockStyle(normalized.stock_status, normalized.stock);
-  const productHref = normalized.slug
-    ? `/products/${normalized.slug}`
-    : "/products";
+  const discount = getDiscountPercent(normalized.price, normalized.compare_at_price);
+  const stockInfo = getStockInfo(normalized.stock_status, normalized.stock);
+  const productHref = normalized.slug ? `/products/${normalized.slug}` : "/products";
+  const isOutOfStock = normalized.stock <= 0;
 
   return (
     <article style={s.card}>
-      <Link
-        to={productHref}
-        style={s.imageLink}
-        aria-label={normalized.name || "عرض المنتج"}
-      >
+      {/* Image Section */}
+      <Link to={productHref} style={s.imageLink} aria-label={normalized.name || "عرض المنتج"}>
         <div style={s.imgWrap}>
           {normalized.image_url ? (
             <img
@@ -80,335 +52,308 @@ export default function ProductCard({ product }) {
               loading="lazy"
             />
           ) : (
-            <div style={s.noImg}>📦</div>
+            <div style={s.noImg}>
+              <PackageIcon />
+            </div>
           )}
 
-          <div style={s.topBadges}>
-            <div style={s.leftBadges}>
-              {discount > 0 ? (
-                <div style={s.discountBadge}>-{discount}%</div>
-              ) : normalized.badge ? (
-                <div style={s.featureBadge}>{normalized.badge}</div>
-              ) : null}
-            </div>
-
-            <div style={{ ...s.stockBadge, ...stockStyle }}>
-              {stockLabel}
-            </div>
+          {/* Badges */}
+          <div style={s.badges}>
+            {discount > 0 && (
+              <span style={s.discountBadge}>-{discount}%</span>
+            )}
+            <span style={{ ...s.stockBadge, background: stockInfo.bg, color: stockInfo.color }}>
+              {stockInfo.label}
+            </span>
           </div>
         </div>
       </Link>
 
+      {/* Content */}
       <div style={s.body}>
-        <div style={s.metaTop}>
-          <div style={s.sellerRow}>
-            <span style={s.seller}>{normalized.seller}</span>
-            {normalized.seller_verified ? (
-              <span style={s.verifiedDot}>✔</span>
-            ) : null}
+        {/* Seller Info */}
+        <div style={s.sellerRow}>
+          <div style={s.sellerInfo}>
+            <span style={s.sellerName}>{normalized.seller || "بائع"}</span>
+            {normalized.seller_verified && (
+              <span style={s.verified}>
+                <VerifiedIcon />
+              </span>
+            )}
           </div>
-
-          {normalized.city ? (
-            <div style={s.city}>📍 {normalized.city}</div>
-          ) : null}
+          {normalized.city && (
+            <span style={s.city}>
+              <LocationIcon /> {normalized.city}
+            </span>
+          )}
         </div>
 
+        {/* Title */}
         <Link to={productHref} style={s.titleLink}>
           <h3 style={s.title}>{normalized.name}</h3>
         </Link>
 
-        <div style={s.ratingRow}>
-          <div style={s.ratingBadge}>
-            ★ {normalized.rating ? normalized.rating.toFixed(1) : "0.0"}
+        {/* Rating */}
+        {!compact && (
+          <div style={s.ratingRow}>
+            <span style={s.rating}>
+              <StarIcon /> {normalized.rating ? normalized.rating.toFixed(1) : "0.0"}
+            </span>
+            <span style={s.reviews}>
+              {normalized.reviews > 0 ? `${normalized.reviews} تقييم` : "بدون تقييمات"}
+            </span>
           </div>
+        )}
 
-          {normalized.reviews > 0 ? (
-            <div style={s.reviewsMeta}>{normalized.reviews} تقييم</div>
-          ) : (
-            <div style={s.reviewsMeta}>بدون تقييمات</div>
-          )}
-
-          {normalized.shipping_label ? (
-            <div style={s.shippingMeta}>🚚 {normalized.shipping_label}</div>
-          ) : null}
-        </div>
-
-        {normalized.description ? (
-          <p style={s.desc}>{normalized.description}</p>
-        ) : null}
-
+        {/* Price */}
         <div style={s.priceRow}>
-          <div style={s.priceWrap}>
-            <div style={s.price}>{formatPriceMAD(normalized.price)}</div>
-            {normalized.compare_at_price ? (
-              <div style={s.oldPrice}>
-                {formatPriceMAD(normalized.compare_at_price)}
-              </div>
-            ) : null}
-          </div>
+          <span style={s.price}>{formatPriceMAD(normalized.price)}</span>
+          {normalized.compare_at_price > normalized.price && (
+            <span style={s.oldPrice}>{formatPriceMAD(normalized.compare_at_price)}</span>
+          )}
         </div>
       </div>
 
+      {/* Actions */}
       <div style={s.actions}>
-        {addToCart ? (
+        {addToCart && (
           <button
             onClick={() => addToCart(normalized)}
-            style={{
-              ...s.cartBtn,
-              ...(normalized.stock <= 0 ? s.cartBtnDisabled : {})
-            }}
-            aria-label="أضف إلى السلة"
-            disabled={normalized.stock <= 0}
+            style={{ ...s.addBtn, ...(isOutOfStock ? s.addBtnDisabled : {}) }}
+            disabled={isOutOfStock}
           >
-            {normalized.stock <= 0 ? "غير متوفر" : "أضف للسلة"}
+            <CartIcon />
+            {isOutOfStock ? "غير متوفر" : "أضف للسلة"}
           </button>
-        ) : null}
-
+        )}
         <Link to={productHref} style={s.viewBtn}>
-          عرض المنتج
+          عرض
         </Link>
       </div>
     </article>
   );
 }
 
+// Icons
+function PackageIcon() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <path d="M4 10l12-6 12 6v12l-12 6-12-6V10z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M16 16v10M4 10l12 6 12-6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function VerifiedIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="6" cy="6" r="5" fill="currentColor" />
+      <path d="M4 6l1.5 1.5L8 5" stroke="#fff" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LocationIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M6 1C4 1 2.5 2.5 2.5 4.5c0 2.5 3.5 6 3.5 6s3.5-3.5 3.5-6C9.5 2.5 8 1 6 1z" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="6" cy="4.5" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function StarIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+      <path d="M6 1l1.5 3.2 3.5.5-2.5 2.4.6 3.4L6 9l-3.1 1.5.6-3.4L1 4.7l3.5-.5L6 1z" />
+    </svg>
+  );
+}
+
+function CartIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M5 5h9l-1 5H6L5 5zM5 5L4 2H2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="6.5" cy="13" r="1" fill="currentColor" />
+      <circle cx="12" cy="13" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 const s = {
   card: {
-    background: UI.colors.white,
-    border: `1px solid ${UI.colors.line}`,
-    borderRadius: UI.radius.xxl,
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.lg,
     overflow: "hidden",
-    display: "grid",
-    gridTemplateRows: "auto 1fr auto",
-    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)",
-    transition: "transform 0.18s ease, box-shadow 0.18s ease"
+    display: "flex",
+    flexDirection: "column",
+    transition: "border-color 0.2s ease, transform 0.2s ease"
   },
-
   imageLink: {
-    textDecoration: "none"
+    textDecoration: "none",
+    display: "block"
   },
-
   imgWrap: {
     position: "relative",
-    height: "220px",
-    background: "#f8fafc"
+    aspectRatio: "1",
+    background: UI.colors.bgElevated,
+    overflow: "hidden"
   },
-
   img: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
-    display: "block"
+    objectFit: "cover"
   },
-
   noImg: {
     width: "100%",
     height: "100%",
-    display: "grid",
-    placeItems: "center",
-    fontSize: "40px",
-    color: "#d1c9b8"
-  },
-
-  topBadges: {
-    position: "absolute",
-    top: "12px",
-    right: "12px",
-    left: "12px",
     display: "flex",
-    justifyContent: "space-between",
-    gap: "8px",
-    alignItems: "flex-start"
-  },
-
-  leftBadges: {
-    display: "flex",
-    gap: "8px",
     alignItems: "center",
-    flexWrap: "wrap"
+    justifyContent: "center",
+    color: UI.colors.textMuted
   },
-
-  discountBadge: {
-    background: "#dc2626",
-    color: "#fff",
-    borderRadius: UI.radius.pill,
-    padding: "5px 10px",
-    fontSize: UI.type.caption,
-    fontWeight: 900,
-    boxShadow: "0 8px 20px rgba(220, 38, 38, 0.18)"
-  },
-
-  featureBadge: {
-    background: "rgba(255,255,255,0.94)",
-    border: `1px solid ${UI.colors.border}`,
-    borderRadius: UI.radius.pill,
-    padding: "5px 10px",
-    fontSize: UI.type.caption,
-    fontWeight: 900,
-    color: UI.colors.navy
-  },
-
-  stockBadge: {
-    borderRadius: UI.radius.pill,
-    padding: "5px 10px",
-    fontSize: UI.type.caption,
-    fontWeight: 900,
-    backdropFilter: "blur(8px)"
-  },
-
-  body: {
-    padding: UI.spacing.cardPadding,
-    display: "grid",
-    gap: "10px"
-  },
-
-  metaTop: {
+  badges: {
+    position: "absolute",
+    top: "8px",
+    right: "8px",
+    left: "8px",
     display: "flex",
     justifyContent: "space-between",
-    gap: "8px",
-    flexWrap: "wrap",
-    alignItems: "center"
+    alignItems: "flex-start",
+    gap: "6px"
   },
-
+  discountBadge: {
+    padding: "4px 8px",
+    background: UI.colors.error,
+    color: "#fff",
+    borderRadius: UI.radius.sm,
+    fontSize: "11px",
+    fontWeight: 600
+  },
+  stockBadge: {
+    padding: "4px 8px",
+    borderRadius: UI.radius.sm,
+    fontSize: "11px",
+    fontWeight: 600
+  },
+  body: {
+    flex: 1,
+    padding: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px"
+  },
   sellerRow: {
     display: "flex",
     alignItems: "center",
-    gap: "6px"
+    justifyContent: "space-between",
+    gap: "8px"
   },
-
-  seller: {
-    fontSize: UI.type.caption,
-    color: UI.colors.navy,
-    fontWeight: 900
+  sellerInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px"
   },
-
-  verifiedDot: {
-    color: "#059669",
-    fontSize: UI.type.caption,
-    fontWeight: 900
+  sellerName: {
+    fontSize: "12px",
+    fontWeight: 600,
+    color: UI.colors.textSecondary
   },
-
+  verified: {
+    color: UI.colors.teal
+  },
   city: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "11px",
+    color: UI.colors.textMuted
   },
-
   titleLink: {
     textDecoration: "none"
   },
-
   title: {
     margin: 0,
-    fontSize: "15px",
-    fontWeight: 900,
-    color: UI.colors.ink,
-    lineHeight: 1.6,
-    minHeight: "48px"
-  },
-
-  ratingRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    flexWrap: "wrap"
-  },
-
-  ratingBadge: {
-    background: "rgba(255,255,255,0.94)",
-    border: `1px solid ${UI.colors.border}`,
-    borderRadius: UI.radius.pill,
-    padding: "4px 10px",
-    fontSize: UI.type.caption,
-    fontWeight: 900,
-    color: UI.colors.gold
-  },
-
-  shippingMeta: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700
-  },
-
-  desc: {
-    margin: 0,
-    fontSize: UI.type.caption,
-    lineHeight: 1.7,
-    color: UI.colors.muted,
+    fontSize: "14px",
+    fontWeight: 600,
+    color: UI.colors.text,
+    lineHeight: 1.4,
     display: "-webkit-box",
     WebkitLineClamp: 2,
     WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    minHeight: "38px"
+    overflow: "hidden"
   },
-
-  priceRow: {
+  ratingRow: {
     display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    alignItems: "flex-end",
-    flexWrap: "wrap"
-  },
-
-  priceWrap: {
-    display: "grid",
-    gap: "4px"
-  },
-
-  price: {
-    fontSize: "22px",
-    fontWeight: 900,
-    color: "#111827",
-    lineHeight: 1.2
-  },
-
-  oldPrice: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700,
-    textDecoration: "line-through"
-  },
-
-  reviewsMeta: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700
-  },
-
-  actions: {
-    padding: "0 14px 14px",
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    alignItems: "center",
     gap: "8px"
   },
-
-  cartBtn: {
-    height: "44px",
-    borderRadius: UI.radius.md,
-    border: "1px solid #dbe3f0",
-    background: "#eef4ff",
-    color: UI.colors.navy,
-    fontSize: UI.type.bodySm,
-    fontWeight: 900,
-    cursor: "pointer"
+  rating: {
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    fontSize: "12px",
+    fontWeight: 600,
+    color: UI.colors.accent
   },
-
-  cartBtnDisabled: {
-    background: "#f3f4f6",
-    color: "#9ca3af",
+  reviews: {
+    fontSize: "12px",
+    color: UI.colors.textMuted
+  },
+  priceRow: {
+    display: "flex",
+    alignItems: "baseline",
+    gap: "8px",
+    marginTop: "auto"
+  },
+  price: {
+    fontSize: "18px",
+    fontWeight: 700,
+    color: UI.colors.accent
+  },
+  oldPrice: {
+    fontSize: "13px",
+    color: UI.colors.textMuted,
+    textDecoration: "line-through"
+  },
+  actions: {
+    display: "flex",
+    gap: "8px",
+    padding: "0 12px 12px"
+  },
+  addBtn: {
+    flex: 1,
+    height: "40px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px",
+    background: UI.colors.bgElevated,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.sm,
+    color: UI.colors.text,
+    fontSize: "13px",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.2s ease"
+  },
+  addBtnDisabled: {
+    opacity: 0.5,
     cursor: "not-allowed"
   },
-
   viewBtn: {
+    height: "40px",
+    padding: "0 16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    borderRadius: UI.radius.sm,
+    fontSize: "13px",
+    fontWeight: 600,
     textDecoration: "none",
-    display: "grid",
-    placeItems: "center",
-    borderRadius: UI.radius.md,
-    background: UI.colors.navy,
-    color: "#fff",
-    fontSize: UI.type.bodySm,
-    fontWeight: 900,
-    height: "44px",
-    padding: "0 14px"
+    transition: "background 0.2s ease"
   }
 };

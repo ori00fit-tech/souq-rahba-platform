@@ -1,18 +1,36 @@
 import { UI } from "./uiTokens";
 
-export default function SectionShell({ children, style = {}, className = "ui-card", dir = "rtl" }) {
+export default function SectionShell({ children, style = {}, className = "", dir = "rtl", variant = "default" }) {
+  const variantStyles = {
+    default: {
+      background: UI.colors.surface,
+      border: `1px solid ${UI.colors.border}`,
+    },
+    elevated: {
+      background: UI.colors.bgElevated,
+      border: `1px solid ${UI.colors.border}`,
+    },
+    transparent: {
+      background: "transparent",
+      border: "none",
+    },
+    accent: {
+      background: UI.colors.surface,
+      border: `1px solid ${UI.colors.borderAccent}`,
+    }
+  };
+
   return (
     <section
       dir={dir}
       className={className}
       style={{
-        display: "grid",
-        gap: UI.spacing.sectionGap,
-        padding: UI.spacing.shellPadding,
-        border: `1px solid ${UI.colors.line}`,
-        background: UI.colors.white,
-        borderRadius: UI.radius.xxl,
-        boxShadow: UI.shadow.soft,
+        display: "flex",
+        flexDirection: "column",
+        gap: UI.spacing.xl,
+        padding: UI.spacing.lg,
+        borderRadius: UI.radius.lg,
+        ...variantStyles[variant],
         ...style
       }}
     >

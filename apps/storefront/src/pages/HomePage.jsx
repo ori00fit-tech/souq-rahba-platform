@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import PromoHero from "../components/marketplace/PromoHero";
 import CategoryGrid from "../components/marketplace/CategoryGrid";
 import FeaturedProductsSection from "../components/marketplace/FeaturedProductsSection";
 import SellerSpotlightSection from "../components/marketplace/SellerSpotlightSection";
@@ -10,9 +9,6 @@ import SectionShell from "../components/marketplace/SectionShell";
 import { UI } from "../components/marketplace/uiTokens";
 import { apiGet } from "../lib/api";
 import HomeHero from "../components/marketplace/home/HomeHero";
-import HomeSearchBand from "../components/marketplace/home/HomeSearchBand";
-import HomePromoBanners from "../components/marketplace/home/HomePromoBanners";
-import HomeTrustBar from "../components/marketplace/home/HomeTrustBar";
 import HomeCommerceStrip from "../components/marketplace/home/HomeCommerceStrip";
 
 function normalizeHomePayload(data) {
@@ -25,52 +21,42 @@ function normalizeHomePayload(data) {
 
 function HomePageSkeleton() {
   return (
-    <div style={s.stack}>
-      <SectionShell>
-        <div style={s.heroSkeletonInner}>
-          <div style={{ ...s.skeletonLine, width: "120px", height: "14px" }} />
-          <div style={{ ...s.skeletonLine, width: "260px", height: "32px" }} />
-          <div style={{ ...s.skeletonLine, width: "78%", height: "14px" }} />
-          <div style={s.heroSkeletonButtons}>
-            <div style={{ ...s.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
-            <div style={{ ...s.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
-          </div>
+    <div style={s.skeletonWrap}>
+      <div style={s.skeletonCard}>
+        <div style={{ ...s.skeletonLine, width: "120px", height: "20px" }} />
+        <div style={{ ...s.skeletonLine, width: "200px", height: "28px" }} />
+        <div style={{ ...s.skeletonLine, width: "100%", height: "14px" }} />
+        <div style={s.skeletonGrid}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={s.skeletonItem} />
+          ))}
         </div>
-      </SectionShell>
+      </div>
     </div>
   );
 }
 
 function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref, onAction }) {
-  const toneStyle =
-    tone === "error"
-      ? s.errorCard
-      : tone === "empty"
-      ? s.emptyCard
-      : s.statusCard;
+  const toneStyles = {
+    error: { background: UI.colors.errorBg, borderColor: UI.colors.errorBorder },
+    empty: { background: UI.colors.surface, borderColor: UI.colors.border },
+    neutral: { background: UI.colors.surface, borderColor: UI.colors.border }
+  };
 
   return (
-    <SectionShell style={toneStyle}>
+    <SectionShell style={{ ...toneStyles[tone], textAlign: "center", alignItems: "center" }}>
       <div style={s.stateIcon}>
-        {tone === "error" ? "⚠️" : tone === "empty" ? "📭" : "ℹ️"}
+        {tone === "error" ? <ErrorIcon /> : <EmptyIcon />}
       </div>
-
-      <div style={s.sectionHeadingWrap}>
-        <h2 style={s.stateTitle}>{title}</h2>
-        <p style={s.stateText}>{text}</p>
-      </div>
-
-      {actionLabel ? (
+      <h2 style={s.stateTitle}>{title}</h2>
+      <p style={s.stateText}>{text}</p>
+      {actionLabel && (
         actionHref ? (
-          <Link to={actionHref} className="btn btn-primary">
-            {actionLabel}
-          </Link>
+          <Link to={actionHref} style={s.stateBtn}>{actionLabel}</Link>
         ) : onAction ? (
-          <button type="button" className="btn btn-primary" onClick={onAction}>
-            {actionLabel}
-          </button>
+          <button type="button" style={s.stateBtn} onClick={onAction}>{actionLabel}</button>
         ) : null
-      ) : null}
+      )}
     </SectionShell>
   );
 }
@@ -88,27 +74,14 @@ export default function HomePage() {
     try {
       setLoading(true);
       setError("");
-
       const result = await apiGet("/catalog/home", signal ? { signal } : {});
-
       if (!result?.ok) {
-        throw new Error(
-          result?.error?.message ||
-            result?.message ||
-            "تعذر تحميل الصفحة الرئيسية"
-        );
+        throw new Error(result?.error?.message || result?.message || "تعذر تحميل الصفحة الرئيسية");
       }
-
       setHomeData(normalizeHomePayload(result.data));
     } catch (err) {
       if (err?.name === "AbortError") return;
-
-      setHomeData({
-        categories: [],
-        featured_products: [],
-        featured_sellers: []
-      });
-
+      setHomeData({ categories: [], featured_products: [], featured_sellers: [] });
       setError(err?.message || "حدث خطأ أثناء تحميل الصفحة الرئيسية");
     } finally {
       setLoading(false);
@@ -130,18 +103,21 @@ export default function HomePage() {
   }, [homeData]);
 
   return (
-    <section className="container section-space" dir="rtl">
+    <main className="container section-space" dir="rtl">
       <div style={s.stack}>
+        {/* Hero Section with Search */}
         <HomeHero />
-        <HomeSearchBand />
+
+        {/* Trust/Commerce Strip */}
         <HomeCommerceStrip />
 
+        {/* Main Content */}
         {loading ? (
           <HomePageSkeleton />
         ) : error ? (
           <HomePageState
             tone="error"
-            title="تعذر تحميل الصفحة الرئيسية"
+            title="تعذر تحميل المحتوى"
             text={error}
             actionLabel="إعادة المحاولة"
             onAction={() => loadHome()}
@@ -149,91 +125,119 @@ export default function HomePage() {
         ) : !hasContent ? (
           <HomePageState
             tone="empty"
-            title="لا توجد بيانات كافية للعرض حالياً"
-            text="سنضيف الفئات والمنتجات والباعة المميزين هنا بمجرد توفرهم."
+            title="لا توجد بيانات للعرض حالياً"
+            text="سيتم إضافة الفئات والمنتجات والباعة المميزين قريباً."
             actionLabel="تصفح المنتجات"
             actionHref="/products"
           />
         ) : (
           <>
+            {/* Categories */}
             <CategoryGrid categories={homeData.categories} />
+
+            {/* Featured Products */}
             <FeaturedProductsSection products={homeData.featured_products} />
-            <HomePromoBanners />
+
+            {/* Featured Sellers */}
             <SellerSpotlightSection sellers={homeData.featured_sellers} />
           </>
         )}
 
-        <HomeTrustBar />
-        <PromoHero />
+        {/* Trust Section */}
         <TrustSection />
+
+        {/* Sell CTA */}
         <SellCTA />
       </div>
-    </section>
+    </main>
+  );
+}
+
+// Icons
+function ErrorIcon() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="16" stroke={UI.colors.error} strokeWidth="2" />
+      <path d="M20 12v10M20 26v2" stroke={UI.colors.error} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function EmptyIcon() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+      <rect x="8" y="6" width="24" height="28" rx="3" stroke={UI.colors.textMuted} strokeWidth="2" />
+      <path d="M14 14h12M14 20h8M14 26h10" stroke={UI.colors.textMuted} strokeWidth="2" strokeLinecap="round" />
+    </svg>
   );
 }
 
 const s = {
   stack: {
-    display: "grid",
-    gap: UI.spacing.pageGap
-  },
-
-  heroSkeletonInner: {
-    display: "grid",
-    gap: "12px"
-  },
-
-  heroSkeletonButtons: {
     display: "flex",
-    gap: "10px",
-    flexWrap: "wrap"
+    flexDirection: "column",
+    gap: UI.spacing.xl
   },
-
-  sectionHeadingWrap: {
+  skeletonWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: UI.spacing.lg
+  },
+  skeletonCard: {
+    display: "flex",
+    flexDirection: "column",
+    gap: UI.spacing.md,
+    padding: UI.spacing.lg,
+    background: UI.colors.surface,
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.lg
+  },
+  skeletonLine: {
+    background: `linear-gradient(90deg, ${UI.colors.bgElevated} 0%, ${UI.colors.surface} 50%, ${UI.colors.bgElevated} 100%)`,
+    backgroundSize: "200% 100%",
+    borderRadius: UI.radius.sm,
+    animation: "shimmer 1.5s ease-in-out infinite"
+  },
+  skeletonGrid: {
     display: "grid",
-    gap: "8px"
+    gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+    gap: UI.spacing.md
   },
-
-  statusCard: {
-    textAlign: "center"
+  skeletonItem: {
+    height: "120px",
+    background: `linear-gradient(90deg, ${UI.colors.bgElevated} 0%, ${UI.colors.surface} 50%, ${UI.colors.bgElevated} 100%)`,
+    backgroundSize: "200% 100%",
+    borderRadius: UI.radius.md,
+    animation: "shimmer 1.5s ease-in-out infinite"
   },
-
-  errorCard: {
-    textAlign: "center",
-    border: `1.5px solid ${UI.colors.dangerBorder}`,
-    background: "#fff7f7"
-  },
-
-  emptyCard: {
-    textAlign: "center",
-    border: "1.5px solid #e5dcc9",
-    background: "#fffdfa"
-  },
-
   stateIcon: {
-    fontSize: "32px",
-    lineHeight: 1
+    marginBottom: "8px"
   },
-
   stateTitle: {
     margin: 0,
-    fontSize: "26px",
-    lineHeight: 1.3,
-    fontWeight: 900,
-    color: UI.colors.navy
+    fontSize: UI.type.titleMd,
+    fontWeight: 600,
+    color: UI.colors.text
   },
-
   stateText: {
     margin: 0,
     fontSize: UI.type.body,
-    lineHeight: 1.9,
-    color: UI.colors.muted
+    color: UI.colors.textMuted,
+    maxWidth: "400px"
   },
-
-  skeletonLine: {
-    background: "linear-gradient(90deg, #f3efe6 0%, #ebe4d6 50%, #f3efe6 100%)",
-    backgroundSize: "200% 100%",
-    borderRadius: "12px",
-    animation: "rahbaPulse 1.4s ease-in-out infinite"
+  stateBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "44px",
+    padding: "0 20px",
+    background: UI.colors.accent,
+    color: UI.colors.bgDeep,
+    borderRadius: UI.radius.md,
+    fontSize: "14px",
+    fontWeight: 600,
+    textDecoration: "none",
+    border: "none",
+    cursor: "pointer"
   }
 };
