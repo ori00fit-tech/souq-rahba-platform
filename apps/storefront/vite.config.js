@@ -9,15 +9,17 @@ export default defineConfig({
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
 
-          if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) {
+          if (
+            id.includes("react") ||
+            id.includes("react-dom") ||
+            id.includes("scheduler")
+          ) {
             return "react-vendor";
           }
 
           if (id.includes("react-router") || id.includes("@remix-run")) {
             return "router-vendor";
           }
-
-          return "vendor";
         },
       },
     },
