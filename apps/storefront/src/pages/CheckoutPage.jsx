@@ -1240,7 +1240,7 @@ const s = {
   },
 
   summaryCard: {
-    gap: "14px"
+    gap: "16px"
   },
 
   groupList: {
@@ -1249,25 +1249,32 @@ const s = {
   },
 
   groupCard: {
-    padding: "12px",
+    padding: "14px",
     display: "grid",
-    gap: "10px"
+    gap: "12px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
   },
 
   groupHead: {
     display: "flex",
     justifyContent: "space-between",
     gap: "10px",
-    alignItems: "center"
+    alignItems: "center",
+    paddingBottom: "6px",
+    borderBottom: "1px solid #ebe3d7"
   },
 
   groupSeller: {
-    color: UI.colors.navy
+    color: UI.colors.navy,
+    fontWeight: 900
   },
 
   groupSubtotal: {
     color: UI.colors.navy,
-    fontWeight: 900
+    fontWeight: 900,
+    fontSize: "18px"
   },
 
   groupItems: {
@@ -1295,10 +1302,11 @@ const s = {
   shippingBox: {
     display: "grid",
     gap: "10px",
-    padding: "12px",
-    borderRadius: UI.radius.lg,
+    padding: "14px",
+    borderRadius: UI.radius.xl,
     border: "1px solid #dbeafe",
-    background: "#f8fbff"
+    background: "linear-gradient(180deg, #f8fbff 0%, #ffffff 100%)",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)"
   },
 
   shippingBoxTitle: {
@@ -1314,15 +1322,18 @@ const s = {
   shippingOptionCard: {
     border: "1px solid #dbe4ee",
     background: UI.colors.white,
-    borderRadius: UI.radius.lg,
-    padding: "12px",
+    borderRadius: UI.radius.xl,
+    padding: "13px",
     textAlign: "right",
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 8px 18px rgba(15,23,42,0.04)",
+    transition: "border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease"
   },
 
   shippingOptionSelected: {
     border: "1px solid #60a5fa",
-    boxShadow: "0 0 0 3px rgba(96,165,250,0.15)"
+    boxShadow: "0 0 0 3px rgba(96,165,250,0.15), 0 12px 24px rgba(37,99,235,0.08)",
+    transform: "translateY(-1px)"
   },
 
   shippingOptionHead: {
@@ -1334,7 +1345,8 @@ const s = {
 
   shippingOptionTitle: {
     color: "#0f172a",
-    fontWeight: 900
+    fontWeight: 900,
+    lineHeight: 1.5
   },
 
   shippingOptionMeta: {
@@ -1346,7 +1358,8 @@ const s = {
 
   shippingOptionPrice: {
     color: UI.colors.navy,
-    whiteSpace: "nowrap"
+    whiteSpace: "nowrap",
+    fontWeight: 900
   },
 
   shippingBadgesRow: {
@@ -1397,8 +1410,8 @@ const s = {
   },
 
   shippingEmptyBox: {
-    padding: "12px",
-    borderRadius: UI.radius.lg,
+    padding: "13px",
+    borderRadius: UI.radius.xl,
     border: "1px dashed #d6d3d1",
     background: "#fafaf9",
     color: UI.colors.muted,
@@ -1410,12 +1423,17 @@ const s = {
     justifyContent: "space-between",
     gap: "12px",
     color: "#4b5563",
-    fontWeight: 700
+    fontWeight: 700,
+    paddingTop: "4px"
   },
 
   totals: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    padding: "14px",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   totalRow: {
@@ -1432,7 +1450,7 @@ const s = {
     gap: "12px",
     color: UI.colors.navy,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "20px"
   },
 
   divider: {
@@ -1447,11 +1465,14 @@ const s = {
   },
 
   successShell: {
-    textAlign: "center"
+    textAlign: "center",
+    background: "linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: "1px solid #e5dcc9",
+    boxShadow: "0 20px 50px rgba(11,15,26,0.06)"
   },
 
   successIcon: {
-    fontSize: "42px"
+    fontSize: "48px"
   },
 
   resultsStats: {
@@ -1463,7 +1484,9 @@ const s = {
   statCard: {
     padding: "14px",
     display: "grid",
-    gap: "6px"
+    gap: "6px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   statLabel: {
@@ -1491,11 +1514,13 @@ const s = {
   },
 
   resultRow: {
-    padding: "14px",
+    padding: "15px",
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
-    alignItems: "start"
+    alignItems: "start",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
   },
 
   resultMain: {
@@ -1505,7 +1530,8 @@ const s = {
 
   resultSeller: {
     color: UI.colors.navy,
-    fontWeight: 900
+    fontWeight: 900,
+    fontSize: "16px"
   },
 
   resultMeta: {
