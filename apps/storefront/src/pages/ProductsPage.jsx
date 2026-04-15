@@ -13,7 +13,7 @@ const SORT_OPTIONS = [
   { value: "newest", label: "الأحدث" },
   { value: "featured", label: "مميزة" },
   { value: "price_asc", label: "السعر: من الأقل" },
-  { value: "price_desc", label: "السعر: من الأعلى" }
+  { value: "price_desc", label: "السعر: من الأعلى" },
 ];
 
 export default function ProductsPage() {
@@ -36,7 +36,7 @@ export default function ProductsPage() {
     page: 1,
     limit: PAGE_LIMIT,
     total: 0,
-    pages: 1
+    pages: 1,
   });
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function ProductsPage() {
           page: 1,
           limit: PAGE_LIMIT,
           total: items.length,
-          pages: 1
+          pages: 1,
         };
 
         setProducts(items);
@@ -105,7 +105,7 @@ export default function ProductsPage() {
           page: 1,
           limit: PAGE_LIMIT,
           total: 0,
-          pages: 1
+          pages: 1,
         });
         setErrorMessage("تعذر تحميل المنتجات");
       } finally {
@@ -119,7 +119,7 @@ export default function ProductsPage() {
   const categoryOptions = useMemo(() => {
     const dynamic = categories.map((cat) => ({
       value: cat.slug || "",
-      label: cat.name_ar || cat.name || cat.slug || "فئة"
+      label: cat.name_ar || cat.name || cat.slug || "فئة",
     }));
 
     return [{ value: "", label: "كل الفئات" }, ...dynamic];
@@ -149,7 +149,7 @@ export default function ProductsPage() {
     setErrorMessage("");
     setSearchParams({
       sort: "newest",
-      page: "1"
+      page: "1",
     });
   }
 
@@ -190,19 +190,33 @@ export default function ProductsPage() {
     <section className="container section-space" dir="rtl">
       <div style={styles.stack}>
         <SectionShell style={styles.heroShell}>
-          <div className="ui-chip">RAHBA PRODUCTS</div>
+          <div style={styles.heroBadge}>RAHBA PRODUCTS</div>
+
           <SectionHead
             title="تصفح المنتجات"
-            subtitle="ابحث، صفِّ، قارن بسرعة، ثم انتقل إلى المنتج المناسب داخل رحبة."
+            subtitle="ابحث، صفِّ، وقارن بسرعة داخل رحبة، ثم انتقل مباشرة إلى المنتج المناسب بثقة ووضوح."
           />
 
           <div style={styles.heroMetaRow}>
             <div className="ui-chip">{pagination.total} منتج</div>
-            {categoriesLoading ? <div className="ui-chip">جاري تحميل الفئات...</div> : null}
+            {categoriesLoading ? (
+              <div className="ui-chip">جاري تحميل الفئات...</div>
+            ) : (
+              <div className="ui-chip">{Math.max(categoryOptions.length - 1, 0)} فئة</div>
+            )}
+            <div className="ui-chip">تجربة بحث أوضح</div>
           </div>
         </SectionShell>
 
-        <SectionShell>
+        <SectionShell style={styles.filtersShell}>
+          <div style={styles.filtersHead}>
+            <SectionHead
+              chip="FILTERS"
+              title="ابحث وصفِّ النتائج"
+              subtitle="استعمل البحث والفئات والترتيب للوصول بسرعة إلى المنتج المناسب."
+            />
+          </div>
+
           <div style={styles.filtersGrid}>
             <div style={styles.searchBlock}>
               <label style={styles.fieldLabel}>ابحث عن منتج</label>
@@ -285,17 +299,22 @@ export default function ProductsPage() {
             <div className="loading-state">جاري تحميل المنتجات...</div>
           </SectionShell>
         ) : normalizedProducts.length === 0 ? (
-          <SectionShell>
+          <SectionShell style={styles.emptyShell}>
             <div className="empty-state">لا توجد نتائج حالياً</div>
           </SectionShell>
         ) : (
-          <SectionShell>
+          <SectionShell style={styles.resultsShell}>
             <div style={styles.resultsHead}>
               <SectionHead
                 chip="RESULTS"
                 title="نتائج التصفح"
-                subtitle="اختر المنتج المناسب وادخل إلى التفاصيل لمزيد من المعلومات."
+                subtitle="اختر المنتج المناسب وادخل إلى التفاصيل لمزيد من المعلومات قبل اتخاذ قرار الشراء."
               />
+
+              <div style={styles.resultsMeta}>
+                <span className="ui-chip">{pagination.total} نتيجة</span>
+                <span className="ui-chip">عرض أوضح</span>
+              </div>
             </div>
 
             <div style={styles.productsGrid}>
@@ -319,14 +338,12 @@ export default function ProductsPage() {
               السابق
             </button>
 
-            <div className="ui-chip">
-              {pagination.page} / {pagination.pages}
+            <div style={styles.pageIndicator}>
+              صفحة {pagination.page} من {pagination.pages}
             </div>
 
             <button
-              onClick={() =>
-                updateFilters({ page: Math.min(page + 1, pagination.pages) })
-              }
+              onClick={() => updateFilters({ page: Math.min(page + 1, pagination.pages) })}
               disabled={page >= pagination.pages}
               className="btn btn-soft"
             >
@@ -342,85 +359,140 @@ export default function ProductsPage() {
 const styles = {
   stack: {
     display: "grid",
-    gap: "26px"
+    gap: UI.spacing.pageGap,
   },
 
   heroShell: {
-    background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
+    background: "linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: `1px solid ${UI.colors.border}`,
+    boxShadow: "0 18px 42px rgba(11,15,26,0.05)",
+  },
+
+  heroBadge: {
+    width: "fit-content",
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: UI.radius.pill,
+    display: "inline-flex",
+    alignItems: "center",
+    background: UI.colors.softBlue,
+    color: UI.colors.navy,
+    border: "1px solid #dbeafe",
+    fontSize: UI.type.caption,
+    fontWeight: 800,
+    letterSpacing: "0.05em",
   },
 
   heroMetaRow: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap",
-    alignItems: "center"
+  },
+
+  filtersShell: {
+    display: "grid",
+    gap: "18px",
+    background: "#ffffff",
+  },
+
+  filtersHead: {
+    display: "grid",
+    gap: "10px",
   },
 
   filtersGrid: {
     display: "grid",
-    gap: UI.spacing.sectionGap
+    gap: "16px",
   },
 
   searchBlock: {
     display: "grid",
-    gap: "8px"
+    gap: "10px",
   },
 
   fieldLabel: {
-    color: UI.colors.navy,
+    color: UI.colors.ink,
     fontSize: UI.type.bodySm,
-    fontWeight: 800
+    fontWeight: 900,
   },
 
   searchRow: {
     display: "grid",
-    gridTemplateColumns: "1fr auto",
-    gap: "8px"
+    gap: "10px",
   },
 
   filterCols: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "8px"
+    gap: "12px",
   },
 
   selectBlock: {
     display: "grid",
-    gap: "8px"
+    gap: "10px",
   },
 
   filtersFooter: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
     alignItems: "center",
-    flexWrap: "wrap"
+    gap: "12px",
+    flexWrap: "wrap",
   },
 
   chipsWrap: {
     display: "flex",
     gap: "8px",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+  },
+
+  emptyShell: {
+    background: "#fffdfa",
+  },
+
+  resultsShell: {
+    display: "grid",
+    gap: "18px",
+    background: "linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: `1px solid ${UI.colors.border}`,
+    boxShadow: "0 18px 42px rgba(11,15,26,0.05)",
   },
 
   resultsHead: {
     display: "grid",
-    gap: "8px"
+    gap: "12px",
+  },
+
+  resultsMeta: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
   },
 
   productsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-    gap: UI.spacing.cardGap
+    gap: UI.spacing.cardGap,
   },
 
   pagination: {
     display: "flex",
-    justifyContent: "center",
     alignItems: "center",
-    gap: "10px",
-    paddingBottom: "6px"
-  }
+    justifyContent: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
+
+  pageIndicator: {
+    minHeight: "44px",
+    padding: "0 14px",
+    borderRadius: UI.radius.lg,
+    background: "#ffffff",
+    border: `1px solid ${UI.colors.border}`,
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    boxShadow: "0 8px 20px rgba(11,15,26,0.04)",
+  },
 };
