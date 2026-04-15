@@ -4,48 +4,59 @@ import { UI } from "../uiTokens";
 export default function HomePromoBanners() {
   return (
     <section style={s.grid} dir="rtl">
-      <div style={{ ...s.card, ...s.cardOne }}>
-        <div style={s.glow} />
-        <div style={s.iconWrap}>🏷️</div>
+      <div style={{ ...s.card, ...s.cardPrimary }}>
+        <div style={s.cardGlow} />
+        <div style={s.iconBox}>🏷️</div>
+
         <div style={s.content}>
-          <div style={s.kicker}>عروض مميزة</div>
-          <h3 style={s.title}>أفضل الاختيارات والعروض داخل رحبة</h3>
+          <div style={s.kicker}>مختارات رحبة</div>
+          <h3 style={s.title}>عروض ومنتجات بارزة بتجربة أوضح وأكثر احترافية</h3>
           <p style={s.text}>
-            اكتشف المنتجات الأكثر بروزاً داخل المنصة، مع عرض أوضح وتجربة تصفح
-            أكثر أناقة.
+            تصفح أبرز المنتجات والعروض داخل رحبة، مع عرض أفضل، هيكلة أوضح،
+            وتجربة اكتشاف تساعدك تلقى ما تحتاج بسرعة أكبر.
           </p>
-          <Link to="/products?sort=featured" style={s.cta}>
-            اكتشف الآن →
+
+          <Link to="/products?sort=featured" style={s.ctaLight}>
+            اكتشف العروض الآن
+            <span style={s.ctaArrow}>←</span>
           </Link>
         </div>
       </div>
 
-      <div style={{ ...s.card, ...s.cardTwo }}>
-        <div style={s.glow} />
-        <div style={s.iconWrap}>🚀</div>
+      <div style={{ ...s.card, ...s.cardWarm }}>
+        <div style={s.cardGlow} />
+        <div style={s.iconBox}>🚀</div>
+
         <div style={s.content}>
-          <div style={s.kicker}>للبائعين</div>
-          <h3 style={s.title}>ابدأ البيع ووسّع حضورك داخل رحبة</h3>
+          <div style={s.kicker}>للباعة</div>
+          <h3 style={s.title}>ابدأ البيع ووسّع حضورك أمام مشترين من مختلف المدن</h3>
           <p style={s.text}>
-            أنشئ متجرك وابدأ عرض منتجاتك أمام مشترين من مدن متعددة داخل المغرب.
+            افتح متجرك على رحبة وابدأ عرض منتجاتك داخل منصة منظمة، واضحة،
+            ومصممة لتجربة بيع أسهل وأكثر جدية.
           </p>
-          <Link to="/auth" style={s.cta}>
-            سجل الآن →
+
+          <Link to="/auth" style={s.ctaGlass}>
+            ابدأ الآن
+            <span style={s.ctaArrow}>←</span>
           </Link>
         </div>
       </div>
 
-      <div style={{ ...s.card, ...s.cardThree }}>
-        <div style={s.glow} />
-        <div style={s.iconWrap}>📦</div>
+      <div style={{ ...s.card, ...s.cardCool }}>
+        <div style={s.cardGlow} />
+        <div style={s.iconBox}>📦</div>
+
         <div style={s.content}>
-          <div style={s.kicker}>خدمة أوضح</div>
-          <h3 style={s.title}>تجربة شحن ومتابعة طلبات أفضل</h3>
+          <div style={s.kicker}>خدمة أفضل</div>
+          <h3 style={s.title}>متابعة الطلبات والشحن بطريقة أبسط وأكثر وضوحاً</h3>
           <p style={s.text}>
-            تابع الطلبات بسهولة، واعرف حالة الشحن بطريقة أبسط وأكثر وضوحاً.
+            تجربة أفضل لإدارة الطلبات، متابعة الشحن، والوصول إلى معلومات أوضح
+            حول حالة الشراء داخل المنصة.
           </p>
-          <Link to="/help" style={s.cta}>
-            اعرف المزيد →
+
+          <Link to="/help" style={s.ctaGlass}>
+            اعرف المزيد
+            <span style={s.ctaArrow}>←</span>
           </Link>
         </div>
       </div>
@@ -56,41 +67,42 @@ export default function HomePromoBanners() {
 const s = {
   grid: {
     display: "grid",
-    gap: "14px"
+    gap: "14px",
   },
 
   card: {
     position: "relative",
     overflow: "hidden",
     borderRadius: UI.radius.xxl,
-    minHeight: "230px",
+    minHeight: "240px",
     padding: "24px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "flex-end",
-    boxShadow: "0 22px 50px rgba(15, 23, 42, 0.12)"
+    boxShadow: "0 24px 54px rgba(11,15,26,0.12)",
   },
 
-  cardOne: {
-    background: "linear-gradient(135deg, #0b2d57 0%, #0abfb8 100%)"
+  cardPrimary: {
+    background: "linear-gradient(135deg, #0d2c54 0%, #173b74 42%, #0abfb8 100%)",
   },
 
-  cardTwo: {
-    background: "linear-gradient(135deg, #f59e0b 0%, #f05a28 100%)"
+  cardWarm: {
+    background: "linear-gradient(135deg, #f59e0b 0%, #f05a28 100%)",
   },
 
-  cardThree: {
-    background: "linear-gradient(135deg, #6c3fe8 0%, #3ba5f5 100%)"
+  cardCool: {
+    background: "linear-gradient(135deg, #6c3fe8 0%, #3ba5f5 100%)",
   },
 
-  glow: {
+  cardGlow: {
     position: "absolute",
     inset: 0,
     background:
-      "radial-gradient(circle at top left, rgba(255,255,255,0.20), transparent 42%)"
+      "radial-gradient(circle at top left, rgba(255,255,255,0.20), transparent 40%)",
+    pointerEvents: "none",
   },
 
-  iconWrap: {
+  iconBox: {
     position: "absolute",
     top: "18px",
     left: "18px",
@@ -103,21 +115,22 @@ const s = {
     color: "#fff",
     fontSize: "34px",
     backdropFilter: "blur(8px)",
-    border: "1px solid rgba(255,255,255,0.18)"
+    border: "1px solid rgba(255,255,255,0.18)",
+    boxShadow: "0 8px 24px rgba(11,15,26,0.12)",
   },
 
   content: {
     position: "relative",
     zIndex: 1,
     display: "grid",
-    gap: "10px"
+    gap: "10px",
   },
 
   kicker: {
     color: "rgba(255,255,255,0.76)",
     fontSize: UI.type.caption,
-    fontWeight: 800,
-    letterSpacing: "0.05em"
+    fontWeight: 900,
+    letterSpacing: "0.05em",
   },
 
   title: {
@@ -126,27 +139,52 @@ const s = {
     fontSize: "24px",
     lineHeight: 1.35,
     fontWeight: 900,
-    maxWidth: "520px"
+    maxWidth: "560px",
   },
 
   text: {
     margin: 0,
-    color: "rgba(255,255,255,0.82)",
+    color: "rgba(255,255,255,0.84)",
     fontSize: UI.type.bodySm,
-    lineHeight: 1.85,
-    maxWidth: "580px"
+    lineHeight: 1.88,
+    maxWidth: "620px",
   },
 
-  cta: {
+  ctaLight: {
     width: "fit-content",
     marginTop: "2px",
+    minHeight: "44px",
+    padding: "0 14px",
+    textDecoration: "none",
+    color: "#0d2c54",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    borderRadius: UI.radius.pill,
+    background: "#ffffff",
+    boxShadow: "0 10px 24px rgba(11,15,26,0.14)",
+  },
+
+  ctaGlass: {
+    width: "fit-content",
+    marginTop: "2px",
+    minHeight: "44px",
+    padding: "0 14px",
     textDecoration: "none",
     color: UI.colors.white,
-    fontWeight: 800,
-    padding: "9px 14px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
     borderRadius: UI.radius.pill,
     border: "1px solid rgba(255,255,255,0.22)",
     background: "rgba(255,255,255,0.14)",
-    backdropFilter: "blur(6px)"
-  }
+    backdropFilter: "blur(6px)",
+  },
+
+  ctaArrow: {
+    fontSize: "14px",
+    lineHeight: 1,
+  },
 };

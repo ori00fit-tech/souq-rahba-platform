@@ -2,25 +2,25 @@ import { UI } from "../uiTokens";
 
 const items = [
   {
-    icon: "🚚",
-    title: "شحن سريع",
-    text: "توصيل أوضح وأسرع لمدن متعددة داخل المغرب"
-  },
-  {
-    icon: "🔒",
-    title: "دفع آمن",
-    text: "خيارات دفع أسهل وتجربة شراء أكثر ثقة"
-  },
-  {
-    icon: "↩️",
-    title: "متابعة الطلب",
-    text: "تتبع أوضح لحالة الطلب من الشراء حتى التسليم"
-  },
-  {
-    icon: "🤝",
     title: "باعة موثوقون",
-    text: "متاجر وصفحات بيع تساعد على بناء الثقة بسرعة"
-  }
+    text: "عرض أوضح لهوية البائع والثقة في المتجر",
+    icon: "🛍️",
+  },
+  {
+    title: "تصفح أسهل",
+    text: "وصول أسرع للمنتجات والفئات المناسبة",
+    icon: "⚡",
+  },
+  {
+    title: "تجربة حديثة",
+    text: "واجهة منظمة ومريحة للهاتف أولاً",
+    icon: "📱",
+  },
+  {
+    title: "شراء بثقة",
+    text: "معلومات أوضح قبل اتخاذ قرار الشراء",
+    icon: "✅",
+  },
 ];
 
 export default function HomeTrustBar() {
@@ -28,20 +28,23 @@ export default function HomeTrustBar() {
     <section style={s.wrap} dir="rtl">
       <div style={s.head}>
         <div style={s.badge}>WHY RAHBA</div>
-        <h2 style={s.title}>تجربة أوضح وأكثر ثقة للمشتري</h2>
+        <h2 style={s.title}>تجربة مبنية على الثقة والوضوح وسهولة الوصول</h2>
         <p style={s.sub}>
-          رحبة مصممة باش تسهّل عليك البحث، الشراء، ومتابعة الطلب في واجهة منظمة
-          وباعة أكثر وضوحاً.
+          رحبة ليست فقط واجهة جميلة، بل تجربة سوق حديثة تساعد المستخدم يلقى
+          المنتج المناسب بسرعة، ويتعامل مع باعة بشكل أوضح وأكثر ثقة.
         </p>
       </div>
 
       <div style={s.grid}>
         {items.map((item) => (
-          <div key={item.title} style={s.card}>
-            <div style={s.iconWrap}>{item.icon}</div>
-            <div style={s.cardTitle}>{item.title}</div>
-            <div style={s.cardText}>{item.text}</div>
-          </div>
+          <article key={item.title} style={s.card}>
+            <div style={s.iconBox}>{item.icon}</div>
+
+            <div style={s.content}>
+              <h3 style={s.cardTitle}>{item.title}</h3>
+              <p style={s.cardText}>{item.text}</p>
+            </div>
+          </article>
         ))}
       </div>
     </section>
@@ -50,18 +53,19 @@ export default function HomeTrustBar() {
 
 const s = {
   wrap: {
-    background: "linear-gradient(135deg, #0f172a 0%, #132238 100%)",
-    borderRadius: UI.radius.hero,
-    padding: "30px 18px",
     display: "grid",
-    gap: "18px",
-    boxShadow: "0 24px 60px rgba(2, 8, 23, 0.22)"
+    gap: "16px",
+    background: "linear-gradient(135deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: `1px solid ${UI.colors.border}`,
+    borderRadius: UI.radius.hero,
+    padding: "24px 18px",
+    boxShadow: "0 18px 42px rgba(11,15,26,0.06)",
   },
 
   head: {
     display: "grid",
     gap: "10px",
-    textAlign: "center"
+    textAlign: "center",
   },
 
   badge: {
@@ -69,67 +73,76 @@ const s = {
     marginInline: "auto",
     padding: "7px 12px",
     borderRadius: UI.radius.pill,
-    background: "rgba(255,255,255,0.10)",
-    color: "rgba(255,255,255,0.86)",
-    border: "1px solid rgba(255,255,255,0.12)",
+    background: UI.colors.softBlue,
+    color: UI.colors.navy,
+    border: "1px solid #dbeafe",
     fontSize: UI.type.caption,
     fontWeight: 800,
-    letterSpacing: "0.05em"
+    letterSpacing: "0.05em",
   },
 
   title: {
     margin: 0,
-    color: UI.colors.white,
+    color: UI.colors.ink,
     fontSize: UI.type.titleMd,
+    lineHeight: 1.4,
     fontWeight: 900,
-    lineHeight: 1.4
   },
 
   sub: {
     margin: 0,
-    color: "rgba(255,255,255,0.68)",
+    color: UI.colors.muted,
     fontSize: UI.type.bodySm,
     lineHeight: 1.9,
     maxWidth: "760px",
-    marginInline: "auto"
+    marginInline: "auto",
   },
 
   grid: {
     display: "grid",
-    gap: "14px"
+    gap: "12px",
   },
 
   card: {
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.08)",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px",
+    padding: "16px",
     borderRadius: UI.radius.xl,
-    padding: "18px",
-    display: "grid",
-    gap: "10px",
-    textAlign: "center",
-    backdropFilter: "blur(10px)"
+    background: "#ffffff",
+    border: `1px solid ${UI.colors.border}`,
+    boxShadow: "0 8px 20px rgba(11,15,26,0.04)",
   },
 
-  iconWrap: {
-    width: "54px",
-    height: "54px",
-    marginInline: "auto",
+  iconBox: {
+    width: "48px",
+    height: "48px",
     borderRadius: "16px",
     display: "grid",
     placeItems: "center",
-    background: "rgba(255,255,255,0.14)",
-    fontSize: "28px"
+    flexShrink: 0,
+    fontSize: "22px",
+    background: "linear-gradient(135deg, #eef6ff 0%, #eafbf7 100%)",
+    border: "1px solid #d9ebe8",
+  },
+
+  content: {
+    display: "grid",
+    gap: "4px",
   },
 
   cardTitle: {
-    color: UI.colors.white,
+    margin: 0,
+    color: UI.colors.ink,
     fontSize: "16px",
-    fontWeight: 900
+    lineHeight: 1.5,
+    fontWeight: 900,
   },
 
   cardText: {
-    color: "rgba(255,255,255,0.62)",
+    margin: 0,
+    color: UI.colors.muted,
     fontSize: UI.type.bodySm,
-    lineHeight: 1.8
-  }
+    lineHeight: 1.85,
+  },
 };

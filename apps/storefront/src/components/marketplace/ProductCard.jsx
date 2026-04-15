@@ -8,7 +8,7 @@ function formatPriceMAD(value) {
   return new Intl.NumberFormat("fr-MA", {
     style: "currency",
     currency: "MAD",
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
@@ -30,7 +30,7 @@ function getStockStyle(stockStatus, stock) {
     return {
       background: UI.colors.dangerBg,
       color: UI.colors.dangerText,
-      border: `1px solid ${UI.colors.dangerBorder}`
+      border: `1px solid ${UI.colors.dangerBorder}`,
     };
   }
 
@@ -38,14 +38,14 @@ function getStockStyle(stockStatus, stock) {
     return {
       background: UI.colors.warningBg,
       color: UI.colors.warningText,
-      border: `1px solid ${UI.colors.warningBorder}`
+      border: `1px solid ${UI.colors.warningBorder}`,
     };
   }
 
   return {
     background: UI.colors.successBg,
     color: UI.colors.successText,
-    border: `1px solid ${UI.colors.successBorder}`
+    border: `1px solid ${UI.colors.successBorder}`,
   };
 }
 
@@ -83,6 +83,8 @@ export default function ProductCard({ product }) {
             <div style={s.noImg}>📦</div>
           )}
 
+          <div style={s.overlayGradient} />
+
           <div style={s.topBadges}>
             <div style={s.leftBadges}>
               {discount > 0 ? (
@@ -108,9 +110,7 @@ export default function ProductCard({ product }) {
             ) : null}
           </div>
 
-          {normalized.city ? (
-            <div style={s.city}>📍 {normalized.city}</div>
-          ) : null}
+          {normalized.city ? <div style={s.city}>📍 {normalized.city}</div> : null}
         </div>
 
         <Link to={productHref} style={s.titleLink}>
@@ -140,7 +140,9 @@ export default function ProductCard({ product }) {
         <div style={s.priceRow}>
           <div style={s.priceWrap}>
             <div style={s.price}>{formatPriceMAD(normalized.price)}</div>
-            {normalized.compare_at_price ? (
+
+            {normalized.compare_at_price &&
+            Number(normalized.compare_at_price) > Number(normalized.price) ? (
               <div style={s.oldPrice}>
                 {formatPriceMAD(normalized.compare_at_price)}
               </div>
@@ -155,7 +157,7 @@ export default function ProductCard({ product }) {
             onClick={() => addToCart(normalized)}
             style={{
               ...s.cartBtn,
-              ...(normalized.stock <= 0 ? s.cartBtnDisabled : {})
+              ...(normalized.stock <= 0 ? s.cartBtnDisabled : {}),
             }}
             aria-label="أضف إلى السلة"
             disabled={normalized.stock <= 0}
@@ -180,25 +182,26 @@ const s = {
     overflow: "hidden",
     display: "grid",
     gridTemplateRows: "auto 1fr auto",
-    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.06)",
-    transition: "transform 0.18s ease, box-shadow 0.18s ease"
+    boxShadow: "0 14px 34px rgba(15, 23, 42, 0.07)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease",
   },
 
   imageLink: {
-    textDecoration: "none"
+    textDecoration: "none",
   },
 
   imgWrap: {
     position: "relative",
-    height: "220px",
-    background: "#f8fafc"
+    height: "230px",
+    background: "#f8fafc",
+    overflow: "hidden",
   },
 
   img: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block"
+    display: "block",
   },
 
   noImg: {
@@ -206,8 +209,16 @@ const s = {
     height: "100%",
     display: "grid",
     placeItems: "center",
-    fontSize: "40px",
-    color: "#d1c9b8"
+    fontSize: "42px",
+    color: "#d1c9b8",
+    background: "linear-gradient(135deg, #f8fafc 0%, #f3efe7 100%)",
+  },
+
+  overlayGradient: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(to top, rgba(15,23,42,0.08), transparent 45%)",
+    pointerEvents: "none",
   },
 
   topBadges: {
@@ -218,14 +229,14 @@ const s = {
     display: "flex",
     justifyContent: "space-between",
     gap: "8px",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
   },
 
   leftBadges: {
     display: "flex",
     gap: "8px",
     alignItems: "center",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
 
   discountBadge: {
@@ -235,7 +246,7 @@ const s = {
     padding: "5px 10px",
     fontSize: UI.type.caption,
     fontWeight: 900,
-    boxShadow: "0 8px 20px rgba(220, 38, 38, 0.18)"
+    boxShadow: "0 8px 20px rgba(220, 38, 38, 0.18)",
   },
 
   featureBadge: {
@@ -245,7 +256,7 @@ const s = {
     padding: "5px 10px",
     fontSize: UI.type.caption,
     fontWeight: 900,
-    color: UI.colors.navy
+    color: UI.colors.navy,
   },
 
   stockBadge: {
@@ -253,162 +264,163 @@ const s = {
     padding: "5px 10px",
     fontSize: UI.type.caption,
     fontWeight: 900,
-    backdropFilter: "blur(8px)"
+    backdropFilter: "blur(8px)",
   },
 
   body: {
     padding: UI.spacing.cardPadding,
     display: "grid",
-    gap: "10px"
+    gap: "10px",
   },
 
   metaTop: {
     display: "flex",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: "8px",
+    gap: "10px",
     flexWrap: "wrap",
-    alignItems: "center"
   },
 
   sellerRow: {
     display: "flex",
     alignItems: "center",
-    gap: "6px"
+    gap: "6px",
+    minWidth: 0,
   },
 
   seller: {
-    fontSize: UI.type.caption,
     color: UI.colors.navy,
-    fontWeight: 900
+    fontSize: UI.type.bodySm,
+    fontWeight: 800,
+    lineHeight: 1.5,
   },
 
   verifiedDot: {
-    color: "#059669",
-    fontSize: UI.type.caption,
-    fontWeight: 900
+    color: UI.colors.tealDark,
+    fontSize: "12px",
+    fontWeight: 900,
+    flexShrink: 0,
   },
 
   city: {
-    fontSize: UI.type.caption,
     color: UI.colors.muted,
-    fontWeight: 700
+    fontSize: UI.type.caption,
+    fontWeight: 700,
+    lineHeight: 1.5,
   },
 
   titleLink: {
-    textDecoration: "none"
+    textDecoration: "none",
   },
 
   title: {
     margin: 0,
-    fontSize: "15px",
-    fontWeight: 900,
     color: UI.colors.ink,
-    lineHeight: 1.6,
-    minHeight: "48px"
+    fontSize: "18px",
+    lineHeight: 1.5,
+    fontWeight: 900,
   },
 
   ratingRow: {
     display: "flex",
-    alignItems: "center",
     gap: "8px",
-    flexWrap: "wrap"
+    alignItems: "center",
+    flexWrap: "wrap",
   },
 
   ratingBadge: {
-    background: "rgba(255,255,255,0.94)",
-    border: `1px solid ${UI.colors.border}`,
+    minHeight: "28px",
+    padding: "0 10px",
     borderRadius: UI.radius.pill,
-    padding: "4px 10px",
+    background: "#fff7ed",
+    border: "1px solid #fed7aa",
+    color: "#9a3412",
+    display: "inline-flex",
+    alignItems: "center",
     fontSize: UI.type.caption,
-    fontWeight: 900,
-    color: UI.colors.gold
+    fontWeight: 800,
+  },
+
+  reviewsMeta: {
+    color: UI.colors.muted,
+    fontSize: UI.type.caption,
+    fontWeight: 700,
   },
 
   shippingMeta: {
+    color: UI.colors.navy,
     fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700
+    fontWeight: 700,
   },
 
   desc: {
     margin: 0,
-    fontSize: UI.type.caption,
-    lineHeight: 1.7,
     color: UI.colors.muted,
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    minHeight: "38px"
+    fontSize: UI.type.bodySm,
+    lineHeight: 1.85,
   },
 
   priceRow: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "10px",
     alignItems: "flex-end",
-    flexWrap: "wrap"
+    gap: "12px",
   },
 
   priceWrap: {
     display: "grid",
-    gap: "4px"
+    gap: "4px",
   },
 
   price: {
+    color: UI.colors.ink,
     fontSize: "22px",
     fontWeight: 900,
-    color: "#111827",
-    lineHeight: 1.2
+    lineHeight: 1.15,
   },
 
   oldPrice: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
+    color: "#94a3b8",
+    fontSize: UI.type.bodySm,
     fontWeight: 700,
-    textDecoration: "line-through"
-  },
-
-  reviewsMeta: {
-    fontSize: UI.type.caption,
-    color: UI.colors.muted,
-    fontWeight: 700
+    textDecoration: "line-through",
   },
 
   actions: {
-    padding: "0 14px 14px",
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "8px"
+    gap: "10px",
+    padding: `0 ${UI.spacing.cardPadding} ${UI.spacing.cardPadding}`,
   },
 
   cartBtn: {
-    height: "44px",
-    borderRadius: UI.radius.md,
-    border: "1px solid #dbe3f0",
-    background: "#eef4ff",
-    color: UI.colors.navy,
-    fontSize: UI.type.bodySm,
+    minHeight: "46px",
+    borderRadius: UI.radius.lg,
+    border: "none",
+    background: "linear-gradient(135deg, #0d2c54 0%, #173b74 100%)",
+    color: "#fff",
     fontWeight: 900,
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(13,44,84,0.16)",
   },
 
   cartBtnDisabled: {
-    background: "#f3f4f6",
-    color: "#9ca3af",
-    cursor: "not-allowed"
+    background: "#e5e7eb",
+    color: "#94a3b8",
+    boxShadow: "none",
+    cursor: "not-allowed",
   },
 
   viewBtn: {
-    textDecoration: "none",
-    display: "grid",
-    placeItems: "center",
-    borderRadius: UI.radius.md,
-    background: UI.colors.navy,
-    color: "#fff",
-    fontSize: UI.type.bodySm,
+    minHeight: "46px",
+    borderRadius: UI.radius.lg,
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    color: UI.colors.ink,
     fontWeight: 900,
-    height: "44px",
-    padding: "0 14px"
-  }
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textDecoration: "none",
+  },
 };

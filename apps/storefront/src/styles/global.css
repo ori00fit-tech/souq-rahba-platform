@@ -430,3 +430,12 @@ a {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+@keyframes rahba-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX( calc(-50% + 12px) );
+  }
+}

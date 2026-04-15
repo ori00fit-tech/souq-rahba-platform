@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import PromoHero from "../components/marketplace/PromoHero";
 import CategoryGrid from "../components/marketplace/CategoryGrid";
 import FeaturedProductsSection from "../components/marketplace/FeaturedProductsSection";
 import SellerSpotlightSection from "../components/marketplace/SellerSpotlightSection";
 import TrustSection from "../components/marketplace/TrustSection";
 import SellCTA from "../components/marketplace/SellCTA";
-import SectionShell from "../components/marketplace/SectionShell";
 import { UI } from "../components/marketplace/uiTokens";
 import { apiGet } from "../lib/api";
 import HomeHero from "../components/marketplace/home/HomeHero";
@@ -19,24 +17,44 @@ function normalizeHomePayload(data) {
   return {
     categories: Array.isArray(data?.categories) ? data.categories : [],
     featured_products: Array.isArray(data?.featured_products) ? data.featured_products : [],
-    featured_sellers: Array.isArray(data?.featured_sellers) ? data.featured_sellers : []
+    featured_sellers: Array.isArray(data?.featured_sellers) ? data.featured_sellers : [],
   };
 }
 
 function HomePageSkeleton() {
   return (
     <div style={s.stack}>
-      <SectionShell>
-        <div style={s.heroSkeletonInner}>
-          <div style={{ ...s.skeletonLine, width: "120px", height: "14px" }} />
-          <div style={{ ...s.skeletonLine, width: "260px", height: "32px" }} />
-          <div style={{ ...s.skeletonLine, width: "78%", height: "14px" }} />
-          <div style={s.heroSkeletonButtons}>
-            <div style={{ ...s.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
-            <div style={{ ...s.skeletonLine, width: "140px", height: "42px", borderRadius: UI.radius.pill }} />
-          </div>
+      <div style={s.skeletonHero}>
+        <div style={{ ...s.skeletonLine, width: "140px", height: "14px" }} />
+        <div style={{ ...s.skeletonLine, width: "72%", height: "34px" }} />
+        <div style={{ ...s.skeletonLine, width: "88%", height: "14px" }} />
+        <div style={{ ...s.skeletonLine, width: "78%", height: "14px" }} />
+
+        <div style={s.heroSkeletonButtons}>
+          <div
+            style={{
+              ...s.skeletonLine,
+              width: "150px",
+              height: "46px",
+              borderRadius: UI.radius.pill,
+            }}
+          />
+          <div
+            style={{
+              ...s.skeletonLine,
+              width: "150px",
+              height: "46px",
+              borderRadius: UI.radius.pill,
+            }}
+          />
         </div>
-      </SectionShell>
+      </div>
+
+      <div style={s.skeletonGrid}>
+        <div style={s.skeletonCard} />
+        <div style={s.skeletonCard} />
+        <div style={s.skeletonCard} />
+      </div>
     </div>
   );
 }
@@ -50,7 +68,7 @@ function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref,
       : s.statusCard;
 
   return (
-    <SectionShell style={toneStyle}>
+    <section style={{ ...s.stateCard, ...toneStyle }} dir="rtl">
       <div style={s.stateIcon}>
         {tone === "error" ? "⚠️" : tone === "empty" ? "📭" : "ℹ️"}
       </div>
@@ -71,7 +89,7 @@ function HomePageState({ title, text, tone = "neutral", actionLabel, actionHref,
           </button>
         ) : null
       ) : null}
-    </SectionShell>
+    </section>
   );
 }
 
@@ -81,7 +99,7 @@ export default function HomePage() {
   const [homeData, setHomeData] = useState({
     categories: [],
     featured_products: [],
-    featured_sellers: []
+    featured_sellers: [],
   });
 
   async function loadHome(signal) {
@@ -106,7 +124,7 @@ export default function HomePage() {
       setHomeData({
         categories: [],
         featured_products: [],
-        featured_sellers: []
+        featured_sellers: [],
       });
 
       setError(err?.message || "حدث خطأ أثناء تحميل الصفحة الرئيسية");
@@ -164,7 +182,6 @@ export default function HomePage() {
         )}
 
         <HomeTrustBar />
-        <PromoHero />
         <TrustSection />
         <SellCTA />
       </div>
@@ -175,44 +192,72 @@ export default function HomePage() {
 const s = {
   stack: {
     display: "grid",
-    gap: UI.spacing.pageGap
+    gap: UI.spacing.pageGap,
   },
 
-  heroSkeletonInner: {
+  skeletonHero: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    padding: "24px",
+    borderRadius: UI.radius.hero,
+    background: "linear-gradient(135deg, #f8fbff 0%, #f6f0e8 100%)",
+    border: "1px solid rgba(148,163,184,0.14)",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.06)",
+  },
+
+  skeletonGrid: {
+    display: "grid",
+    gap: "14px",
+  },
+
+  skeletonCard: {
+    minHeight: "150px",
+    borderRadius: UI.radius.xxl,
+    background: "linear-gradient(90deg, #f3efe6 0%, #ebe4d6 50%, #f3efe6 100%)",
+    backgroundSize: "200% 100%",
+    animation: "rahbaPulse 1.4s ease-in-out infinite",
   },
 
   heroSkeletonButtons: {
     display: "flex",
     gap: "10px",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    marginTop: "4px",
   },
 
   sectionHeadingWrap: {
     display: "grid",
-    gap: "8px"
+    gap: "8px",
+  },
+
+  stateCard: {
+    textAlign: "center",
+    borderRadius: UI.radius.xxl,
+    padding: "28px 18px",
+    display: "grid",
+    gap: "14px",
+    justifyItems: "center",
+    boxShadow: "0 16px 40px rgba(11,15,26,0.06)",
   },
 
   statusCard: {
-    textAlign: "center"
+    background: "#ffffff",
+    border: `1.5px solid ${UI.colors.border}`,
   },
 
   errorCard: {
-    textAlign: "center",
     border: `1.5px solid ${UI.colors.dangerBorder}`,
-    background: "#fff7f7"
+    background: "#fff7f7",
   },
 
   emptyCard: {
-    textAlign: "center",
     border: "1.5px solid #e5dcc9",
-    background: "#fffdfa"
+    background: "#fffdfa",
   },
 
   stateIcon: {
     fontSize: "32px",
-    lineHeight: 1
+    lineHeight: 1,
   },
 
   stateTitle: {
@@ -220,20 +265,21 @@ const s = {
     fontSize: "26px",
     lineHeight: 1.3,
     fontWeight: 900,
-    color: UI.colors.navy
+    color: UI.colors.navy,
   },
 
   stateText: {
     margin: 0,
     fontSize: UI.type.body,
     lineHeight: 1.9,
-    color: UI.colors.muted
+    color: UI.colors.muted,
+    maxWidth: "640px",
   },
 
   skeletonLine: {
     background: "linear-gradient(90deg, #f3efe6 0%, #ebe4d6 50%, #f3efe6 100%)",
     backgroundSize: "200% 100%",
     borderRadius: "12px",
-    animation: "rahbaPulse 1.4s ease-in-out infinite"
-  }
+    animation: "rahbaPulse 1.4s ease-in-out infinite",
+  },
 };

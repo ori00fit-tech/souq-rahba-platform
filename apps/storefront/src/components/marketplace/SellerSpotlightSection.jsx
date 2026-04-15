@@ -15,25 +15,37 @@ export default function SellerSpotlightSection({ sellers = [] }) {
   if (!items.length) return null;
 
   return (
-    <SectionShell>
+    <SectionShell style={s.shell}>
       <div style={s.headRow}>
-        <SectionHead
-          chip="SELLERS"
-          title="باعة ومتاجر مميزة"
-          subtitle="اكتشف متاجر نشيطة داخل رحبة وابدأ التسوق من بائعين واضحين"
-        />
-        <SectionActionLink to="/sellers">عرض الكل ←</SectionActionLink>
+        <div style={s.headContent}>
+          <SectionHead
+            chip="SELLERS"
+            title="باعة ومتاجر مميزة"
+            subtitle="اكتشف متاجر نشيطة داخل رحبة وابدأ التسوق من بائعين أوضح وأكثر موثوقية."
+          />
+
+          <div style={s.metaRow}>
+            <span style={s.metaChip}>متاجر نشيطة</span>
+            <span style={s.metaChip}>معلومات أوضح</span>
+            <span style={s.metaChip}>ثقة أفضل</span>
+          </div>
+        </div>
+
+        <div style={s.actionWrap}>
+          <SectionActionLink to="/sellers">عرض الكل ←</SectionActionLink>
+        </div>
       </div>
 
       <div style={s.grid}>
         {items.map((seller) => (
           <div
             key={seller.id || seller.slug || seller.name}
-            className="ui-card-soft"
             style={s.card}
           >
             <div style={s.cardTop}>
-              <div style={s.avatar}>{seller.name.slice(0, 1)}</div>
+              <div style={s.avatar}>
+                {String(seller.name || "R").trim().charAt(0).toUpperCase()}
+              </div>
 
               <div style={s.identity}>
                 <div style={s.nameRow}>
@@ -42,8 +54,8 @@ export default function SellerSpotlightSection({ sellers = [] }) {
                 </div>
 
                 <div style={s.meta}>
-                  <span>📍 {seller.city}</span>
-                  <span>•</span>
+                  {seller.city ? <span>📍 {seller.city}</span> : null}
+                  {seller.city ? <span>•</span> : null}
                   <span>⭐ {seller.rating || 0}</span>
                 </div>
               </div>
@@ -63,12 +75,16 @@ export default function SellerSpotlightSection({ sellers = [] }) {
               </div>
             </div>
 
+            <div style={s.cardNote}>
+              متجر داخل رحبة مع عرض أوضح للمنتجات والهوية والثقة.
+            </div>
+
             <Link
               to={seller.slug ? `/sellers/${seller.slug}` : "#"}
               style={{
                 ...s.storeBtn,
                 opacity: seller.slug ? 1 : 0.5,
-                pointerEvents: seller.slug ? "auto" : "none"
+                pointerEvents: seller.slug ? "auto" : "none",
               }}
             >
               عرض المتجر
@@ -81,18 +97,60 @@ export default function SellerSpotlightSection({ sellers = [] }) {
 }
 
 const s = {
+  shell: {
+    display: "grid",
+    gap: "18px",
+    background: "linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: `1px solid ${UI.colors.border}`,
+    boxShadow: "0 18px 42px rgba(11,15,26,0.05)",
+  },
+
   headRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
+    gap: "14px",
+    flexWrap: "wrap",
+  },
+
+  headContent: {
+    display: "grid",
     gap: "12px",
-    flexWrap: "wrap"
+    minWidth: 0,
+    flex: "1 1 520px",
+  },
+
+  actionWrap: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    minWidth: "fit-content",
+  },
+
+  metaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  metaChip: {
+    minHeight: "32px",
+    padding: "0 12px",
+    borderRadius: UI.radius.pill,
+    background: "#ffffff",
+    border: `1px solid ${UI.colors.border}`,
+    color: UI.colors.navy,
+    fontSize: UI.type.caption,
+    fontWeight: 800,
+    display: "inline-flex",
+    alignItems: "center",
+    boxShadow: "0 6px 18px rgba(11,15,26,0.04)",
   },
 
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-    gap: UI.spacing.cardGap
+    gap: UI.spacing.cardGap,
   },
 
   card: {
@@ -100,44 +158,48 @@ const s = {
     display: "grid",
     gap: UI.spacing.cardGap,
     border: `1px solid ${UI.colors.line}`,
-    background: UI.colors.softBg,
-    borderRadius: UI.radius.xl
+    background: "#ffffff",
+    borderRadius: UI.radius.xxl,
+    boxShadow: "0 12px 28px rgba(11,15,26,0.05)",
   },
 
   cardTop: {
     display: "flex",
     gap: "12px",
-    alignItems: "center"
+    alignItems: "center",
   },
 
   avatar: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "14px",
-    background: UI.colors.softBlue,
+    width: "52px",
+    height: "52px",
+    borderRadius: "16px",
+    background: "linear-gradient(135deg, #eef6ff 0%, #eafbf7 100%)",
     color: UI.colors.navy,
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
     fontSize: "18px",
-    flexShrink: 0
+    flexShrink: 0,
+    border: `1px solid ${UI.colors.border}`,
   },
 
   identity: {
     display: "grid",
-    gap: "6px"
+    gap: "6px",
+    minWidth: 0,
   },
 
   nameRow: {
     display: "flex",
     gap: "8px",
     alignItems: "center",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
 
   name: {
     color: UI.colors.ink,
-    fontSize: "16px"
+    fontSize: "16px",
+    lineHeight: 1.5,
   },
 
   verified: {
@@ -147,7 +209,7 @@ const s = {
     color: UI.colors.successText,
     border: `1px solid ${UI.colors.successBorder}`,
     fontSize: "11px",
-    fontWeight: 900
+    fontWeight: 900,
   },
 
   meta: {
@@ -156,45 +218,55 @@ const s = {
     flexWrap: "wrap",
     color: UI.colors.muted,
     fontSize: UI.type.caption,
-    fontWeight: 700
+    fontWeight: 700,
   },
 
   statsRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "8px"
+    gap: "8px",
   },
 
   statBox: {
     display: "grid",
     gap: "4px",
     padding: "10px",
-    borderRadius: UI.radius.md,
-    background: UI.colors.white,
+    borderRadius: UI.radius.lg,
+    background: UI.colors.softBg,
     border: `1px solid ${UI.colors.line}`,
-    textAlign: "center"
+    textAlign: "center",
   },
 
   statValue: {
     color: UI.colors.navy,
     fontSize: "16px",
-    fontWeight: 900
+    fontWeight: 900,
   },
 
   statLabel: {
     color: UI.colors.muted,
     fontSize: UI.type.caption,
-    fontWeight: 700
+    fontWeight: 700,
+  },
+
+  cardNote: {
+    color: UI.colors.muted,
+    fontSize: UI.type.bodySm,
+    lineHeight: 1.8,
   },
 
   storeBtn: {
     textDecoration: "none",
     textAlign: "center",
-    padding: "12px 14px",
-    borderRadius: UI.radius.md,
-    background: UI.colors.white,
-    border: `1px solid ${UI.colors.line}`,
-    color: UI.colors.navy,
-    fontWeight: 900
-  }
+    minHeight: "44px",
+    padding: "0 14px",
+    borderRadius: UI.radius.lg,
+    background: "linear-gradient(135deg, #0d2c54 0%, #173b74 100%)",
+    color: "#ffffff",
+    fontWeight: 900,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 10px 24px rgba(13,44,84,0.14)",
+  },
 };
