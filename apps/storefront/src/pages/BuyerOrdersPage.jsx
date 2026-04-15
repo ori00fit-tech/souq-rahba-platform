@@ -79,6 +79,34 @@ function getStatusMeta(status) {
   }
 }
 
+function getOrderStatusRank(status) {
+  switch (String(status || "").toLowerCase()) {
+    case "pending":
+      return 1;
+    case "confirmed":
+    case "processing":
+      return 2;
+    case "shipped":
+      return 3;
+    case "delivered":
+      return 4;
+    case "cancelled":
+      return -1;
+    default:
+      return 0;
+  }
+}
+
+function getLastOrderDate(items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  const sorted = [...items].sort((a, b) => {
+    const da = new Date(a.created_at || 0).getTime();
+    const db = new Date(b.created_at || 0).getTime();
+    return db - da;
+  });
+  return sorted[0]?.created_at || null;
+}
+
 export default function BuyerOrdersPage() {
   const navigate = useNavigate();
   const { currentUser, authLoading, currency, language } = useApp();
@@ -100,6 +128,46 @@ export default function BuyerOrdersPage() {
   const buyerId = useMemo(() => {
     return currentUser?.id || currentUser?.user_id || null;
   }, [currentUser]);
+
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => {
+        const da = new Date(a.created_at || 0).getTime();
+        const db = new Date(b.created_at || 0).getTime();
+        return db - da;
+      })
+      .slice(0, 4);
+  }, [orders]);
+
+  const accountStats = useMemo(() => {
+    const totalOrders = orders.length;
+    const activeOrders = orders.filter((order) => {
+      const status = String(order.order_status || "").toLowerCase();
+      return ["pending", "confirmed", "processing", "shipped"].includes(status);
+    }).length;
+
+    const deliveredOrders = orders.filter(
+      (order) => String(order.order_status || "").toLowerCase() === "delivered"
+    ).length;
+
+    const cancelledOrders = orders.filter(
+      (order) => String(order.order_status || "").toLowerCase() === "cancelled"
+    ).length;
+
+    const totalSpent = orders.reduce(
+      (sum, order) => sum + Number(order.total_mad || 0),
+      0
+    );
+
+    return {
+      totalOrders,
+      activeOrders,
+      deliveredOrders,
+      cancelledOrders,
+      totalSpent,
+      lastOrderDate: getLastOrderDate(orders)
+    };
+  }, [orders]);
 
   async function loadAccountOrders() {
     const requestId = ++requestIdRef.current;
@@ -202,11 +270,28 @@ export default function BuyerOrdersPage() {
       <section className="container section-space" dir="rtl">
         <div style={s.stack}>
           <SectionShell style={s.heroShell}>
-            <div className="ui-chip">RAHBA GUEST ORDERS</div>
+            <div style={s.heroTopRow}>
+              <div className="ui-chip">RAHBA ACCOUNT</div>
+              <div style={s.heroKicker}>Guest account mode</div>
+            </div>
+
+            <div style={s.accountNav}>
+              <span style={{ ...s.accountNavItem, ...s.accountNavItemActive }}>حساب الزائر</span>
+              <Link to="/track/RB-DEMO" style={s.accountNavLink}>التتبع</Link>
+              <Link to="/products" style={s.accountNavLink}>التسوق</Link>
+              <Link to="/auth" style={s.accountNavLink}>تسجيل الدخول</Link>
+            </div>
+
             <SectionHead
-              title="طلباتك الأخيرة"
-              subtitle="هذه الطلبات محفوظة محلياً على هذا الجهاز فقط."
+              title="حساب الزائر"
+              subtitle="راجع آخر الطلبات المحفوظة على هذا الجهاز، أو سجّل الدخول لتجربة حساب كاملة وأكثر ثباتاً عبر الأجهزة."
             />
+
+            <div style={s.heroTrustRow}>
+              <span style={s.heroTrustItem}>طلبات محفوظة محلياً</span>
+              <span style={s.heroTrustItem}>نسخ رقم الطلب</span>
+              <span style={s.heroTrustItem}>دخول أسرع لاحقاً</span>
+            </div>
           </SectionShell>
 
           <SectionShell>
@@ -214,10 +299,33 @@ export default function BuyerOrdersPage() {
               <strong style={s.infoTitle}>مهم</strong>
               <span style={s.infoText}>
                 في وضع الزائر، نحفظ رقم الطلب وبعض المعلومات الأساسية فقط على هذا الجهاز.
-                التفاصيل الكاملة للطلب تتطلب تسجيل الدخول أو الرجوع للتواصل عبر رقم الطلب.
+                التفاصيل الكاملة للطلب والمزامنة بين الأجهزة تتطلب تسجيل الدخول.
               </span>
             </div>
           </SectionShell>
+
+          <div style={s.quickGrid}>
+            <SectionShell style={s.quickCardShell}>
+              <div style={s.quickCardValue}>{guestOrders.length}</div>
+              <div style={s.quickCardLabel}>طلبات محفوظة</div>
+            </SectionShell>
+
+            <SectionShell style={s.quickCardShell}>
+              <div style={s.quickCardValue}>
+                {guestOrders[0]?.created_at ? formatDateTime(guestOrders[0]?.created_at, locale) : "—"}
+              </div>
+              <div style={s.quickCardLabel}>آخر نشاط</div>
+            </SectionShell>
+          </div>
+
+          <div style={s.topActions}>
+            <Link to="/auth" className="btn btn-secondary">
+              تسجيل الدخول
+            </Link>
+            <Link to="/products" className="btn btn-primary">
+              متابعة التسوق
+            </Link>
+          </div>
 
           {copyMessage ? <div className="message-box">{copyMessage}</div> : null}
 
@@ -230,9 +338,14 @@ export default function BuyerOrdersPage() {
                   عند إتمام طلب كزائر، سيتم حفظه هنا تلقائياً لتتمكن من الرجوع إليه لاحقاً.
                 </p>
 
-                <Link to="/products" className="btn btn-primary full-width">
-                  تصفح المنتجات
-                </Link>
+                <div style={s.emptyActions}>
+                  <Link to="/products" className="btn btn-primary full-width">
+                    تصفح المنتجات
+                  </Link>
+                  <Link to="/auth" className="btn btn-secondary full-width">
+                    إنشاء حساب أو تسجيل الدخول
+                  </Link>
+                </div>
               </div>
             </SectionShell>
           ) : (
@@ -299,11 +412,72 @@ export default function BuyerOrdersPage() {
     <section className="container section-space" dir="rtl">
       <div style={s.stack}>
         <SectionShell style={s.heroShell}>
-          <div className="ui-chip">RAHBA ORDERS</div>
+          <div style={s.heroTopRow}>
+            <div className="ui-chip">RAHBA ACCOUNT</div>
+            <div style={s.heroKicker}>Orders & account hub</div>
+          </div>
+
+          <div style={s.accountNav}>
+            <span style={{ ...s.accountNavItem, ...s.accountNavItemActive }}>حسابي</span>
+            <span style={s.accountNavItem}>طلباتي</span>
+            <Link to="/products" style={s.accountNavLink}>التسوق</Link>
+            <button type="button" onClick={loadAccountOrders} style={s.accountNavButton}>
+              تحديث
+            </button>
+          </div>
+
           <SectionHead
-            title="طلباتي"
-            subtitle="تتبع حالة طلباتك، واطلع على التفاصيل وأرقام التتبع إن وجدت."
+            title={currentUser?.full_name ? `مرحباً، ${currentUser.full_name}` : "حسابي"}
+            subtitle="لوحة حسابك لمراجعة الطلبات، تتبع حالتها، والرجوع بسرعة إلى أهم الإجراءات داخل تجربة أوضح وأكثر احترافية."
           />
+
+          <div style={s.heroTrustRow}>
+            <span style={s.heroTrustItem}>طلباتك في مكان واحد</span>
+            <span style={s.heroTrustItem}>تتبع أوضح</span>
+            <span style={s.heroTrustItem}>وصول أسرع للتفاصيل</span>
+          </div>
+        </SectionShell>
+
+        <div style={s.quickGrid}>
+          <SectionShell style={s.quickCardShell}>
+            <div style={s.quickCardValue}>{accountStats.totalOrders}</div>
+            <div style={s.quickCardLabel}>إجمالي الطلبات</div>
+          </SectionShell>
+
+          <SectionShell style={s.quickCardShell}>
+            <div style={s.quickCardValue}>{accountStats.activeOrders}</div>
+            <div style={s.quickCardLabel}>طلبات جارية</div>
+          </SectionShell>
+
+          <SectionShell style={s.quickCardShell}>
+            <div style={s.quickCardValue}>{accountStats.deliveredOrders}</div>
+            <div style={s.quickCardLabel}>طلبات مكتملة</div>
+          </SectionShell>
+
+          <SectionShell style={s.quickCardShell}>
+            <div style={s.quickCardValue}>
+              {formatMoney(accountStats.totalSpent, currency, locale)}
+            </div>
+            <div style={s.quickCardLabel}>إجمالي الإنفاق</div>
+          </SectionShell>
+        </div>
+
+        <SectionShell>
+          <div style={s.accountSummaryGrid}>
+            <div className="ui-card-soft" style={s.accountSummaryCard}>
+              <div style={s.accountSummaryTitle}>آخر نشاط</div>
+              <div style={s.accountSummaryText}>
+                {accountStats.lastOrderDate
+                  ? formatDateTime(accountStats.lastOrderDate, locale)
+                  : "لا يوجد نشاط بعد"}
+              </div>
+            </div>
+
+            <div className="ui-card-soft" style={s.accountSummaryCard}>
+              <div style={s.accountSummaryTitle}>الطلبات الملغاة</div>
+              <div style={s.accountSummaryText}>{accountStats.cancelledOrders}</div>
+            </div>
+          </div>
         </SectionShell>
 
         <div style={s.topActions}>
@@ -315,6 +489,10 @@ export default function BuyerOrdersPage() {
           >
             {loading ? "جاري التحديث..." : "تحديث الطلبات"}
           </button>
+
+          <Link to="/products" className="btn btn-primary">
+            متابعة التسوق
+          </Link>
         </div>
 
         {message ? <div className="message-box">{message}</div> : null}
@@ -326,87 +504,147 @@ export default function BuyerOrdersPage() {
               <div style={s.emptyIcon}>📦</div>
               <h3 style={s.emptyTitle}>لا توجد طلبات بعد</h3>
               <p style={s.emptyText}>
-                بعد إتمام أول عملية شراء من حسابك، ستظهر طلباتك هنا.
+                بعد إتمام أول عملية شراء من حسابك، ستظهر طلباتك هنا مع حالة كل طلب وتفاصيله.
               </p>
 
-              <Link to="/products" className="btn btn-primary full-width">
-                تصفح المنتجات
-              </Link>
+              <div style={s.emptyActions}>
+                <Link to="/products" className="btn btn-primary full-width">
+                  تصفح المنتجات
+                </Link>
+              </div>
             </div>
           </SectionShell>
         ) : (
-          <SectionShell>
-            <SectionHead
-              chip="ACCOUNT ORDERS"
-              title="سجل الطلبات"
-              subtitle="راجع الطلبات السابقة، انسخ رقم الطلب، أو ادخل إلى التفاصيل."
-            />
+          <>
+            <SectionShell>
+              <SectionHead
+                chip="RECENT ORDERS"
+                title="آخر الطلبات"
+                subtitle="أقرب الطلبات الحديثة للوصول السريع إلى التفاصيل."
+              />
 
-            <div style={s.list}>
-              {orders.map((order) => {
-                const status = getStatusMeta(order.order_status);
+              <div style={s.list}>
+                {recentOrders.map((order) => {
+                  const status = getStatusMeta(order.order_status);
 
-                return (
-                  <article key={order.id} className="ui-card-soft" style={s.orderCard}>
-                    <div style={s.orderHead}>
-                      <div style={s.orderTopInfo}>
-                        <div style={s.orderNumber}>{order.order_number || "—"}</div>
-                        <div style={s.orderDate}>{formatDateTime(order.created_at, locale)}</div>
+                  return (
+                    <article key={order.id} className="ui-card-soft" style={s.orderCard}>
+                      <div style={s.orderHead}>
+                        <div style={s.orderTopInfo}>
+                          <div style={s.orderNumber}>{order.order_number || "—"}</div>
+                          <div style={s.orderDate}>{formatDateTime(order.created_at, locale)}</div>
+                        </div>
+
+                        <div
+                          style={{
+                            ...s.statusPill,
+                            background: status.bg,
+                            color: status.color,
+                            borderColor: status.border
+                          }}
+                        >
+                          {status.label}
+                        </div>
                       </div>
 
-                      <div
-                        style={{
-                          ...s.statusPill,
-                          background: status.bg,
-                          color: status.color,
-                          borderColor: status.border
-                        }}
-                      >
-                        {status.label}
-                      </div>
-                    </div>
-
-                    <div style={s.orderBody}>
-                      <div style={s.infoRow}>
-                        <span style={s.infoLabel}>البائع</span>
-                        <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
-                      </div>
-
-                      <div style={s.infoRow}>
-                        <span style={s.infoLabel}>عدد المنتجات</span>
-                        <strong style={s.infoValue}>{Number(order.items_count || 0)}</strong>
-                      </div>
-
-                      <div style={s.infoRow}>
-                        <span style={s.infoLabel}>الإجمالي</span>
-                        <strong style={s.priceValue}>
+                      <div style={s.orderMetaStrip}>
+                        <span style={s.orderMetaChip}>{order.seller_name || "RAHBA"}</span>
+                        <span style={s.orderMetaChip}>{Number(order.items_count || 0)} منتج</span>
+                        <span style={s.orderMetaChip}>
                           {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
-                        </strong>
+                        </span>
                       </div>
-                    </div>
 
-                    <div style={s.actions}>
+                      <div style={s.orderBody}>
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>البائع</span>
+                          <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>عدد المنتجات</span>
+                          <strong style={s.infoValue}>{Number(order.items_count || 0)}</strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>الإجمالي</span>
+                          <strong style={s.priceValue}>
+                            {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div style={s.actions}>
+                        <button
+                          type="button"
+                          className="btn btn-primary full-width"
+                          onClick={() => navigate(`/my-orders/${order.id}`)}
+                        >
+                          فتح الطلب
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary full-width"
+                          onClick={() => copyText(order.order_number || "")}
+                        >
+                          نسخ رقم الطلب
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </SectionShell>
+
+            {orders.length > 4 ? (
+              <SectionShell>
+                <SectionHead
+                  chip="ORDER HISTORY"
+                  title="كل الطلبات"
+                  subtitle="السجل الكامل لطلباتك داخل رحبة."
+                />
+
+                <div style={s.compactList}>
+                  {orders.map((order) => {
+                    const status = getStatusMeta(order.order_status);
+
+                    return (
                       <button
+                        key={`compact-${order.id}`}
                         type="button"
-                        className="btn btn-primary full-width"
                         onClick={() => navigate(`/my-orders/${order.id}`)}
+                        style={s.compactOrderRow}
                       >
-                        عرض التفاصيل
-                      </button>
+                        <div style={s.compactOrderMain}>
+                          <div style={s.compactOrderNumber}>{order.order_number || "—"}</div>
+                          <div style={s.compactOrderMeta}>
+                            {order.seller_name || "RAHBA"} · {formatDateTime(order.created_at, locale)}
+                          </div>
+                        </div>
 
-                      <button
-                        type="button"
-                        className="btn btn-secondary full-width"
-                        onClick={() => copyText(order.order_number || "")}
-                      >
-                        نسخ رقم الطلب
+                        <div style={s.compactOrderSide}>
+                          <div
+                            style={{
+                              ...s.compactStatusPill,
+                              background: status.bg,
+                              color: status.color,
+                              borderColor: status.border
+                            }}
+                          >
+                            {status.label}
+                          </div>
+                          <strong style={s.compactPrice}>
+                            {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
+                          </strong>
+                        </div>
                       </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </SectionShell>
+                    );
+                  })}
+                </div>
+              </SectionShell>
+            ) : null}
+          </>
         )}
       </div>
     </section>
@@ -420,14 +658,159 @@ const s = {
   },
 
   heroShell: {
+    position: "relative",
+    overflow: "hidden",
     background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
+      "linear-gradient(135deg, rgba(23,59,116,0.07) 0%, rgba(20,184,166,0.08) 100%)",
+    border: "1px solid #dfe7f3",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.06)"
+  },
+
+  heroTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+
+  heroKicker: {
+    color: "#0f766e",
+    fontWeight: 800,
+    fontSize: UI.type.bodySm
+  },
+
+  heroTrustRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  heroTrustItem: {
+    minHeight: "30px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.74)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+
+  accountNav: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    alignItems: "center"
+  },
+
+  accountNavItem: {
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: UI.type.bodySm,
+    fontWeight: 700
+  },
+
+  accountNavItemActive: {
+    background: "#173b74",
+    border: "1px solid #173b74",
+    color: "#ffffff"
+  },
+
+  accountNavLink: {
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    textDecoration: "none",
+    fontSize: UI.type.bodySm,
+    fontWeight: 700
+  },
+
+  accountNavButton: {
+    minHeight: "34px",
+    padding: "0 12px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.58)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: UI.type.bodySm,
+    fontWeight: 700,
+    cursor: "pointer"
+  },
+
+  quickGrid: {
+    display: "grid",
+    gap: "14px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))"
+  },
+
+  quickCardShell: {
+    textAlign: "center",
+    gap: "10px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
+  },
+
+  quickCardValue: {
+    color: UI.colors.navy,
+    fontWeight: 900,
+    fontSize: "24px",
+    lineHeight: 1.4
+  },
+
+  quickCardLabel: {
+    color: UI.colors.muted,
+    fontWeight: 700,
+    fontSize: UI.type.bodySm
+  },
+
+  accountSummaryGrid: {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))"
+  },
+
+  accountSummaryCard: {
+    padding: "14px",
+    display: "grid",
+    gap: "6px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
+  },
+
+  accountSummaryTitle: {
+    color: UI.colors.muted,
+    fontWeight: 700,
+    fontSize: UI.type.bodySm
+  },
+
+  accountSummaryText: {
+    color: UI.colors.navy,
+    fontWeight: 900,
+    lineHeight: 1.8
   },
 
   topActions: {
     display: "flex",
-    justifyContent: "flex-start"
+    justifyContent: "flex-start",
+    gap: "10px",
+    flexWrap: "wrap"
   },
 
   infoCard: {
@@ -507,6 +890,25 @@ const s = {
     fontSize: UI.type.bodySm
   },
 
+  orderMetaStrip: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  orderMetaChip: {
+    minHeight: "28px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "#ffffff",
+    border: "1px solid #e7ddcf",
+    color: "#7a6f63",
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 700
+  },
+
   orderBody: {
     display: "grid",
     gap: "10px"
@@ -541,14 +943,81 @@ const s = {
     gap: "10px"
   },
 
+  compactList: {
+    display: "grid",
+    gap: "10px"
+  },
+
+  compactOrderRow: {
+    width: "100%",
+    border: "1px solid #eadfce",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap",
+    padding: "14px",
+    textAlign: "right",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)",
+    transition: "transform 0.18s ease, box-shadow 0.18s ease"
+  },
+
+  compactOrderMain: {
+    display: "grid",
+    gap: "4px"
+  },
+
+  compactOrderNumber: {
+    color: UI.colors.navy,
+    fontWeight: 900
+  },
+
+  compactOrderMeta: {
+    color: UI.colors.muted,
+    fontWeight: 700,
+    fontSize: UI.type.bodySm
+  },
+
+  compactOrderSide: {
+    display: "grid",
+    gap: "8px",
+    justifyItems: "end"
+  },
+
+  compactStatusPill: {
+    minHeight: "30px",
+    padding: "0 10px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: UI.radius.pill,
+    border: "1px solid transparent",
+    fontWeight: 800,
+    fontSize: "12px"
+  },
+
+  compactPrice: {
+    color: UI.colors.navy,
+    fontWeight: 900
+  },
+
   emptyCard: {
     display: "grid",
     gap: "12px",
-    textAlign: "center"
+    textAlign: "center",
+    padding: "8px 0"
+  },
+
+  emptyActions: {
+    display: "grid",
+    gap: "10px"
   },
 
   emptyIcon: {
-    fontSize: "40px"
+    fontSize: "48px"
   },
 
   emptyTitle: {
