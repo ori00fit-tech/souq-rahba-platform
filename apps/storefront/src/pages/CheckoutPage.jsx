@@ -673,23 +673,42 @@ export default function CheckoutPage() {
     <section className="container section-space" dir="rtl">
       <div style={s.stack}>
         <SectionShell style={s.heroShell}>
-          <div className="ui-chip">RAHBA CHECKOUT</div>
+          <div style={s.heroTopRow}>
+            <div className="ui-chip">RAHBA CHECKOUT</div>
+            <div style={s.heroKicker}>Conversion-first checkout</div>
+          </div>
+
           <SectionHead
             title="إتمام الطلب"
-            subtitle="أدخل بيانات التوصيل مرة واحدة، وسنقسم السلة حسب البائعين تلقائياً."
+            subtitle="أدخل بيانات التوصيل مرة واحدة، وسنقسم السلة حسب البائعين تلقائياً مع إبقاء العملية واضحة وسهلة."
           />
+
+          <div style={s.heroTrustRow}>
+            <span style={s.heroTrustItem}>دفع عند الاستلام</span>
+            <span style={s.heroTrustItem}>شحن حسب البائع</span>
+            <span style={s.heroTrustItem}>إجمالي واضح</span>
+          </div>
 
           {numSellers > 1 ? (
             <div className="ui-card-soft" style={s.splitNotice}>
-              <strong style={s.splitTitle}>📦 السلة متعددة الباعة</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>📦</div>
+                <strong style={s.splitTitle}>السلة متعددة الباعة</strong>
+              </div>
               <div style={s.splitText}>
-                سيتم إنشاء <strong>{numSellers} طلبات</strong> مستقلة، طلب لكل بائع.
+                سيتم إنشاء <strong>{numSellers} طلبات</strong> مستقلة، طلب لكل بائع،
+                مع إظهار الشحن والإجمالي بوضوح لكل جزء.
               </div>
             </div>
           ) : (
             <div className="ui-card-soft" style={s.singleNotice}>
-              <strong style={s.splitTitle}>طلب واحد</strong>
-              <div style={s.splitText}>كل المنتجات الحالية من نفس البائع.</div>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>✅</div>
+                <strong style={s.splitTitle}>طلب واحد</strong>
+              </div>
+              <div style={s.splitText}>
+                كل المنتجات الحالية من نفس البائع، لذلك الإتمام هنا أبسط وأسرع.
+              </div>
             </div>
           )}
         </SectionShell>
@@ -697,9 +716,13 @@ export default function CheckoutPage() {
         {!currentUser ? (
           <SectionShell>
             <div className="ui-card-soft" style={s.guestInfo}>
-              <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>👤</div>
+                <strong style={s.guestTitle}>يمكنك الطلب كزائر</strong>
+              </div>
               <span style={s.guestText}>
-                لست بحاجة إلى حساب لإتمام الطلب، فقط أدخل معلومات التوصيل بشكل صحيح.
+                لست بحاجة إلى حساب لإتمام الطلب، فقط أدخل معلومات التوصيل بشكل صحيح،
+                وسيتم حفظ الطلبات على هذا الجهاز للرجوع إليها لاحقاً.
               </span>
             </div>
           </SectionShell>
@@ -711,7 +734,10 @@ export default function CheckoutPage() {
         {invalidSellerGroups.length > 0 ? (
           <SectionShell>
             <div className="ui-card-soft" style={s.invalidSellerBox}>
-              <strong style={s.invalidSellerTitle}>منتجات غير صالحة للإتمام</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>⚠️</div>
+                <strong style={s.invalidSellerTitle}>منتجات غير صالحة للإتمام</strong>
+              </div>
               <div style={s.invalidSellerText}>
                 توجد منتجات داخل السلة بدون بائع صالح. ارجع إلى السلة واحذفها أو أعد إضافتها من صفحاتها الرسمية.
               </div>
@@ -726,6 +752,13 @@ export default function CheckoutPage() {
               title="بيانات التوصيل"
               subtitle="أدخل معلوماتك بدقة لاختيار الشحن وإنشاء الطلب بشكل صحيح."
             />
+
+            <div style={s.formTrustBox}>
+              <div style={s.formTrustTitle}>معلومات واضحة = إتمام أسرع</div>
+              <div style={s.formTrustText}>
+                اكتب الاسم، الهاتف، المدينة، والعنوان بشكل دقيق لتجنب أي تأخير في الشحن أو التأكيد.
+              </div>
+            </div>
 
             <form style={s.formGrid} onSubmit={handleSubmit}>
               <label className="ui-label">
@@ -788,6 +821,10 @@ export default function CheckoutPage() {
                   <input type="radio" checked readOnly />
                   <span>الدفع عند الاستلام (Cash on Delivery)</span>
                 </label>
+
+                <div style={s.paymentNote}>
+                  لن يتم طلب أداء إلكتروني الآن. ستؤكد الطلب أولاً، ثم يتم التنسيق معك حسب البائع والشحن.
+                </div>
               </div>
 
               <button
@@ -814,6 +851,13 @@ export default function CheckoutPage() {
               title="ملخص السلة"
               subtitle="راجع كل بائع، اختر الشحن المناسب، وتأكد من الإجمالي قبل الإرسال."
             />
+
+            <div style={s.summaryTrustBox}>
+              <div style={s.summaryTrustTitle}>آخر مراجعة قبل التأكيد</div>
+              <div style={s.summaryTrustText}>
+                راجع الشحن المختار لكل بائع، ثم تأكد من الإجمالي النهائي قبل الضغط على زر التأكيد.
+              </div>
+            </div>
 
             <div style={s.groupList}>
               {ordersGrouped.map((group) => {
@@ -979,9 +1023,62 @@ const s = {
   },
 
   heroShell: {
+    position: "relative",
+    overflow: "hidden",
     background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
+      "linear-gradient(135deg, rgba(23,59,116,0.07) 0%, rgba(20,184,166,0.08) 100%)",
+    border: "1px solid #dfe7f3",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.06)"
+  },
+
+  heroTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+
+  heroKicker: {
+    color: "#0f766e",
+    fontWeight: 800,
+    fontSize: UI.type.bodySm
+  },
+
+  heroTrustRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  heroTrustItem: {
+    minHeight: "30px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.74)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+
+  noticeHead: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+
+  noticeIcon: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.72)",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "16px"
   },
 
   splitNotice: {
@@ -1012,9 +1109,58 @@ const s = {
   },
 
   guestInfo: {
+    padding: "16px",
+    display: "grid",
+    gap: "8px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
+  },
+
+  formTrustBox: {
     padding: "14px",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%)",
+    border: "1px solid #d3e4f8",
     display: "grid",
     gap: "6px"
+  },
+
+  formTrustTitle: {
+    color: UI.colors.navy,
+    fontWeight: 900
+  },
+
+  formTrustText: {
+    color: "#5b6470",
+    lineHeight: 1.8,
+    fontSize: UI.type.bodySm
+  },
+
+  paymentNote: {
+    color: "#5b6470",
+    lineHeight: 1.8,
+    fontSize: UI.type.bodySm
+  },
+
+  summaryTrustBox: {
+    padding: "14px",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #fffaf1 0%, #fffdf7 100%)",
+    border: "1px solid #f3d7a4",
+    display: "grid",
+    gap: "6px"
+  },
+
+  summaryTrustTitle: {
+    color: UI.colors.navy,
+    fontWeight: 900
+  },
+
+  summaryTrustText: {
+    color: "#5b6470",
+    lineHeight: 1.8,
+    fontSize: UI.type.bodySm
   },
 
   guestTitle: {
