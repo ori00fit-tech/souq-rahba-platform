@@ -159,13 +159,17 @@ export default function CartPage() {
           <SectionShell>
             <div style={s.emptyCard}>
               <div style={s.emptyIcon}>🛒</div>
+              <div className="ui-chip">READY TO START</div>
               <h3 style={s.emptyTitle}>لم تضف أي منتج بعد</h3>
               <p style={s.emptyText}>
-                تصفح المنتجات المناسبة لك وابدأ بإضافة أول منتج إلى السلة.
+                تصفح المنتجات المناسبة لك، أضف ما تحتاجه إلى السلة، ثم عد لإتمام
+                الطلب بسرعة ووضوح.
               </p>
-              <Link to="/products" className="btn btn-primary full-width">
-                تصفح المنتجات
-              </Link>
+              <div style={s.emptyActions}>
+                <Link to="/products" className="btn btn-primary full-width">
+                  تصفح المنتجات
+                </Link>
+              </div>
             </div>
           </SectionShell>
         </div>
@@ -177,16 +181,26 @@ export default function CartPage() {
     <section className="container section-space" dir="rtl">
       <div style={s.stack}>
         <SectionShell style={s.heroShell}>
-          <div className="ui-chip">RAHBA CART</div>
+          <div style={s.heroTopRow}>
+            <div className="ui-chip">RAHBA CART</div>
+            <div style={s.heroKicker}>Premium cart review</div>
+          </div>
+
           <SectionHead
             title="سلة التسوق"
-            subtitle="راجع المنتجات، عدّل الكميات، ثم أكمل الطلب بسهولة."
+            subtitle="راجع المنتجات، عدّل الكميات، وتأكد من الجاهزية قبل الانتقال إلى الإتمام."
           />
 
           <div style={s.metaRow}>
             <span className="ui-chip">{displayItemCount} عنصر</span>
             <span className="ui-chip">{sellerCount} بائع</span>
             <span className="ui-chip">{formatMoney(subtotal, currency, locale)}</span>
+          </div>
+
+          <div style={s.heroTrustRow}>
+            <span style={s.heroTrustItem}>مراجعة سريعة</span>
+            <span style={s.heroTrustItem}>إتمام أوضح</span>
+            <span style={s.heroTrustItem}>تجربة شراء أفضل</span>
           </div>
         </SectionShell>
 
@@ -195,7 +209,10 @@ export default function CartPage() {
         {cartIssues.length > 0 ? (
           <SectionShell>
             <div className="ui-card-soft" style={s.warningBox}>
-              <strong style={s.warningTitle}>راجع السلة قبل الإتمام</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>⚠️</div>
+                <strong style={s.warningTitle}>راجع السلة قبل الإتمام</strong>
+              </div>
               <ul style={s.warningList}>
                 {cartIssues.map((issue, index) => (
                   <li key={`${issue}-${index}`}>{issue}</li>
@@ -208,19 +225,26 @@ export default function CartPage() {
         {sellerCount > 1 ? (
           <SectionShell>
             <div className="ui-card-soft" style={s.splitNotice}>
-              <strong style={s.splitTitle}>📦 السلة متعددة الباعة</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>📦</div>
+                <strong style={s.splitTitle}>السلة متعددة الباعة</strong>
+              </div>
               <div style={s.splitText}>
                 سيتم تقسيم هذه السلة إلى <strong>{sellerCount} طلبات</strong> عند إتمام الشراء،
-                طلب مستقل لكل بائع.
+                مع إنشاء طلب مستقل لكل بائع لتسهيل التتبع والمعالجة.
               </div>
             </div>
           </SectionShell>
         ) : (
           <SectionShell>
             <div className="ui-card-soft" style={s.singleNotice}>
-              <strong style={s.splitTitle}>طلب واحد</strong>
+              <div style={s.noticeHead}>
+                <div style={s.noticeIcon}>✅</div>
+                <strong style={s.splitTitle}>طلب واحد</strong>
+              </div>
               <div style={s.splitText}>
-                كل المنتجات الحالية من نفس البائع، وسيتم إنشاء طلب واحد فقط.
+                كل المنتجات الحالية من نفس البائع، لذلك سيتم إنشاء طلب واحد فقط
+                بشكل أبسط وأوضح.
               </div>
             </div>
           </SectionShell>
@@ -232,11 +256,15 @@ export default function CartPage() {
               <SectionShell key={`${group.seller_id || group.seller_name}`}>
                 <div style={s.sellerHeader}>
                   <div>
+                    <div style={s.sellerEyebrow}>البائع</div>
                     <div style={s.sellerName}>{group.seller_name}</div>
                     <div style={s.sellerMeta}>{group.items.length} منتج</div>
                   </div>
-                  <div style={s.sellerSubtotal}>
-                    {formatMoney(group.subtotal, currency, locale)}
+                  <div style={s.sellerSubtotalWrap}>
+                    <div style={s.sellerEyebrow}>المجموع</div>
+                    <div style={s.sellerSubtotal}>
+                      {formatMoney(group.subtotal, currency, locale)}
+                    </div>
                   </div>
                 </div>
 
@@ -252,8 +280,11 @@ export default function CartPage() {
                         <div style={s.itemTop}>
                           <div style={s.itemInfo}>
                             <div style={s.itemTitle}>{item.name}</div>
-                            <div style={s.itemMeta}>
-                              {item.city ? item.city : group.seller_name}
+                            <div style={s.itemMetaRow}>
+                              <span style={s.itemMetaBadge}>{group.seller_name}</span>
+                              <span style={s.itemMetaBadge}>
+                                {item.city ? item.city : "المغرب"}
+                              </span>
                             </div>
                           </div>
 
@@ -365,6 +396,13 @@ export default function CartPage() {
                 </div>
               </div>
 
+              <div style={s.summaryTrustBox}>
+                <div style={s.summaryTrustTitle}>جاهز للانتقال إلى الإتمام</div>
+                <div style={s.summaryTrustText}>
+                  راجع السلة، تأكد من الكميات، ثم أكمل الطلب بخطوات واضحة وسريعة.
+                </div>
+              </div>
+
               <button
                 type="button"
                 onClick={goToCheckout}
@@ -392,23 +430,77 @@ const s = {
   },
 
   heroShell: {
+    position: "relative",
+    overflow: "hidden",
     background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
+      "linear-gradient(135deg, rgba(23,59,116,0.07) 0%, rgba(20,184,166,0.08) 100%)",
+    border: "1px solid #dfe7f3",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.06)",
   },
 
   metaRow: {
     display: "flex",
     gap: "8px",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+  },
+
+  heroTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+
+  heroKicker: {
+    color: "#0f766e",
+    fontWeight: 800,
+    fontSize: UI.type.bodySm,
+  },
+
+  heroTrustRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  heroTrustItem: {
+    minHeight: "30px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.74)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 800,
+  },
+
+  noticeHead: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+
+  noticeIcon: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "999px",
+    background: "rgba(255,255,255,0.72)",
+    display: "grid",
+    placeItems: "center",
+    fontSize: "16px",
   },
 
   warningBox: {
-    padding: "14px",
+    padding: "16px",
     display: "grid",
-    gap: "8px",
-    background: "#fff7ed",
-    border: "1px solid #fed7aa"
+    gap: "10px",
+    background: "linear-gradient(180deg, #fff7ed 0%, #fffaf4 100%)",
+    border: "1px solid #fed7aa",
+    boxShadow: "0 10px 24px rgba(154,52,18,0.06)",
   },
 
   warningTitle: {
@@ -423,19 +515,21 @@ const s = {
   },
 
   splitNotice: {
-    padding: "14px",
+    padding: "16px",
     display: "grid",
-    gap: "6px",
-    background: "#fff7e6",
-    border: "1px solid #f3d7a4"
+    gap: "8px",
+    background: "linear-gradient(180deg, #fff7e6 0%, #fffaf1 100%)",
+    border: "1px solid #f3d7a4",
+    boxShadow: "0 10px 24px rgba(180,83,9,0.06)",
   },
 
   singleNotice: {
-    padding: "14px",
+    padding: "16px",
     display: "grid",
-    gap: "6px",
-    background: UI.colors.softBlue,
-    border: "1px solid #d3e4f8"
+    gap: "8px",
+    background: "linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%)",
+    border: "1px solid #d3e4f8",
+    boxShadow: "0 10px 24px rgba(23,59,116,0.05)",
   },
 
   splitTitle: {
@@ -449,17 +543,17 @@ const s = {
 
   layout: {
     display: "grid",
-    gap: "14px"
+    gap: "16px",
   },
 
   itemsCol: {
     display: "grid",
-    gap: "12px"
+    gap: "14px",
   },
 
   summaryCol: {
     display: "grid",
-    gap: "12px"
+    gap: "14px",
   },
 
   sellerHeader: {
@@ -467,13 +561,26 @@ const s = {
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "start",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    paddingBottom: "4px",
+    borderBottom: "1px solid #ebe3d7",
+  },
+
+  sellerEyebrow: {
+    color: "#8a8175",
+    fontSize: "12px",
+    fontWeight: 700,
+    marginBottom: "4px",
+  },
+
+  sellerSubtotalWrap: {
+    textAlign: "left",
   },
 
   sellerName: {
     color: UI.colors.navy,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "19px",
   },
 
   sellerMeta: {
@@ -486,18 +593,21 @@ const s = {
   sellerSubtotal: {
     color: UI.colors.navy,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "19px",
   },
 
   groupItems: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
 
   itemCard: {
-    padding: "14px",
+    padding: "16px",
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)",
   },
 
   itemTop: {
@@ -510,6 +620,26 @@ const s = {
   itemInfo: {
     display: "grid",
     gap: "4px"
+  },
+
+  itemMetaRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginTop: "2px",
+  },
+
+  itemMetaBadge: {
+    minHeight: "28px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "#ffffff",
+    border: "1px solid #e7ddcf",
+    color: "#7a6f63",
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 700,
   },
 
   itemTitle: {
@@ -532,21 +662,21 @@ const s = {
 
   itemImage: {
     width: "100%",
-    maxHeight: "180px",
+    maxHeight: "220px",
     objectFit: "cover",
-    borderRadius: UI.radius.lg,
-    border: "1px solid #ece3d8"
+    borderRadius: UI.radius.xl,
+    border: "1px solid #ece3d8",
   },
 
   itemImageFallback: {
     width: "100%",
-    minHeight: "140px",
-    borderRadius: UI.radius.lg,
+    minHeight: "180px",
+    borderRadius: UI.radius.xl,
     border: "1px solid #ece3d8",
     background: "#f8f7f3",
     display: "grid",
     placeItems: "center",
-    fontSize: "36px"
+    fontSize: "40px",
   },
 
   itemBottom: {
@@ -554,7 +684,8 @@ const s = {
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "center",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    paddingTop: "4px",
   },
 
   qtyControl: {
@@ -564,19 +695,21 @@ const s = {
     background: "#f8fbff",
     border: "1px solid #d7e2ef",
     borderRadius: UI.radius.lg,
-    padding: "6px"
+    padding: "6px",
+    boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.45)",
   },
 
   qtyBtn: {
-    width: "38px",
-    height: "38px",
+    width: "40px",
+    height: "40px",
     border: "none",
     borderRadius: UI.radius.md,
     background: UI.colors.white,
     color: UI.colors.navy,
     fontWeight: 900,
     fontSize: "20px",
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 6px 16px rgba(23,59,116,0.06)",
   },
 
   qtyValue: {
@@ -589,7 +722,7 @@ const s = {
   priceBlock: {
     display: "grid",
     gap: "4px",
-    textAlign: "left"
+    textAlign: "left",
   },
 
   unitPrice: {
@@ -600,8 +733,8 @@ const s = {
 
   lineTotal: {
     color: UI.colors.navy,
-    fontSize: "20px",
-    fontWeight: 900
+    fontSize: "22px",
+    fontWeight: 900,
   },
 
   stockOk: {
@@ -624,7 +757,31 @@ const s = {
 
   summaryRows: {
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    padding: "14px",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+  },
+
+  summaryTrustBox: {
+    padding: "14px",
+    borderRadius: UI.radius.xl,
+    background: "linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%)",
+    border: "1px solid #d3e4f8",
+    display: "grid",
+    gap: "6px",
+  },
+
+  summaryTrustTitle: {
+    color: UI.colors.navy,
+    fontWeight: 900,
+  },
+
+  summaryTrustText: {
+    color: "#5b6470",
+    lineHeight: 1.8,
+    fontSize: UI.type.bodySm,
   },
 
   summaryRow: {
@@ -641,7 +798,7 @@ const s = {
     gap: "12px",
     color: UI.colors.navy,
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "20px",
   },
 
   divider: {
@@ -658,11 +815,17 @@ const s = {
   emptyCard: {
     display: "grid",
     gap: "12px",
-    textAlign: "center"
+    textAlign: "center",
+    padding: "8px 0",
+  },
+
+  emptyActions: {
+    display: "grid",
+    gap: "10px",
   },
 
   emptyIcon: {
-    fontSize: "40px"
+    fontSize: "48px",
   },
 
   emptyTitle: {
