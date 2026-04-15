@@ -440,6 +440,7 @@ export default function ProductDetailsPage() {
       <section className="container section-space" dir="rtl">
         <div className="page-stack">
           <section className="ui-card" style={styles.heroShell}>
+            <div style={styles.heroBackdrop} />
             <div style={styles.heroGrid}>
               <div style={styles.galleryCol}>
                 <div style={styles.galleryCard}>
@@ -449,13 +450,18 @@ export default function ProductDetailsPage() {
                     <div style={styles.noImage}>لا توجد صورة</div>
                   )}
 
+                  <div style={styles.imageShade} />
+
                   <div style={styles.galleryBadges}>
-                    <span style={styles.badgeNeutral}>{normalizeCategoryLabel(product.category_slug)}</span>
+                    <span style={styles.badgeNeutral}>
+                      {normalizeCategoryLabel(product.category_slug)}
+                    </span>
+
                     {product.stock > 0 ? (
                       <span
                         style={{
                           ...styles.badgeSuccess,
-                          ...(stockTone === "warning" ? styles.badgeWarning : {})
+                          ...(stockTone === "warning" ? styles.badgeWarning : {}),
                         }}
                       >
                         {getStockLabel(product.stock)}
@@ -463,6 +469,13 @@ export default function ProductDetailsPage() {
                     ) : (
                       <span style={styles.badgeDanger}>غير متوفر</span>
                     )}
+                  </div>
+
+                  <div style={styles.galleryFloatingInfo}>
+                    <div style={styles.galleryFloatingTitle}>رحبة ✦ منتج مميز</div>
+                    <div style={styles.galleryFloatingText}>
+                      صور أوضح، عرض أجمل، وتجربة شراء أكثر إقناعاً
+                    </div>
                   </div>
                 </div>
 
@@ -475,7 +488,7 @@ export default function ProductDetailsPage() {
                         onClick={() => setSelectedImage(img)}
                         style={{
                           ...styles.thumbBtn,
-                          ...(selectedImage === img ? styles.thumbBtnActive : {})
+                          ...(selectedImage === img ? styles.thumbBtnActive : {}),
                         }}
                       >
                         <img src={img} alt={`thumb-${idx}`} style={styles.thumbImg} />
@@ -490,6 +503,7 @@ export default function ProductDetailsPage() {
                   <div style={styles.brandRow}>
                     <span className="ui-chip">{product.brand || product.seller_name || "RAHBA"}</span>
                     <span className="ui-chip">{normalizeCategoryLabel(product.category_slug)}</span>
+                    {product.sku ? <span className="ui-chip">SKU: {product.sku}</span> : null}
                   </div>
 
                   <h1 className="page-title" style={styles.productTitle}>
@@ -501,11 +515,19 @@ export default function ProductDetailsPage() {
                     <span>{ratingSummary.avg || 0}</span>
                     <span>({ratingSummary.count || 0} تقييم)</span>
                   </div>
+
+                  <p style={styles.heroLead}>
+                    {product.description_ar || "وصف مختصر غير متوفر حالياً"}
+                  </p>
                 </div>
 
                 <div className="ui-card-soft" style={styles.commerceCard}>
-                  <div style={styles.priceRow}>
-                    <strong style={styles.priceBox}>{product.price_mad} MAD</strong>
+                  <div style={styles.commerceTop}>
+                    <div>
+                      <div style={styles.priceLabel}>السعر الحالي</div>
+                      <strong style={styles.priceBox}>{product.price_mad} MAD</strong>
+                    </div>
+
                     <span
                       style={{
                         ...styles.stockPill,
@@ -513,7 +535,7 @@ export default function ProductDetailsPage() {
                           ? styles.stockSuccess
                           : stockTone === "warning"
                           ? styles.stockWarning
-                          : styles.stockDanger)
+                          : styles.stockDanger),
                       }}
                     >
                       {getStockLabel(product.stock)}
@@ -529,16 +551,38 @@ export default function ProductDetailsPage() {
                     </div>
                   </div>
 
-                  <p style={styles.shortDesc}>
-                    {product.description_ar || "وصف مختصر غير متوفر حالياً"}
-                  </p>
+                  <div style={styles.inlineCtaRow}>
+                    <button
+                      onClick={handleGoToCheckout}
+                      disabled={product.stock <= 0}
+                      className="btn btn-primary"
+                    >
+                      إتمام الطلب الآن
+                    </button>
+
+                    <button
+                      onClick={handleAddToCart}
+                      disabled={product.stock <= 0}
+                      className="btn btn-secondary"
+                    >
+                      أضف إلى السلة
+                    </button>
+                  </div>
+
+                  <div style={styles.microTrustRow}>
+                    <span style={styles.microTrustItem}>طلب سريع</span>
+                    <span style={styles.microTrustItem}>واجهة واضحة</span>
+                    <span style={styles.microTrustItem}>ثقة أفضل</span>
+                  </div>
                 </div>
 
                 <div className="ui-card-soft" style={styles.sellerCard}>
                   <div style={styles.sellerHead}>
                     <div>
                       <div style={styles.sellerLabel}>يباع بواسطة</div>
-                      <div style={styles.sellerValue}>{product.seller_name || product.brand || "RAHBA"}</div>
+                      <div style={styles.sellerValue}>
+                        {product.seller_name || product.brand || "RAHBA"}
+                      </div>
                     </div>
 
                     <div style={styles.sellerTrustBadge}>بائع داخل رحبة</div>
@@ -548,6 +592,17 @@ export default function ProductDetailsPage() {
                     <span>⭐ {ratingSummary.avg || 0}</span>
                     <span>•</span>
                     <span>{ratingSummary.count || 0} تقييم</span>
+                    {product.brand ? (
+                      <>
+                        <span>•</span>
+                        <span>{product.brand}</span>
+                      </>
+                    ) : null}
+                  </div>
+
+                  <div style={styles.sellerNote}>
+                    عرض أوضح للبائع والثقة داخل صفحة منتج مصممة لمساعدة المشتري على اتخاذ
+                    قرار أسرع.
                   </div>
 
                   <div style={styles.sellerActionRow}>
@@ -570,24 +625,6 @@ export default function ProductDetailsPage() {
                       واتساب
                     </a>
                   </div>
-                </div>
-
-                <div style={styles.inlineCtaRow}>
-                  <button
-                    onClick={handleGoToCheckout}
-                    disabled={product.stock <= 0}
-                    className="btn btn-primary"
-                  >
-                    إتمام الطلب الآن
-                  </button>
-
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={product.stock <= 0}
-                    className="btn btn-secondary"
-                  >
-                    أضف إلى السلة
-                  </button>
                 </div>
               </div>
             </div>
@@ -908,25 +945,39 @@ function DetailRow({ label, value }) {
 
 const styles = {
   heroShell: {
-    padding: "16px",
+    position: "relative",
+    overflow: "hidden",
+    padding: "18px",
     display: "grid",
-    gap: "18px"
+    gap: "18px",
+    background: "linear-gradient(180deg, #fffdfa 0%, #f8f3ea 100%)",
+    border: "1px solid #e5dcc9",
+    boxShadow: "0 20px 50px rgba(11,15,26,0.06)",
+  },
+  heroBackdrop: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "radial-gradient(circle at top right, rgba(10,191,184,0.10), transparent 28%), radial-gradient(circle at bottom left, rgba(59,165,245,0.08), transparent 24%)",
+    pointerEvents: "none",
   },
   heroGrid: {
+    position: "relative",
+    zIndex: 1,
     display: "grid",
-    gap: "18px"
+    gap: "20px",
   },
   galleryCol: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   infoCol: {
     display: "grid",
-    gap: "12px"
+    gap: "14px",
   },
   identityBlock: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   productTitle: {
     margin: 0
@@ -936,13 +987,19 @@ const styles = {
     gap: "8px",
     flexWrap: "wrap"
   },
+  heroLead: {
+    margin: 0,
+    color: "#556070",
+    lineHeight: 1.95,
+    fontSize: "15px",
+  },
   ratingLine: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
     flexWrap: "wrap",
     color: "#6b6156",
-    fontWeight: 800
+    fontWeight: 800,
   },
   stars: {
     color: "#f59e0b",
@@ -951,9 +1008,16 @@ const styles = {
   galleryCard: {
     position: "relative",
     overflow: "hidden",
-    borderRadius: "22px",
+    borderRadius: "24px",
     border: "1px solid #e7ddcf",
-    background: "#fff"
+    background: "#fff",
+    boxShadow: "0 16px 36px rgba(15,23,42,0.08)",
+  },
+  imageShade: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(to top, rgba(15,23,42,0.14), transparent 45%)",
+    pointerEvents: "none",
   },
   galleryBadges: {
     position: "absolute",
@@ -961,7 +1025,30 @@ const styles = {
     right: "12px",
     display: "flex",
     flexWrap: "wrap",
-    gap: "8px"
+    gap: "8px",
+  },
+  galleryFloatingInfo: {
+    position: "absolute",
+    right: "14px",
+    left: "14px",
+    bottom: "14px",
+    padding: "12px 14px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,0.88)",
+    border: "1px solid rgba(255,255,255,0.5)",
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.10)",
+  },
+  galleryFloatingTitle: {
+    color: "#173b74",
+    fontWeight: 900,
+    fontSize: "14px",
+    marginBottom: "4px",
+  },
+  galleryFloatingText: {
+    color: "#556070",
+    fontSize: "13px",
+    lineHeight: 1.7,
   },
   badgeNeutral: {
     padding: "7px 10px",
@@ -997,14 +1084,15 @@ const styles = {
   },
   mainImage: {
     width: "100%",
-    height: "360px",
+    height: "420px",
     objectFit: "cover",
-    display: "block"
+    display: "block",
   },
   noImage: {
+    minHeight: "420px",
     display: "grid",
     placeItems: "center",
-    color: "#94a3b8"
+    color: "#94a3b8",
   },
   thumbsRow: {
     display: "flex",
@@ -1013,16 +1101,17 @@ const styles = {
     paddingBottom: "4px"
   },
   thumbBtn: {
-    minWidth: "78px",
-    width: "78px",
-    height: "78px",
-    borderRadius: "16px",
+    minWidth: "82px",
+    width: "82px",
+    height: "82px",
+    borderRadius: "18px",
     overflow: "hidden",
     border: "1px solid #ddd2c2",
     background: "#fff",
     padding: 0,
     cursor: "pointer",
-    flexShrink: 0
+    flexShrink: 0,
+    boxShadow: "0 6px 18px rgba(15,23,42,0.05)",
   },
   thumbBtnActive: {
     border: "2px solid #173b74"
@@ -1033,22 +1122,38 @@ const styles = {
     objectFit: "cover"
   },
   commerceCard: {
-    padding: "16px",
+    padding: "18px",
     display: "grid",
-    gap: "12px"
+    gap: "14px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #e5dcc9",
+    boxShadow: "0 14px 32px rgba(15,23,42,0.05)",
+  },
+  commerceTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+  },
+  priceLabel: {
+    color: "#8a8175",
+    fontSize: "13px",
+    fontWeight: 700,
+    marginBottom: "6px",
   },
   priceRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "center",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
   priceBox: {
     color: "#173b74",
-    fontSize: "30px",
+    fontSize: "34px",
     fontWeight: 900,
-    lineHeight: 1.1
+    lineHeight: 1.05,
   },
   stockPill: {
     padding: "8px 12px",
@@ -1085,10 +1190,30 @@ const styles = {
     color: "#64748b",
     lineHeight: 1.8
   },
+  microTrustRow: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+  microTrustItem: {
+    minHeight: "30px",
+    padding: "0 10px",
+    borderRadius: "999px",
+    background: "#ffffff",
+    border: "1px solid #e7ddcf",
+    color: "#173b74",
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 800,
+  },
   sellerCard: {
-    padding: "16px",
+    padding: "18px",
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    border: "1px solid #dce8f7",
+    boxShadow: "0 14px 32px rgba(15,23,42,0.05)",
   },
   sellerHead: {
     display: "flex",
@@ -1106,7 +1231,7 @@ const styles = {
   sellerValue: {
     color: "#1f2937",
     fontWeight: 900,
-    fontSize: "18px"
+    fontSize: "20px",
   },
   sellerTrustBadge: {
     background: "#eef6ff",
@@ -1125,10 +1250,15 @@ const styles = {
     fontSize: "13px",
     fontWeight: 700
   },
+  sellerNote: {
+    color: "#556070",
+    lineHeight: 1.8,
+    fontSize: "14px",
+  },
   sellerActionRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "8px"
+    gap: "8px",
   },
   whatsappBtn: {
     display: "inline-flex",
@@ -1141,9 +1271,12 @@ const styles = {
     gap: "8px"
   },
   sectionCard: {
-    padding: "16px",
+    padding: "18px",
     display: "grid",
-    gap: "14px"
+    gap: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fdfaf5 100%)",
+    border: "1px solid #e7ddcf",
+    boxShadow: "0 14px 32px rgba(15,23,42,0.05)",
   },
   sectionHeadRow: {
     display: "flex",
@@ -1154,24 +1287,27 @@ const styles = {
   },
   reassuranceGrid: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   reassuranceCard: {
-    padding: "14px",
+    padding: "16px",
     display: "flex",
     gap: "12px",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    border: "1px solid #dce8f7",
   },
   reassuranceIcon: {
-    width: "34px",
-    height: "34px",
+    width: "38px",
+    height: "38px",
     borderRadius: "999px",
     background: "#eef6ff",
     color: "#173b74",
     display: "grid",
     placeItems: "center",
     fontSize: "16px",
-    flexShrink: 0
+    flexShrink: 0,
+    boxShadow: "0 6px 18px rgba(23,59,116,0.08)",
   },
   reassuranceTitle: {
     color: "#173b74",
@@ -1188,24 +1324,27 @@ const styles = {
   },
   highlightsGrid: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   highlightCard: {
-    padding: "14px",
+    padding: "16px",
     display: "flex",
     gap: "12px",
-    alignItems: "flex-start"
+    alignItems: "flex-start",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    border: "1px solid #dce8f7",
   },
   highlightIcon: {
-    width: "28px",
-    height: "28px",
+    width: "30px",
+    height: "30px",
     borderRadius: "999px",
     background: "#eef6ff",
     color: "#173b74",
     display: "grid",
     placeItems: "center",
     fontWeight: 900,
-    flexShrink: 0
+    flexShrink: 0,
+    boxShadow: "0 6px 18px rgba(23,59,116,0.08)",
   },
   highlightText: {
     color: "#374151",
@@ -1214,10 +1353,12 @@ const styles = {
   },
   detailsGrid: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   detailRow: {
-    padding: "14px"
+    padding: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
   },
   detailLabel: {
     color: "#8a8175",
@@ -1231,10 +1372,12 @@ const styles = {
   },
   faqList: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   faqItem: {
-    padding: "14px"
+    padding: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    border: "1px solid #dce8f7",
   },
   faqQuestion: {
     color: "#173b74",
@@ -1248,14 +1391,14 @@ const styles = {
   reviewHead: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "12px",
+    gap: "14px",
     alignItems: "center",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
   reviewActions: {
     display: "flex",
     gap: "8px",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
   },
   reviewSummary: {
     display: "flex",
@@ -1274,16 +1417,22 @@ const styles = {
   reviewForm: {
     display: "grid",
     gap: "12px",
-    paddingTop: "8px"
+    paddingTop: "10px",
+    padding: "16px",
+    background: "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+    border: "1px solid #dce8f7",
+    borderRadius: "20px",
   },
   reviewsList: {
     display: "grid",
-    gap: "10px"
+    gap: "12px",
   },
   reviewCard: {
-    padding: "14px",
+    padding: "16px",
     display: "grid",
-    gap: "8px"
+    gap: "10px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
   },
   reviewCardTop: {
     display: "flex",
@@ -1311,28 +1460,32 @@ const styles = {
   },
   reviewImage: {
     width: "100%",
-    maxHeight: "280px",
+    maxHeight: "300px",
     objectFit: "cover",
-    borderRadius: "16px",
-    border: "1px solid #e7ddcf"
+    borderRadius: "18px",
+    border: "1px solid #e7ddcf",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
   },
   similarGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
-    gap: "12px"
+    gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))",
+    gap: "14px",
   },
   similarCard: {
-    padding: "10px",
+    padding: "12px",
     display: "grid",
-    gap: "10px"
+    gap: "10px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.05)",
   },
   similarImage: {
     width: "100%",
-    height: "150px",
+    height: "170px",
     objectFit: "cover",
-    borderRadius: "16px",
+    borderRadius: "18px",
     border: "1px solid #e7ddcf",
-    background: "#fff"
+    background: "#fff",
   },
   similarBody: {
     display: "grid",
@@ -1341,9 +1494,9 @@ const styles = {
   similarTitle: {
     margin: 0,
     color: "#1f2937",
-    fontSize: "14px",
+    fontSize: "15px",
     lineHeight: 1.5,
-    fontWeight: 900
+    fontWeight: 900,
   },
   similarMeta: {
     display: "flex",
@@ -1369,13 +1522,14 @@ const styles = {
   },
   stickyBar: {
     marginTop: "10px",
-    background: "rgba(255,255,255,0.95)",
+    background: "rgba(255,255,255,0.96)",
     border: "1px solid #e7ddcf",
-    borderRadius: "20px",
-    boxShadow: "0 12px 30px rgba(23,59,116,0.08)",
+    borderRadius: "22px",
+    boxShadow: "0 16px 40px rgba(23,59,116,0.10)",
     padding: "12px",
     display: "grid",
-    gap: "10px"
+    gap: "10px",
+    backdropFilter: "blur(10px)",
   },
   stickyPrice: {
     display: "flex",
@@ -1383,7 +1537,8 @@ const styles = {
     gap: "10px",
     alignItems: "center",
     color: "#173b74",
-    fontSize: "20px"
+    fontSize: "20px",
+    fontWeight: 900,
   },
   stickyStock: {
     color: "#6b6156",
