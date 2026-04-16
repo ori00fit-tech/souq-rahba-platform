@@ -75,25 +75,12 @@ function getStatusMeta(status) {
     case "cancelled":
       return { label: "ملغي", bg: "#fef2f2", color: "#b91c1c", border: "#fecaca" };
     default:
-      return { label: status || "غير معروف", bg: "#f8fafc", color: "#475569", border: "#e2e8f0" };
-  }
-}
-
-function getOrderStatusRank(status) {
-  switch (String(status || "").toLowerCase()) {
-    case "pending":
-      return 1;
-    case "confirmed":
-    case "processing":
-      return 2;
-    case "shipped":
-      return 3;
-    case "delivered":
-      return 4;
-    case "cancelled":
-      return -1;
-    default:
-      return 0;
+      return {
+        label: status || "غير معروف",
+        bg: "#f8fafc",
+        color: "#475569",
+        border: "#e2e8f0"
+      };
   }
 }
 
@@ -141,6 +128,7 @@ export default function BuyerOrdersPage() {
 
   const accountStats = useMemo(() => {
     const totalOrders = orders.length;
+
     const activeOrders = orders.filter((order) => {
       const status = String(order.order_status || "").toLowerCase();
       return ["pending", "confirmed", "processing", "shipped"].includes(status);
@@ -187,9 +175,7 @@ export default function BuyerOrdersPage() {
       }
 
       const items = Array.isArray(result?.data) ? result.data : [];
-      const normalized = items.map(normalizeAccountOrder);
-
-      setOrders(normalized);
+      setOrders(items.map(normalizeAccountOrder));
     } catch (err) {
       console.error(err);
       if (requestId !== requestIdRef.current) return;
@@ -250,15 +236,19 @@ export default function BuyerOrdersPage() {
       <section className="container section-space" dir="rtl">
         <div style={s.stack}>
           <SectionShell style={s.heroShell}>
-            <div className="ui-chip">RAHBA ORDERS</div>
+            <div style={s.heroTopRow}>
+              <div className="ui-chip">RAHBA ACCOUNT</div>
+              <div style={s.heroKicker}>Loading account</div>
+            </div>
+
             <SectionHead
-              title="طلباتي"
-              subtitle="جاري تحميل الطلبات..."
+              title="الحساب"
+              subtitle="جاري تحميل بيانات الحساب والطلبات..."
             />
           </SectionShell>
 
           <SectionShell>
-            <div className="loading-state">جاري تحميل الطلبات...</div>
+            <div className="loading-state">جاري تحميل الحساب...</div>
           </SectionShell>
         </div>
       </section>
@@ -275,22 +265,15 @@ export default function BuyerOrdersPage() {
               <div style={s.heroKicker}>Guest account mode</div>
             </div>
 
-            <div style={s.accountNav}>
-              <span style={{ ...s.accountNavItem, ...s.accountNavItemActive }}>حساب الزائر</span>
-              <Link to="/track/RB-DEMO" style={s.accountNavLink}>التتبع</Link>
-              <Link to="/products" style={s.accountNavLink}>التسوق</Link>
-              <Link to="/auth" style={s.accountNavLink}>تسجيل الدخول</Link>
-            </div>
-
             <SectionHead
               title="حساب الزائر"
-              subtitle="راجع آخر الطلبات المحفوظة على هذا الجهاز، أو سجّل الدخول لتجربة حساب كاملة وأكثر ثباتاً عبر الأجهزة."
+              subtitle="راجع آخر الطلبات المحفوظة على هذا الجهاز أو سجّل الدخول للحصول على تجربة حساب كاملة."
             />
 
             <div style={s.heroTrustRow}>
               <span style={s.heroTrustItem}>طلبات محفوظة محلياً</span>
               <span style={s.heroTrustItem}>نسخ رقم الطلب</span>
-              <span style={s.heroTrustItem}>دخول أسرع لاحقاً</span>
+              <span style={s.heroTrustItem}>وصول سريع لاحقاً</span>
             </div>
           </SectionShell>
 
@@ -299,7 +282,7 @@ export default function BuyerOrdersPage() {
               <strong style={s.infoTitle}>مهم</strong>
               <span style={s.infoText}>
                 في وضع الزائر، نحفظ رقم الطلب وبعض المعلومات الأساسية فقط على هذا الجهاز.
-                التفاصيل الكاملة للطلب والمزامنة بين الأجهزة تتطلب تسجيل الدخول.
+                للوصول إلى تجربة حساب كاملة ومزامنة أفضل، قم بتسجيل الدخول.
               </span>
             </div>
           </SectionShell>
@@ -312,7 +295,9 @@ export default function BuyerOrdersPage() {
 
             <SectionShell style={s.quickCardShell}>
               <div style={s.quickCardValue}>
-                {guestOrders[0]?.created_at ? formatDateTime(guestOrders[0]?.created_at, locale) : "—"}
+                {guestOrders[0]?.created_at
+                  ? formatDateTime(guestOrders[0]?.created_at, locale)
+                  : "—"}
               </div>
               <div style={s.quickCardLabel}>آخر نشاط</div>
             </SectionShell>
@@ -322,6 +307,7 @@ export default function BuyerOrdersPage() {
             <Link to="/auth" className="btn btn-secondary">
               تسجيل الدخول
             </Link>
+
             <Link to="/products" className="btn btn-primary">
               متابعة التسوق
             </Link>
@@ -342,6 +328,7 @@ export default function BuyerOrdersPage() {
                   <Link to="/products" className="btn btn-primary full-width">
                     تصفح المنتجات
                   </Link>
+
                   <Link to="/auth" className="btn btn-secondary full-width">
                     إنشاء حساب أو تسجيل الدخول
                   </Link>
@@ -358,7 +345,11 @@ export default function BuyerOrdersPage() {
 
               <div style={s.list}>
                 {guestOrders.map((order, idx) => (
-                  <article key={`${order.order_number}-${idx}`} className="ui-card-soft" style={s.orderCard}>
+                  <article
+                    key={`${order.order_number}-${idx}`}
+                    className="ui-card-soft"
+                    style={s.orderCard}
+                  >
                     <div style={s.orderHead}>
                       <div style={s.orderTopInfo}>
                         <div style={s.orderNumber}>{order.order_number || "—"}</div>
@@ -417,18 +408,9 @@ export default function BuyerOrdersPage() {
             <div style={s.heroKicker}>Orders & account hub</div>
           </div>
 
-          <div style={s.accountNav}>
-            <span style={{ ...s.accountNavItem, ...s.accountNavItemActive }}>حسابي</span>
-            <span style={s.accountNavItem}>طلباتي</span>
-            <Link to="/products" style={s.accountNavLink}>التسوق</Link>
-            <button type="button" onClick={loadAccountOrders} style={s.accountNavButton}>
-              تحديث
-            </button>
-          </div>
-
           <SectionHead
             title={currentUser?.full_name ? `مرحباً، ${currentUser.full_name}` : "حسابي"}
-            subtitle="لوحة حسابك لمراجعة الطلبات، تتبع حالتها، والرجوع بسرعة إلى أهم الإجراءات داخل تجربة أوضح وأكثر احترافية."
+            subtitle="لوحة حسابك لمراجعة الطلبات، تتبع حالتها، والرجوع بسرعة إلى أهم الإجراءات."
           />
 
           <div style={s.heroTrustRow}>
@@ -547,14 +529,6 @@ export default function BuyerOrdersPage() {
                         </div>
                       </div>
 
-                      <div style={s.orderMetaStrip}>
-                        <span style={s.orderMetaChip}>{order.seller_name || "RAHBA"}</span>
-                        <span style={s.orderMetaChip}>{Number(order.items_count || 0)} منتج</span>
-                        <span style={s.orderMetaChip}>
-                          {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
-                        </span>
-                      </div>
-
                       <div style={s.orderBody}>
                         <div style={s.infoRow}>
                           <span style={s.infoLabel}>البائع</span>
@@ -569,7 +543,11 @@ export default function BuyerOrdersPage() {
                         <div style={s.infoRow}>
                           <span style={s.infoLabel}>الإجمالي</span>
                           <strong style={s.priceValue}>
-                            {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
+                            {formatMoney(
+                              Number(order.total_mad || 0),
+                              order.currency || currency,
+                              locale
+                            )}
                           </strong>
                         </div>
                       </div>
@@ -580,7 +558,7 @@ export default function BuyerOrdersPage() {
                           className="btn btn-primary full-width"
                           onClick={() => navigate(`/my-orders/${order.id}`)}
                         >
-                          فتح الطلب
+                          عرض التفاصيل
                         </button>
 
                         <button
@@ -597,53 +575,82 @@ export default function BuyerOrdersPage() {
               </div>
             </SectionShell>
 
-            {orders.length > 4 ? (
-              <SectionShell>
-                <SectionHead
-                  chip="ORDER HISTORY"
-                  title="كل الطلبات"
-                  subtitle="السجل الكامل لطلباتك داخل رحبة."
-                />
+            <SectionShell>
+              <SectionHead
+                chip="ORDER HISTORY"
+                title="سجل الطلبات الكامل"
+                subtitle="جميع الطلبات السابقة في حسابك للرجوع إليها وقت الحاجة."
+              />
 
-                <div style={s.compactList}>
-                  {orders.map((order) => {
-                    const status = getStatusMeta(order.order_status);
+              <div style={s.list}>
+                {orders.map((order) => {
+                  const status = getStatusMeta(order.order_status);
 
-                    return (
-                      <button
-                        key={`compact-${order.id}`}
-                        type="button"
-                        onClick={() => navigate(`/my-orders/${order.id}`)}
-                        style={s.compactOrderRow}
-                      >
-                        <div style={s.compactOrderMain}>
-                          <div style={s.compactOrderNumber}>{order.order_number || "—"}</div>
-                          <div style={s.compactOrderMeta}>
-                            {order.seller_name || "RAHBA"} · {formatDateTime(order.created_at, locale)}
-                          </div>
+                  return (
+                    <article key={order.id} className="ui-card-soft" style={s.orderCard}>
+                      <div style={s.orderHead}>
+                        <div style={s.orderTopInfo}>
+                          <div style={s.orderNumber}>{order.order_number || "—"}</div>
+                          <div style={s.orderDate}>{formatDateTime(order.created_at, locale)}</div>
                         </div>
 
-                        <div style={s.compactOrderSide}>
-                          <div
-                            style={{
-                              ...s.compactStatusPill,
-                              background: status.bg,
-                              color: status.color,
-                              borderColor: status.border
-                            }}
-                          >
-                            {status.label}
-                          </div>
-                          <strong style={s.compactPrice}>
-                            {formatMoney(Number(order.total_mad || 0), order.currency || currency, locale)}
+                        <div
+                          style={{
+                            ...s.statusPill,
+                            background: status.bg,
+                            color: status.color,
+                            borderColor: status.border
+                          }}
+                        >
+                          {status.label}
+                        </div>
+                      </div>
+
+                      <div style={s.orderBody}>
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>البائع</span>
+                          <strong style={s.infoValue}>{order.seller_name || "RAHBA"}</strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>عدد المنتجات</span>
+                          <strong style={s.infoValue}>{Number(order.items_count || 0)}</strong>
+                        </div>
+
+                        <div style={s.infoRow}>
+                          <span style={s.infoLabel}>الإجمالي</span>
+                          <strong style={s.priceValue}>
+                            {formatMoney(
+                              Number(order.total_mad || 0),
+                              order.currency || currency,
+                              locale
+                            )}
                           </strong>
                         </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </SectionShell>
-            ) : null}
+                      </div>
+
+                      <div style={s.actions}>
+                        <button
+                          type="button"
+                          className="btn btn-primary full-width"
+                          onClick={() => navigate(`/my-orders/${order.id}`)}
+                        >
+                          عرض التفاصيل
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary full-width"
+                          onClick={() => copyText(order.order_number || "")}
+                        >
+                          نسخ رقم الطلب
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </SectionShell>
           </>
         )}
       </div>
@@ -699,78 +706,23 @@ const s = {
     fontWeight: 800
   },
 
-  accountNav: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-    alignItems: "center"
-  },
-
-  accountNavItem: {
-    minHeight: "34px",
-    padding: "0 12px",
-    borderRadius: UI.radius.pill,
-    background: "rgba(255,255,255,0.58)",
-    border: "1px solid #dce8f7",
-    color: UI.colors.navy,
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: UI.type.bodySm,
-    fontWeight: 700
-  },
-
-  accountNavItemActive: {
-    background: "#173b74",
-    border: "1px solid #173b74",
-    color: "#ffffff"
-  },
-
-  accountNavLink: {
-    minHeight: "34px",
-    padding: "0 12px",
-    borderRadius: UI.radius.pill,
-    background: "rgba(255,255,255,0.58)",
-    border: "1px solid #dce8f7",
-    color: UI.colors.navy,
-    display: "inline-flex",
-    alignItems: "center",
-    textDecoration: "none",
-    fontSize: UI.type.bodySm,
-    fontWeight: 700
-  },
-
-  accountNavButton: {
-    minHeight: "34px",
-    padding: "0 12px",
-    borderRadius: UI.radius.pill,
-    background: "rgba(255,255,255,0.58)",
-    border: "1px solid #dce8f7",
-    color: UI.colors.navy,
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: UI.type.bodySm,
-    fontWeight: 700,
-    cursor: "pointer"
-  },
-
   quickGrid: {
     display: "grid",
-    gap: "14px",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))"
+    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))"
   },
 
   quickCardShell: {
     textAlign: "center",
-    gap: "10px",
+    gap: "8px",
     background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
-    border: "1px solid #eadfce",
-    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
+    border: "1px solid #eadfce"
   },
 
   quickCardValue: {
     color: UI.colors.navy,
     fontWeight: 900,
-    fontSize: "24px",
+    fontSize: "22px",
     lineHeight: 1.4
   },
 
@@ -795,28 +747,29 @@ const s = {
   },
 
   accountSummaryTitle: {
-    color: UI.colors.muted,
-    fontWeight: 700,
-    fontSize: UI.type.bodySm
+    color: UI.colors.navy,
+    fontWeight: 900
   },
 
   accountSummaryText: {
-    color: UI.colors.navy,
-    fontWeight: 900,
-    lineHeight: 1.8
+    color: "#5b6470",
+    lineHeight: 1.8,
+    fontWeight: 700
   },
 
   topActions: {
     display: "flex",
-    justifyContent: "flex-start",
     gap: "10px",
+    justifyContent: "flex-start",
     flexWrap: "wrap"
   },
 
   infoCard: {
     padding: "14px",
     display: "grid",
-    gap: "6px"
+    gap: "6px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   infoTitle: {
@@ -836,7 +789,10 @@ const s = {
   orderCard: {
     padding: "16px",
     display: "grid",
-    gap: "14px"
+    gap: "14px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
   },
 
   orderHead: {
@@ -844,7 +800,9 @@ const s = {
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "start",
-    flexWrap: "wrap"
+    flexWrap: "wrap",
+    paddingBottom: "6px",
+    borderBottom: "1px solid #ebe3d7"
   },
 
   orderTopInfo: {
@@ -890,25 +848,6 @@ const s = {
     fontSize: UI.type.bodySm
   },
 
-  orderMetaStrip: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap"
-  },
-
-  orderMetaChip: {
-    minHeight: "28px",
-    padding: "0 10px",
-    borderRadius: UI.radius.pill,
-    background: "#ffffff",
-    border: "1px solid #e7ddcf",
-    color: "#7a6f63",
-    display: "inline-flex",
-    alignItems: "center",
-    fontSize: "12px",
-    fontWeight: 700
-  },
-
   orderBody: {
     display: "grid",
     gap: "10px"
@@ -943,77 +882,11 @@ const s = {
     gap: "10px"
   },
 
-  compactList: {
-    display: "grid",
-    gap: "10px"
-  },
-
-  compactOrderRow: {
-    width: "100%",
-    border: "1px solid #eadfce",
-    borderRadius: UI.radius.xl,
-    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "12px",
-    alignItems: "center",
-    flexWrap: "wrap",
-    padding: "14px",
-    textAlign: "right",
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(15,23,42,0.04)",
-    transition: "transform 0.18s ease, box-shadow 0.18s ease"
-  },
-
-  compactOrderMain: {
-    display: "grid",
-    gap: "4px"
-  },
-
-  compactOrderNumber: {
-    color: UI.colors.navy,
-    fontWeight: 900
-  },
-
-  compactOrderMeta: {
-    color: UI.colors.muted,
-    fontWeight: 700,
-    fontSize: UI.type.bodySm
-  },
-
-  compactOrderSide: {
-    display: "grid",
-    gap: "8px",
-    justifyItems: "end"
-  },
-
-  compactStatusPill: {
-    minHeight: "30px",
-    padding: "0 10px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: UI.radius.pill,
-    border: "1px solid transparent",
-    fontWeight: 800,
-    fontSize: "12px"
-  },
-
-  compactPrice: {
-    color: UI.colors.navy,
-    fontWeight: 900
-  },
-
   emptyCard: {
     display: "grid",
     gap: "12px",
     textAlign: "center",
     padding: "8px 0"
-  },
-
-  emptyActions: {
-    display: "grid",
-    gap: "10px"
   },
 
   emptyIcon: {
@@ -1030,5 +903,10 @@ const s = {
     margin: 0,
     color: "#7a6f63",
     lineHeight: 1.8
+  },
+
+  emptyActions: {
+    display: "grid",
+    gap: "10px"
   }
 };
