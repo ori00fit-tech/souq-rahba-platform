@@ -8,6 +8,7 @@ import { UI } from "../components/marketplace/uiTokens";
 import { normalizeMarketplaceProducts } from "../utils/marketplaceProductMapper";
 
 const PAGE_LIMIT = 10;
+const VIEW_MODE_STORAGE_KEY = "rahba.products.viewMode";
 
 const SORT_OPTIONS = [
   { value: "newest", label: "الأحدث" },
@@ -26,6 +27,7 @@ export default function ProductsPage() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [viewMode, setViewMode] = useState("comfortable");
 
   const q = searchParams.get("q") || "";
   const category = searchParams.get("category") || "";
@@ -42,6 +44,25 @@ export default function ProductsPage() {
   useEffect(() => {
     setDraftQuery(q);
   }, [q]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      if (stored === "comfortable" || stored === "compact") {
+        setViewMode(stored);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode);
+    } catch (err) {
+      console.error(err);
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     async function loadCategories() {
@@ -186,6 +207,22 @@ export default function ProductsPage() {
     [products]
   );
 
+  const topCategoryChips = useMemo(() => {
+    return categoryOptions.filter((item) => item.value).slice(0, 8);
+  }, [categoryOptions]);
+
+  const productsGridStyle = useMemo(() => {
+    return {
+      ...styles.productsGrid,
+      gridTemplateColumns:
+        viewMode === "compact"
+          ? "repeat(auto-fill, minmax(210px, 1fr))"
+          : "repeat(auto-fill, minmax(250px, 1fr))",
+    };
+  }, [viewMode]);
+
+  const skeletonItems = useMemo(() => Array.from({ length: 8 }), []);
+
   return (
     <section className="container section-space" dir="rtl">
       <div style={styles.stack}>
@@ -270,6 +307,28 @@ export default function ProductsPage() {
                 </select>
               </div>
             </div>
+
+            <div style={styles.quickCategoriesRow}>
+              <span style={styles.quickCategoriesLabel}>فئات سريعة:</span>
+              <div style={styles.quickCategoriesWrap}>
+                {topCategoryChips.map((item) => {
+                  const active = item.value === category;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => updateFilters({ category: item.value, page: 1 })}
+                      style={{
+                        ...styles.quickCategoryChip,
+                        ...(active ? styles.quickCategoryChipActive : {}),
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div style={styles.filtersFooter}>
@@ -283,6 +342,7 @@ export default function ProductsPage() {
               ) : (
                 <span className="ui-chip">بدون فلاتر إضافية</span>
               )}
+              <span className="ui-chip">عدد الفلاتر النشطة: {activeFilters.length}</span>
             </div>
 
             <button onClick={clearFilters} className="btn btn-soft">
@@ -296,11 +356,20 @@ export default function ProductsPage() {
 
         {loading ? (
           <SectionShell>
-            <div className="loading-state">جاري تحميل المنتجات...</div>
+            <div style={styles.loadingGrid} aria-live="polite">
+              {skeletonItems.map((_, index) => (
+                <div key={index} style={styles.loadingCard} />
+              ))}
+            </div>
           </SectionShell>
         ) : normalizedProducts.length === 0 ? (
           <SectionShell style={styles.emptyShell}>
-            <div className="empty-state">لا توجد نتائج حالياً</div>
+            <div style={styles.emptyStateWrap}>
+              <div className="empty-state">لا توجد نتائج مطابقة للفلاتر الحالية.</div>
+              <button type="button" className="btn btn-soft" onClick={clearFilters}>
+                إعادة ضبط البحث
+              </button>
+            </div>
           </SectionShell>
         ) : (
           <SectionShell style={styles.resultsShell}>
@@ -314,10 +383,34 @@ export default function ProductsPage() {
               <div style={styles.resultsMeta}>
                 <span className="ui-chip">{pagination.total} نتيجة</span>
                 <span className="ui-chip">عرض أوضح</span>
+                <div style={styles.viewModeToggle}>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    style={{
+                      ...styles.viewBtnMode,
+                      ...(viewMode === "comfortable" ? styles.viewBtnModeActive : {}),
+                    }}
+                    onClick={() => setViewMode("comfortable")}
+                  >
+                    مريح
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-soft"
+                    style={{
+                      ...styles.viewBtnMode,
+                      ...(viewMode === "compact" ? styles.viewBtnModeActive : {}),
+                    }}
+                    onClick={() => setViewMode("compact")}
+                  >
+                    مكثف
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div style={styles.productsGrid}>
+            <div style={productsGridStyle}>
               {normalizedProducts.map((product) => (
                 <ProductCard
                   key={product.id || product.slug || product.name}
@@ -393,6 +486,12 @@ const styles = {
     display: "grid",
     gap: "18px",
     background: "#ffffff",
+    position: "sticky",
+    top: "12px",
+    zIndex: 2,
+    alignSelf: "start",
+    maxHeight: "calc(100vh - 24px)",
+    overflowY: "auto",
   },
 
   filtersHead: {
@@ -426,6 +525,41 @@ const styles = {
     gap: "12px",
   },
 
+  quickCategoriesRow: {
+    display: "grid",
+    gap: "8px",
+  },
+
+  quickCategoriesLabel: {
+    color: UI.colors.muted,
+    fontWeight: 700,
+    fontSize: UI.type.caption,
+  },
+
+  quickCategoriesWrap: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+  },
+
+  quickCategoryChip: {
+    minHeight: "34px",
+    borderRadius: UI.radius.pill,
+    border: `1px solid ${UI.colors.border}`,
+    background: "#fff",
+    color: UI.colors.navy,
+    padding: "0 12px",
+    fontSize: UI.type.caption,
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+
+  quickCategoryChipActive: {
+    border: "1px solid #1e5fa8",
+    background: "#eaf2fd",
+    color: "#123664",
+  },
+
   selectBlock: {
     display: "grid",
     gap: "10px",
@@ -449,6 +583,12 @@ const styles = {
     background: "#fffdfa",
   },
 
+  emptyStateWrap: {
+    display: "grid",
+    gap: "12px",
+    justifyItems: "center",
+  },
+
   resultsShell: {
     display: "grid",
     gap: "18px",
@@ -466,12 +606,44 @@ const styles = {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap",
+    alignItems: "center",
   },
 
   productsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
     gap: UI.spacing.cardGap,
+  },
+
+  viewModeToggle: {
+    display: "inline-flex",
+    gap: "6px",
+  },
+
+  viewBtnMode: {
+    minHeight: "34px",
+    borderRadius: UI.radius.pill,
+    padding: "0 12px",
+    fontSize: UI.type.caption,
+  },
+
+  viewBtnModeActive: {
+    background: "#eaf2fd",
+    border: "1px solid #bfd6f3",
+    color: UI.colors.navy,
+  },
+
+  loadingGrid: {
+    display: "grid",
+    gap: "12px",
+    gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
+  },
+
+  loadingCard: {
+    minHeight: "260px",
+    borderRadius: UI.radius.xxl,
+    background: "linear-gradient(90deg, #f4efe5 0%, #ebe3d4 50%, #f4efe5 100%)",
+    backgroundSize: "200% 100%",
+    animation: "rahbaPulse 1.2s ease-in-out infinite",
   },
 
   pagination: {
