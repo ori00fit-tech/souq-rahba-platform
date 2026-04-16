@@ -271,7 +271,11 @@ export default function BuyerOrderDetailsPage() {
       <section className="container section-space" dir="rtl">
         <div style={s.stack}>
           <SectionShell style={s.heroShell}>
-            <div className="ui-chip">RAHBA ORDER</div>
+            <div style={s.heroTopRow}>
+              <div className="ui-chip">RAHBA ORDER</div>
+              <div style={s.heroKicker}>Loading order details</div>
+            </div>
+
             <SectionHead
               title="تفاصيل الطلب"
               subtitle="جاري تحميل تفاصيل الطلب..."
@@ -291,7 +295,11 @@ export default function BuyerOrderDetailsPage() {
       <section className="container section-space" dir="rtl">
         <div style={s.stack}>
           <SectionShell style={s.heroShell}>
-            <div className="ui-chip">RAHBA ORDER</div>
+            <div style={s.heroTopRow}>
+              <div className="ui-chip">RAHBA ORDER</div>
+              <div style={s.heroKicker}>Protected page</div>
+            </div>
+
             <SectionHead
               title="تفاصيل الطلب"
               subtitle="قم بتسجيل الدخول أولاً للوصول إلى الطلب."
@@ -321,7 +329,11 @@ export default function BuyerOrderDetailsPage() {
       <section className="container section-space" dir="rtl">
         <div style={s.stack}>
           <SectionShell style={s.heroShell}>
-            <div className="ui-chip">RAHBA ORDER</div>
+            <div style={s.heroTopRow}>
+              <div className="ui-chip">RAHBA ORDER</div>
+              <div style={s.heroKicker}>Order not available</div>
+            </div>
+
             <SectionHead
               title="تفاصيل الطلب"
               subtitle="تعذر العثور على الطلب المطلوب."
@@ -335,7 +347,7 @@ export default function BuyerOrderDetailsPage() {
             className="btn btn-secondary full-width"
             onClick={() => navigate("/my-orders")}
           >
-            الرجوع إلى طلباتي
+            الرجوع إلى حسابي
           </button>
         </div>
       </section>
@@ -356,18 +368,28 @@ export default function BuyerOrderDetailsPage() {
     <section className="container section-space" dir="rtl">
       <div style={s.stack}>
         <SectionShell style={s.heroShell}>
-          <div style={s.heroTop}>
-            <div style={s.heroInfo}>
-              <div className="ui-chip">RAHBA ORDER</div>
+          <div style={s.heroTopRow}>
+            <div className="ui-chip">RAHBA ORDER</div>
+            <div style={s.heroKicker}>Premium post-purchase page</div>
+          </div>
+
+          <div style={s.heroMainRow}>
+            <div style={s.heroMainInfo}>
               <SectionHead
                 title="تفاصيل الطلب"
-                subtitle="راجع حالة الطلب، المنتجات، ومعلومات التوصيل."
+                subtitle="راجع حالة الطلب، المنتجات، الشحن، ومعلومات التوصيل من مكان واحد."
               />
+
+              <div style={s.heroTrustRow}>
+                <span style={s.heroTrustItem}>حالة أوضح</span>
+                <span style={s.heroTrustItem}>تتبع أسرع</span>
+                <span style={s.heroTrustItem}>وصول مباشر للمعلومات</span>
+              </div>
             </div>
 
             <div
               style={{
-                ...s.statusPill,
+                ...s.statusPillHero,
                 background: status.bg,
                 color: status.color,
                 borderColor: status.border
@@ -398,15 +420,27 @@ export default function BuyerOrderDetailsPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-secondary"
-            style={s.copyOrderBtn}
-            onClick={() => copyText(order.order_number || "")}
-          >
-            نسخ رقم الطلب
-          </button>
+          <div style={s.heroActions}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={s.copyOrderBtn}
+              onClick={() => copyText(order.order_number || "")}
+            >
+              نسخ رقم الطلب
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => navigate("/my-orders")}
+            >
+              الرجوع إلى حسابي
+            </button>
+          </div>
         </SectionShell>
+
+        {message ? <div className="message-box">{message}</div> : null}
 
         <div style={s.layout}>
           <div style={s.mainCol}>
@@ -477,14 +511,20 @@ export default function BuyerOrderDetailsPage() {
                     <article key={item.id || idx} className="ui-card-soft" style={s.itemCard}>
                       <div style={s.itemRowTop}>
                         <div style={s.itemInfo}>
-                          <div style={s.itemTitle}>{item.title_ar || item.product_name || "منتج"}</div>
+                          <div style={s.itemTitle}>
+                            {item.title_ar || item.product_name || "منتج"}
+                          </div>
                           <div style={s.itemMeta}>
                             {item.slug ? `/${item.slug}` : "بدون رابط منتج"}
                           </div>
                         </div>
 
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.title_ar || "product"} style={s.itemImage} />
+                          <img
+                            src={item.image_url}
+                            alt={item.title_ar || "product"}
+                            style={s.itemImage}
+                          />
                         ) : (
                           <div style={s.itemImageFallback}>📦</div>
                         )}
@@ -534,6 +574,7 @@ export default function BuyerOrderDetailsPage() {
                     title="الشحن والتتبع"
                     subtitle="تابع تقدم الشحنة ومعلومات التوصيل."
                   />
+
                   {(() => {
                     const meta = getShippingStatusMeta(shipping.shipping_status);
                     return (
@@ -597,17 +638,17 @@ export default function BuyerOrderDetailsPage() {
                 </div>
 
                 <div style={s.shippingGrid}>
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>شركة الشحن</span>
                     <strong style={s.shippingValue}>{shipping.provider_name || "—"}</strong>
                   </div>
 
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>طريقة الشحن</span>
                     <strong style={s.shippingValue}>{shipping.method_name || "—"}</strong>
                   </div>
 
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>ثمن الشحن</span>
                     <strong style={s.shippingValue}>
                       {Number(shipping.shipping_price || 0) === 0
@@ -616,7 +657,7 @@ export default function BuyerOrderDetailsPage() {
                     </strong>
                   </div>
 
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>رقم التتبع</span>
                     {shipping.tracking_number ? (
                       trackingUrl ? (
@@ -636,12 +677,12 @@ export default function BuyerOrderDetailsPage() {
                     )}
                   </div>
 
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>تاريخ الشحن</span>
                     <strong style={s.shippingValue}>{formatDateTime(shipping.shipped_at, locale)}</strong>
                   </div>
 
-                  <div style={s.shippingItem}>
+                  <div className="ui-card-soft" style={s.shippingItem}>
                     <span style={s.shippingLabel}>تاريخ التسليم</span>
                     <strong style={s.shippingValue}>{formatDateTime(shipping.delivered_at, locale)}</strong>
                   </div>
@@ -697,13 +738,23 @@ export default function BuyerOrderDetailsPage() {
                 </div>
               ) : null}
 
-              <button
-                type="button"
-                className="btn btn-secondary full-width"
-                onClick={() => navigate("/my-orders")}
-              >
-                الرجوع إلى طلباتي
-              </button>
+              <div style={s.sideActions}>
+                <button
+                  type="button"
+                  className="btn btn-primary full-width"
+                  onClick={() => navigate("/my-orders")}
+                >
+                  الرجوع إلى حسابي
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary full-width"
+                  onClick={() => copyText(order.order_number || "")}
+                >
+                  نسخ رقم الطلب
+                </button>
+              </div>
             </SectionShell>
           </aside>
         </div>
@@ -719,34 +770,76 @@ const s = {
   },
 
   heroShell: {
+    position: "relative",
+    overflow: "hidden",
     background:
-      "linear-gradient(135deg, rgba(23,59,116,0.06) 0%, rgba(20,184,166,0.06) 100%)",
-    border: "1px solid #dfe7f3"
+      "linear-gradient(135deg, rgba(23,59,116,0.07) 0%, rgba(20,184,166,0.08) 100%)",
+    border: "1px solid #dfe7f3",
+    boxShadow: "0 18px 42px rgba(15,23,42,0.06)"
   },
 
-  heroTop: {
+  heroTopRow: {
     display: "flex",
     justifyContent: "space-between",
     gap: "12px",
+    alignItems: "center",
+    flexWrap: "wrap"
+  },
+
+  heroKicker: {
+    color: "#0f766e",
+    fontWeight: 800,
+    fontSize: UI.type.bodySm
+  },
+
+  heroMainRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "16px",
     alignItems: "start",
     flexWrap: "wrap"
   },
 
-  heroInfo: {
+  heroMainInfo: {
     display: "grid",
-    gap: "8px"
+    gap: "10px"
   },
 
-  statusPill: {
-    minHeight: "36px",
-    padding: "0 14px",
+  heroTrustRow: {
     display: "flex",
+    gap: "8px",
+    flexWrap: "wrap"
+  },
+
+  heroTrustItem: {
+    minHeight: "30px",
+    padding: "0 10px",
+    borderRadius: UI.radius.pill,
+    background: "rgba(255,255,255,0.74)",
+    border: "1px solid #dce8f7",
+    color: UI.colors.navy,
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "12px",
+    fontWeight: 800
+  },
+
+  statusPillHero: {
+    minHeight: "38px",
+    padding: "0 14px",
+    display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: UI.radius.pill,
     border: "1px solid transparent",
     fontWeight: 800,
     fontSize: UI.type.bodySm
+  },
+
+  heroActions: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap"
   },
 
   copyOrderBtn: {
@@ -762,7 +855,9 @@ const s = {
   summaryBox: {
     padding: "14px",
     display: "grid",
-    gap: "6px"
+    gap: "6px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   summaryLabel: {
@@ -778,7 +873,7 @@ const s = {
 
   layout: {
     display: "grid",
-    gap: "14px"
+    gap: "16px"
   },
 
   mainCol: {
@@ -800,7 +895,9 @@ const s = {
   statusItem: {
     padding: "14px",
     display: "grid",
-    gap: "8px"
+    gap: "8px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   statusLabel: {
@@ -828,9 +925,12 @@ const s = {
   },
 
   itemCard: {
-    padding: "14px",
+    padding: "15px",
     display: "grid",
-    gap: "12px"
+    gap: "12px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.04)"
   },
 
   itemRowTop: {
@@ -861,7 +961,7 @@ const s = {
     width: "84px",
     height: "84px",
     objectFit: "cover",
-    borderRadius: UI.radius.lg,
+    borderRadius: UI.radius.xl,
     border: "1px solid #ece3d8",
     flexShrink: 0
   },
@@ -869,7 +969,7 @@ const s = {
   itemImageFallback: {
     width: "84px",
     height: "84px",
-    borderRadius: UI.radius.lg,
+    borderRadius: UI.radius.xl,
     border: "1px solid #ece3d8",
     background: "#f8f7f3",
     display: "grid",
@@ -977,8 +1077,11 @@ const s = {
   },
 
   shippingItem: {
+    padding: "14px",
     display: "grid",
-    gap: "6px"
+    gap: "6px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   shippingLabel: {
@@ -1030,7 +1133,9 @@ const s = {
   notesCard: {
     padding: "14px",
     display: "grid",
-    gap: "8px"
+    gap: "8px",
+    background: "linear-gradient(180deg, #ffffff 0%, #fbf8f2 100%)",
+    border: "1px solid #eadfce"
   },
 
   notesTitle: {
@@ -1041,6 +1146,11 @@ const s = {
     margin: 0,
     color: "#4b5563",
     lineHeight: 1.9
+  },
+
+  sideActions: {
+    display: "grid",
+    gap: "10px"
   },
 
   emptyInline: {
